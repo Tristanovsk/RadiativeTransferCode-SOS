@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sosabs"
+version = "0.1.0"
+description = "Python tools (runs, NetCDF look-up tables) for the SOS-ABS radiative transfer code"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.8"
+dependencies = ["numpy", "xarray", "netCDF4"]
+
+[project.optional-dependencies]
+notebook = ["matplotlib", "jupyter"]
+
+[tool.setuptools]
+packages = ["sosabs"]

@@ -23,6 +23,8 @@ By default, SOS-ABS provides the upward radiance field at TOA and the downward r
 
 - [User Manual](https://github.com/CNES/RadiativeTransferCode-SOS/blob/master/doc/SOS-ABS-User_Manual_V1.0.pdf)
 - [Example of SOS-ABS simulation from command lines](https://github.com/CNES/RadiativeTransferCode-SOS/blob/master/exe/runSOS-ABS_demo.ksh)
+- Python package `sosabs` (`python/`): runs as `xarray` datasets and fast generation of NetCDF look-up tables (`sosabs.build_lut`)
+- Tutorial notebook: [water vapour impact on above-water radiometry, 900–1000 nm](docs/source/tutorials/water_vapour_900_1000nm.ipynb)
 
 
 ## FAQ
