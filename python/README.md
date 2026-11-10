@@ -8,7 +8,17 @@ Python tools for the SOS-ABS radiative transfer code:
   as attributes);
 - `sosabs.build_lut(grid, fixed, outfile=...)`: parallel simulations on a
   parameter grid, gathered in a NetCDF look-up table with CF-style
-  attributes.
+  attributes;
+- `sosabs.ckd`: conversion of the CKD absorption coefficients
+  (`fic/COEFF_CKD/<res>cmm1`, ASCII) to one NetCDF file per spectral
+  resolution, and band transmittance of a gas layer:
+
+  ```python
+  import sosabs
+  sosabs.ckd.to_netcdf(10)            # -> fic/COEFF_CKD/ckd_10cmm1.nc (~60 MB)
+  ds = sosabs.ckd.open_ckd(10)
+  t = sosabs.ckd.transmittance(ds, "O2", amount=4.5e24, pressure=500., temperature=250.)
+  ```
 
 Installation (from the repository root):
 

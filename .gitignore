@@ -16,3 +16,6 @@ docs/build/
 __pycache__/
 *.egg-info/
 docs/source/tutorials/*.nc
+
+# NetCDF copies of the CKD coefficients (sosabs.ckd.to_netcdf)
+fic/COEFF_CKD/*.nc

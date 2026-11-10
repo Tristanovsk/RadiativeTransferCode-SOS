@@ -20,6 +20,7 @@ command line or from Python.
    algorithm
    parameters
    input_files
+   ckd
    output_files
 
 .. toctree::
