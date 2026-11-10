@@ -1,0 +1,8 @@
+# Doc
+sphinx
+sphinx-book-theme
+sphinx-copybutton
+sphinxcontrib-mermaid
+myst-parser
+myst-nb
+linkify-it-py
