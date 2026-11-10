@@ -19,94 +19,94 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_ROUJEAN.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Genere les fichiers de BRDF de Roujean.
+C* FILE: SOS_ROUJEAN.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: Generates the Roujean BRDF files.
 C*
-C* AUTEUR: 
+C* AUTHOR:
 C*    CS GROUP France, B.Lafrance.
 C* DATE: 30/04/2002
 C*
-C* MOD:VERSION:1.0: Creation du programme
-C* MOD:VERSION:1.1: Amelioration des commentaires
+C* MOD:VERSION:1.0: Creation of the program
+C* MOD:VERSION:1.1: Improvement of the comments
 C*
 C* MOD:VERSION:2.0: 10/01/2010 
 C*
-C*   - Suppression de la constante CTE_OS_FICANGLE (de SOS.h) et de la lecture du fichier correspondant 
-C*     des angles de Gauss au profit : d'un passage par argument des tables d'angles (RMU) et poids (CHR).
+C*   - Removal of the constant CTE_OS_FICANGLE (from SOS.h) and of the reading of the corresponding
+C*     Gauss angle file, in favour of passing the angle (RMU) and weight (CHR) tables as arguments.
 C*
-C*   - Modification de la taille des tableaux de luminance :
-C*     ==> Passage de CTE_OS_NBMU à CTE_OS_NBMU_MAX.
-C*     ==> Boucle sur les angles jusqu'à LUM_NBMU (nouveau argument d'entrée) 
-C*         égal au nombre effectif d'angles utilises.
+C*   - Change of the size of the radiance arrays:
+C*     ==> Changed from CTE_OS_NBMU to CTE_OS_NBMU_MAX.
+C*     ==> Loop on the angles up to LUM_NBMU (new input argument)
+C*         equal to the actual number of angles used.
 C*
-C*   - Suppresion des constantes CTE_OS_NB  (de SOS.h)  
-C*     au profit : d'un passage par argument de la valeur  OS_NB.
+C*   - Removal of the constants CTE_OS_NB (from SOS.h)
+C*     in favour of passing the value OS_NB as argument.
 C*
-C*   - Modification de la taille des tableaux de decomposition en polynomes de Legendre :
-C*     ==> Passage de CTE_OS_NB à CTE_OS_NB_MAX.
-C*     ==> Boucle sur les ordre jusqu'à OS_NB  (nouveaux argument d'entrée)
+C*   - Change of the size of the arrays of the decomposition in Legendre polynomials:
+C*     ==> Changed from CTE_OS_NB to CTE_OS_NB_MAX.
+C*     ==> Loop on the orders up to OS_NB (new input argument)
 C*
-C*   - Routine SOS_FSF_ROUJEAN : Modification de l'appel de la routine pour inclure l'argument LUM_NBMU   
-C*     (nb d'angles utiles) et pour limiter les boucles aux bornes utiles LUM_NBMU.
-C*     et pour inclure l'argument OS_NB.    
+C*   - Routine SOS_FSF_ROUJEAN: change of the routine call to include the argument LUM_NBMU
+C*     (nb of useful angles) and to limit the loops to the useful bounds LUM_NBMU,
+C*     and to include the argument OS_NB.
 C*
-C*   - Routine SOS_MISE_FORMAT_RJ : Modification de la ligne d'enregistrement des  
-C*     tableaux de la  matrice de reflexion a l'ordre IS de la decomposition 
-C*     en series de Fourier :
-C*     ==> limitation aux bornes utiles -LUM_NBMU:LUM_NBMU
-C*       Rem : pas de modification des bornes d'enregistrement du fichier 
-C*             temporaire RES_MAT_REFLEX car il ne s'agit pas d'un produit final.
-C*     Utilisation de OS_NB.
+C*   - Routine SOS_MISE_FORMAT_RJ: change of the record line of the
+C*     arrays of the reflection matrix at order IS of the Fourier series
+C*     decomposition:
+C*     ==> limited to the useful bounds -LUM_NBMU:LUM_NBMU
+C*       Rem: no change of the record bounds of the temporary file
+C*             RES_MAT_REFLEX since it is not a final product.
+C*     Use of OS_NB.
 C*
 C* MOD:VERSION:2.1: 06/06/2013
-C*   -  Modification de la valeur de Pi, declaree en constante dans le fichier
-C*      (INCTE_PI remplace CTE_PI)
+C*   -  Change of the value of Pi, declared as a constant in the file
+C*      (INCTE_PI replaces CTE_PI)
 C*
 C* MOD:VERSION:2.2: 24/02/2016 
-C*    - Ajustements mineurs pour le respect strict des 72 colonnes
+C*    - Minor adjustments to strictly respect the 72 columns
 C*
 C* MOD:VERSION:2.3: 18/05/2020
 C*
-C*   - Ajout d'un test dans la routine SOS_CALC_F_ROUJEAN 
-C*     pour le calcul du cosinus de l'angle Zeta de sorte à éviter des 
-C*     arrondis numériques donnant une valeur 1+Epsilon ou -1-Epsilon.
+C*   - Added test in routine SOS_CALC_F_ROUJEAN
+C*     for the computation of the cosine of the angle Zeta, to avoid
+C*     numerical rounding giving a value 1+Epsilon or -1-Epsilon.
 C*
-C*   - Introduction d'une nouvelle constante de seuil : CTE_SEUIL_NUM
-C*     (définie dans inc/SOS.h)
+C*   - Introduction of a new threshold constant: CTE_SEUIL_NUM
+C*     (defined in inc/SOS.h)
 C* 
-C*   - Modification des valeurs stockées de la fonction de BRDF F 
-C*     (par la routine SOS_CALC_F_ROUJEAN) : 
-C*     ==> On stocke F * cos(Angle Réflexion) * cos(Angle Incidence)
-C*         sans introduire de seuil sur les angles pour le calcul des cosinus
-C*         de pondération. En effet, les calculs de flux incident en surface
-C*         dans le coeur de code des OS (SOS_OS) nécessitent d'avoir les angles
-C*         vrais.
+C*   - Change of the stored values of the BRDF function F
+C*     (by routine SOS_CALC_F_ROUJEAN):
+C*     ==> F * cos(Reflection angle) * cos(Incidence angle) is stored
+C*         without any threshold on the angles for the computation of the weighting
+C*         cosines. Indeed, the computations of the incident flux at the surface
+C*         in the core of the OS code (SOS_OS) need the true
+C*         angles.
 C*
 C* MOD:VERSION:2.4: 31/08/2022
-C*    - Renommage des constantes de SOS_* en CTE_*
-C*    - Conversion des traces en Anglais.
+C*    - Constants renamed from SOS_* to CTE_*
+C*    - Traces converted to English.
 C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Definition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisees :
-C    CTE_LENDIR : Longueur des noms de repertoires.
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_OS_NBMU_MAX : Nombre maximal d'angles positifs.
-C    INCTE_PI : valeur de PI
-C    CTE_OS_NB_MAX :  Valeur maximale pour l'ordre limite du développement en 
-C                     polynomes de Legendre.
-C    CTE_PH_NU : Nombre d'angles azimutaux (2**NQ)
-C    CTE_TETAS_LIM_ROUJEAN : Angle zenithal solaire limite pour les calculs
-C                            de BRDF du modèle de Roujean.
-C    CTE_TETAV_LIM_ROUJEAN : Angle zenithal de visee limite pour les calculs
-C                            de BRDF du modèle de Roujean.
-C    CTE_SEUIL_SF_ROUJEAN : Valeur seuil pour l'arret de la decomposition 
-C                           en series de Fourier de la BRDF de Roujean.
-C    CTE_SEUIL_NUM : Valeur de seuil de précision numérique
+C Constants used:
+C    CTE_LENDIR : Length of directory names.
+C     CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_OS_NBMU_MAX : Maximum number of positive angles.
+C    INCTE_PI : Value of PI
+C    CTE_OS_NB_MAX :  Maximum value of the limit order of the expansion in
+C                     Legendre polynomials.
+C    CTE_PH_NU : Number of azimuth angles (2**NQ)
+C    CTE_TETAS_LIM_ROUJEAN : Limit solar zenith angle for the BRDF
+C                            computations of the Roujean model.
+C    CTE_TETAV_LIM_ROUJEAN : Limit viewing zenith angle for the BRDF
+C                            computations of the Roujean model.
+C    CTE_SEUIL_SF_ROUJEAN : Threshold to stop the Fourier series
+C                           decomposition of the Roujean BRDF.
+C    CTE_SEUIL_NUM : Threshold of numerical precision
 C
 C----------------------------------------------------------------------------
 #include "SOS.h"
@@ -115,94 +115,94 @@ C----------------------------------------------------------------------------
 C==============================================================================
 C PROCEDURE: SOS_ROUJEAN
 C ==========      
-C      Cette procédure genere les fichiers de BRDF du modèle de Roujean.
+C      This procedure generates the BRDF files of the Roujean model.
 C
 C
-C Donnees en entrée du programme 
+C Input data of the program
 C ------------------------------
-C    -->Les paramètres/arguments du programme
-C       LUM_NBMU (I4) (E) : Nombre d'angles (positifs) effectivement utiles
-C	 RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) (E) : Cosinus des angles.
-C	 CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) (E) : Poids des angles.
-C       OS_NB (I4) : (E) Ordre des développements des fonctions de phase 
-C		           en Polynomes de Legendre a utiliser.
-C 	 K0  (DOUBLE)  (E) : Coefficient du modèle de Roujean.         	
-C 	 K1  (DOUBLE)  (E) : Coefficient du modèle de Roujean.         	
-C 	 K2  (DOUBLE)  (E) : Coefficient du modèle de Roujean.    
+C    -->Parameters/arguments of the program
+C       LUM_NBMU (I4) (I) : Number of actually useful (positive) angles
+C	 RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) (I) : Cosines of the angles.
+C	 CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) (I) : Weights of the angles.
+C       OS_NB (I4) : (I) Order of the expansions of the phase functions
+C		           in Legendre polynomials to be used.
+C 	 K0  (DOUBLE)  (I) : Coefficient of the Roujean model.
+C 	 K1  (DOUBLE)  (I) : Coefficient of the Roujean model.
+C 	 K2  (DOUBLE)  (I) : Coefficient of the Roujean model.
 C       FIC_RES_MAT_REFLEX (CHARACTER*CTE_LENFIC2)  :  
-C          (E) Nom du fichier temporaire RES_MAT_REFLEX avec arborescence complète.     	
-C       FICROUJ  (CHARACTER*CTE_LENFIC2) (E) : nom complet du fichier Roujean 
-C                                              (arborescence complete)
-C       TRACE  (LOGICAL) (E) : vrai,si écriture dans le fichier trace.
-C       IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon
+C          (I) Name of the temporary file RES_MAT_REFLEX with complete directory tree.
+C       FICROUJ  (CHARACTER*CTE_LENFIC2) (I) : complete name of the Roujean file
+C                                              (complete directory tree)
+C       TRACE  (LOGICAL) (I) : true if writing in the trace file.
+C       IER  (I4)   (O) : error code =0 if no error, =-1 otherwise
 C
-C    -->Fichier
-C       Le fichier d'angles de Gauss 
+C    -->File
+C       The Gauss angle file
 C
-C Resultat fourni par le programme
+C Result provided by the program
 C --------------------------------
-C   Fichier BRDF de Roujean
-C   Fichier de trace (optionnel), 
-C               si un fichier de meme nom existe deja, il est ecrase
-C              (No d'unite logique du fichier trace =99)
+C   Roujean BRDF file
+C   Trace file (optional),
+C               if a file with the same name already exists, it is overwritten
+C              (logical unit number of the trace file =99)
 C
 C 
-C Variable d'environnement
+C Environment variable
 C ------------------------
-C   Aucune
+C   None
 C
 C
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
 C
-C   -->Contenu du fichier de BRDF de Roujean
-C       Fichier binaire non formatte, cree par SOS_MISE_FORMAT_RJ
-C       Il contient la matrice de reflexion de surface :
-C       c'est a dire les elements Pij de la matrice de reflexion 
-C              P11(LUM_NBMU,LUM_NBMU) (réel),
-C              P12(LUM_NBMU,LUM_NBMU) (réel),
-C              P13(LUM_NBMU,LUM_NBMU) (réel),
-C              P21(LUM_NBMU,LUM_NBMU) (réel),
-C              P22(LUM_NBMU,LUM_NBMU) (réel),
-C              P23(LUM_NBMU,LUM_NBMU) (réel),
-C              P31(LUM_NBMU,LUM_NBMU) (réel),
-C              P32(LUM_NBMU,LUM_NBMU) (réel),
-C              P33(LUM_NBMU,LUM_NBMU) (réel)
+C   -->Content of the Roujean BRDF file
+C       Unformatted binary file, created by SOS_MISE_FORMAT_RJ
+C       It contains the surface reflection matrix:
+C       i.e. the elements Pij of the reflection matrix
+C              P11(LUM_NBMU,LUM_NBMU) (real),
+C              P12(LUM_NBMU,LUM_NBMU) (real),
+C              P13(LUM_NBMU,LUM_NBMU) (real),
+C              P21(LUM_NBMU,LUM_NBMU) (real),
+C              P22(LUM_NBMU,LUM_NBMU) (real),
+C              P23(LUM_NBMU,LUM_NBMU) (real),
+C              P31(LUM_NBMU,LUM_NBMU) (real),
+C              P32(LUM_NBMU,LUM_NBMU) (real),
+C              P33(LUM_NBMU,LUM_NBMU) (real)
 C
-C        --> Enregistrement sur le domaine limité aux angles utiles
+C        --> Record on the domain limited to the useful angles
 C                                  --------------------------------
 C
-C   -->Contenu du fichier temporaire RES_MAT_REFLEX
-C       Fichier binaire non formatte,
-C       Fichier cree dans le repertoire de lancement du programme
-C       Si un fichier de meme nom existe deja, il est ecrase
-C       Enregistrement pour chaque couple (Teta1, Teta2) de la 
-C       decomposition en series de Fourier de la BRDF de Roujean :
-C       M11 (n valeurs réelles)
+C   -->Content of the temporary file RES_MAT_REFLEX
+C       Unformatted binary file,
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Record for each pair (Teta1, Teta2) of the
+C       Fourier series decomposition of the Roujean BRDF:
+C       M11 (n real values)
 C
-C    Le fichier temporaire est ecrase s'il existe puis 
-C    detruit en fin de programme
+C    The temporary file is overwritten if it exists, then
+C    deleted at the end of the program
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C      Erreur si le fichier BRDF de Roujean existe deja
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C      Error if the Roujean BRDF file already exists
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, arret du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C        
 C   
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Cette procédure fait appel aux routines:
+C  This procedure calls the routines:
 C      - SOS_FSF_ROUJEAN
 C      - SOS_MISE_FORMAT_RJ
 C
@@ -215,35 +215,35 @@ C=============================================================================
       IMPLICIT NONE
 
 
-C* Definition des variables   
+C* Definition of variables
 C*--------------------------------------------------------------------------
-      CHARACTER*CTE_LENFIC2 FICROUJ  ! (E) Nom complet du fichier ROUJEAN resultat.
+      CHARACTER*CTE_LENFIC2 FICROUJ  ! (I) Complete name of the result ROUJEAN file.
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Nom du fichier RES_MAT_REFLEX
-                                               ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Name of the file RES_MAT_REFLEX
+                                               ! with complete directory tree
 
-      LOGICAL TRACE         ! (E) vrai si écriture dans le fichier trace 
+      LOGICAL TRACE         ! (I) true if writing in the trace file
 
-      DOUBLE PRECISION K0	! (E) Paramètre du modèle de Roujean.
-      DOUBLE PRECISION K1	! (E) Paramètre du modèle de Roujean.
-      DOUBLE PRECISION K2	! (E) Paramètre du modèle de Roujean.
+      DOUBLE PRECISION K0	! (I) Parameter of the Roujean model.
+      DOUBLE PRECISION K1	! (I) Parameter of the Roujean model.
+      DOUBLE PRECISION K2	! (I) Parameter of the Roujean model.
       	
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Tableau des mu de Gauss
-      DOUBLE PRECISION CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Poids de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Array of the Gauss mu
+      DOUBLE PRECISION CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Gauss weights.
       
       
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations
-      INTEGER*4 OS_NB    ! Ordre des développements des fonctions de phase 
-			    ! en Polynomes de Legendre.
-      INTEGER*4 I	   ! Indice de tableau.
-      INTEGER*4 IFIN    ! nb caracteres significatifs d'une chaine
-      INTEGER*4 IER     ! (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
+      INTEGER*4 OS_NB    ! Order of the expansions of the phase functions
+			    ! in Legendre polynomials.
+      INTEGER*4 I	   ! Array index.
+      INTEGER*4 IFIN    ! nb of significant characters of a string
+      INTEGER*4 IER     ! (O) error code =0 if no error, =-1 otherwise
 
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0
 
-C* Ouverture du fichier Trace 
+C* Opening of the trace file
 C------------------------------------------------------
       IF (TRACE) THEN
          WRITE(99,*,err=921)
@@ -266,27 +266,27 @@ C------------------------------------------------------
         
 
 
-C* Decomposition en series de Fourier de la fonction F(Teta1,Teta2,phi)
-C* et enregistrement de la BRDF developpee en series de Fourier.
-C* (BRDF convertie en luminance normalisée et adaptee au code des OS) 
-C* => Creation du fichier temporaire RES_MAT_REFLEX.
+C* Fourier series decomposition of the function F(Teta1,Teta2,phi)
+C* and recording of the BRDF expanded in Fourier series.
+C* (BRDF converted into normalised radiance and adapted to the OS code)
+C* => Creation of the temporary file RES_MAT_REFLEX.
 C---------------------------------------------------------------------
       CALL SOS_FSF_ROUJEAN(LUM_NBMU,RMU,OS_NB,K0,K1,K2,
      &                     FIC_RES_MAT_REFLEX,TRACE,IER)
-      IF (IER.NE.0) GOTO 995   ! cas d'erreur      
+      IF (IER.NE.0) GOTO 995   ! error case
       
       
-C* Rearrangement des resultats pour etre compatible avec le code des OS.
+C* Rearrangement of the results to be compatible with the OS code.
 C-----------------------------------------------------------------------
       CALL SOS_MISE_FORMAT_RJ(FIC_RES_MAT_REFLEX,FICROUJ,
      &                        LUM_NBMU,OS_NB,IER)
-      IF (IER.NE.0) GOTO 996   ! cas d'erreur
+      IF (IER.NE.0) GOTO 996   ! error case
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
   912 WRITE(6,*) 'Erreur a l''ouverture du fichier angles de Gauss'
       IER=-1
@@ -310,13 +310,13 @@ C---------
               
  9999 CONTINUE
 
-C* Destruction des fichiers temporaires
+C* Deletion of the temporary files
 C---------------------------------------   
       OPEN(UNIT=3,FILE=FIC_RES_MAT_REFLEX,FORM='UNFORMATTED')
       CLOSE(3,STATUS='DELETE') 
                                                       
       RETURN
-      END    !FIN DE LA PROCEDURE SOS_ROUJEAN 
+      END    !END OF PROCEDURE SOS_ROUJEAN
 
 
 
@@ -325,92 +325,92 @@ C---------------------------------------
 C==============================================================================
 C PROCEDURE: SOS_FSF_ROUJEAN
 C ==========
-C      Cette procédure realise la decomposition en series de Fourier
-C      (sur phi) de la fonction F(Teta1,Teta2,phi) :
+C      This procedure performs the Fourier series decomposition
+C      (on phi) of the function F(Teta1,Teta2,phi):
 C
 C	 F(Teta1,Teta2,phi) = K0 + K1*F1(Teta1,Teta2,phi) + K2*F2(Teta1,Teta2,phi)
 C
-C	 avec Teta1 : angle zenithal d'incidence : tetas  (0 < Teta1 < PI/2),
-C             Teta2 : angle zenithal de reflexion : tetav (0 < Teta2 < PI/2),
-C             phi   : angle azimutal relatif entre les directions
-C                     d'incidence et de reflexion selon la convention 
-C                     du modèle de Roujean (0 <= phi <= PI),
+C	 with Teta1 : incidence zenith angle: tetas  (0 < Teta1 < PI/2),
+C             Teta2 : reflection zenith angle: tetav (0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                     of incidence and reflection with the convention
+C                     of the Roujean model (0 <= phi <= PI),
 C
-C	      K0, K1, K2 : coefficients du modèle de Roujean,
+C	      K0, K1, K2 : coefficients of the Roujean model,
 C			
 C             F1 = [ (PI-phi)*cos(phi)+sin(phi) ]*tgs*tgv / 2*PI
 C                 -[ tgs + tgv + SQRT{tgs**2+tgv**2-2*tgs*tgv*cos(phi)} ] / PI
 C
-C		  en posant tgs = tan(tetas) et tgv = tan(tetav),
+C		  with tgs = tan(tetas) and tgv = tan(tetav),
 C
 C            F2 = [ (PI/2-zeta)*cos(zeta)+sin(zeta) ] * (4/3*PI) 
 C                 / [ cos(tetas)+cos(tetav) ]   - 1/3
 C
-C                 avec zeta l'angle de phase defini par :
+C                 with zeta the phase angle defined by:
 C                 cos(zeta) = cos(tetas)*cos(tetav)+sin(tetas)*sin(tetav)*cos(phi). 
 C
 C
-C      La BRDF du modèle de Roujean est convertie de reflectance en une 
-C      grandeur utile pour les OS : luminance normalisée * cos(Teta2),
-C      c'est a dire : BRDF * cos(Teta1) * cos(Teta2).			
+C      The BRDF of the Roujean model is converted from reflectance into a
+C      quantity useful for the OS: normalised radiance * cos(Teta2),
+C      i.e.: BRDF * cos(Teta1) * cos(Teta2).
 C
 C
-C      La procédure enregistre les resultats dans le fichier "RES_MAT_REFLEX" 
-C      sous la forme:
-C         Fonction F decomposee pour (Teta1,Teta2) : (E(IS),IS=0,CTE_OS_NB)
+C      The procedure stores the results in the file "RES_MAT_REFLEX"
+C      as:
+C         Decomposed function F for (Teta1,Teta2) : (E(IS),IS=0,CTE_OS_NB)
 C
 C
 C   REM : phiOS = PI - phiRoujean
 C   *****************************
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C      LUM_NBMU (I4) (E) : Nombre d'angles (positifs) effectivement utiles.
-C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)	 (E) : Tableau des mu de Gauss.
-C      OS_NB (I4) : (E) Ordre des développements des fonctions de phase 
-C		        en Polynomes de Legendre a utiliser.
-C      K0	(double)  (E) : Coefficient du modèle de Roujean.
-C      K1	(double)  (E) : Coefficient du modèle de Roujean.
-C      K2	(double)  (E) : Coefficient du modèle de Roujean.
-C      FIC_RES_MAT_REFLEX (CHARACTER)  : (S) Nom du fichier temporaire RES_MAT_REFLEX
-C                                            avec arborescence complète.
-C      TRACE    (logical) (E) : = vrai,si écriture dans le fichier trace (unite 99)
-C      IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon 
+C      LUM_NBMU (I4) (I) : Number of actually useful (positive) angles.
+C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)	 (I) : Array of the Gauss mu.
+C      OS_NB (I4) : (I) Order of the expansions of the phase functions
+C		        in Legendre polynomials to be used.
+C      K0	(double)  (I) : Coefficient of the Roujean model.
+C      K1	(double)  (I) : Coefficient of the Roujean model.
+C      K2	(double)  (I) : Coefficient of the Roujean model.
+C      FIC_RES_MAT_REFLEX (CHARACTER)  : (O) Name of the temporary file RES_MAT_REFLEX
+C                                            with complete directory tree.
+C      TRACE    (logical) (I) : = true if writing in the trace file (unit 99)
+C      IER  (I4)   (O) : error code =0 if no error, =-1 otherwise
 C
-C Autre resultat fourni par la procédure
+C Other result provided by the procedure
 C -------------------------------------
-C      Fichier temporaire RES_MAT_REFLEX
+C      Temporary file RES_MAT_REFLEX
 C
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
 C
-C   -->Contenu du fichier temporaire RES_MAT_REFLEX
-C       Fichier binaire non formatte,
-C       Fichier cree dans le repertoire de lancement du programme
-C       Si un fichier de meme nom existe deja, il est ecrase
-C       Enregistrement pour chaque couple (Teta1, Teta2) de la 
-C       decomposition en series de Fourier de la BRDF de Roujean :
-C       M11 (n valeurs réelles)
+C   -->Content of the temporary file RES_MAT_REFLEX
+C       Unformatted binary file,
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Record for each pair (Teta1, Teta2) of the
+C       Fourier series decomposition of the Roujean BRDF:
+C       M11 (n real values)
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C     -Reading/writing in a file
 C     -BRDF < 0
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C     
-C  Routines utilises par la procédure:
+C  Routines used by the procedure:
 C ------------------------------------
-C  Ce programme fait appel aux routines:
+C  This program calls the routines:
 C        - SOS_CALC_F_ROUJEAN
 C
 C==============================================================================
@@ -419,91 +419,91 @@ C==============================================================================
  	
       IMPLICIT NONE
 
-C* Definition des variables    
+C* Definition of variables
 C*-------------------------------------------------------------------
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Tableau des mu de Gauss
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Array of the Gauss mu
 
-      DOUBLE PRECISION K0	! Coefficient du modèle de Roujean.
-      DOUBLE PRECISION K1	! Coefficient du modèle de Roujean.
-      DOUBLE PRECISION K2	! Coefficient du modèle de Roujean.
+      DOUBLE PRECISION K0	! Coefficient of the Roujean model.
+      DOUBLE PRECISION K1	! Coefficient of the Roujean model.
+      DOUBLE PRECISION K2	! Coefficient of the Roujean model.
 
-      DOUBLE PRECISION E(0:CTE_OS_NB_MAX) ! Resultat de la decomposition en 
-      				              ! series de Fourier de la fonction F.
+      DOUBLE PRECISION E(0:CTE_OS_NB_MAX) ! Result of the decomposition in
+      				              ! Fourier series of the function F.
 	
-      DOUBLE PRECISION PHIOS	! Azimut relatif pour la convention OS (radians).
-      DOUBLE PRECISION PHIRJ	! Azimut relatif pour la convention Roujean (radians).
+      DOUBLE PRECISION PHIOS	! Relative azimuth for the OS convention (radians).
+      DOUBLE PRECISION PHIRJ	! Relative azimuth for the Roujean convention (radians).
       DOUBLE PRECISION C1	! Cos(Teta1).
       DOUBLE PRECISION S1	! Sin(Teta1).
       DOUBLE PRECISION C2	! Cos(Teta2).
       DOUBLE PRECISION S2	! Sin(Teta2).
 
-      DOUBLE PRECISION F	! Valeur de la fonction F(phiRJ).
+      DOUBLE PRECISION F	! Value of the function F(phiRJ).
 
-      DOUBLE PRECISION FMIN	! Valeur minimale retenue pour la fonction 
-      				! F(phiRJ) pour Theta1 et Theta2 fixes.
-      DOUBLE PRECISION FMAX	! Valeur maximale de la fonction F(phiRJ).
+      DOUBLE PRECISION FMIN	! Minimum value kept for the function
+      				! F(phiRJ) for fixed Theta1 and Theta2.
+      DOUBLE PRECISION FMAX	! Maximum value of the function F(phiRJ).
 
-      DOUBLE PRECISION U(0:CTE_PH_NU)  ! Fonction F(phiRJ) entre 0 et PI
-      			                  ! pour Theta1 et Theta2 fixes.
+      DOUBLE PRECISION U(0:CTE_PH_NU)  ! Function F(phiRJ) between 0 and PI
+      			                  ! for fixed Theta1 and Theta2.
 
-      DOUBLE PRECISION Q	! Pas en phi.
+      DOUBLE PRECISION Q	! Step in phi.
 
-      DOUBLE PRECISION T1	! Recombinaison de la fonction F(phi) a 
-      				! partir de E(IS).
+      DOUBLE PRECISION T1	! Recombination of the function F(phi) from
+      				! E(IS).
 
       DOUBLE PRECISION Y
-      DOUBLE PRECISION B1	! Valeur test pour l'arret de la decomposition
-      				! en series de Fourier.
-      DOUBLE PRECISION B1_PREC  ! Valeur de B1 pour l'ordre IS-1.
+      DOUBLE PRECISION B1	! Test value to stop the decomposition
+      				! in Fourier series.
+      DOUBLE PRECISION B1_PREC  ! Value of B1 for order IS-1.
 
-      DOUBLE PRECISION PHIFMIN	!Azimut relatif donnant Fmin (selon la convention OS).
-      DOUBLE PRECISION PHIFMAX	!Azimut relatif donnant Fmax (selon la convention OS).
+      DOUBLE PRECISION PHIFMIN	!Relative azimuth giving Fmin (OS convention).
+      DOUBLE PRECISION PHIFMAX	!Relative azimuth giving Fmax (OS convention).
      
 	
-      DOUBLE PRECISION FRECOMB	! Valeur de la fonction F recombinee à partir de sa
-      				       ! decomposition en series de Fourier.
-      DOUBLE PRECISION ECART	! Ecart relatif entre la valeur exacte de F  
-      				       ! et celle recombinee.			
-      DOUBLE PRECISION ECARTMAX ! Ecart relatif maximal entre la valeur exacte de F  
-      				    ! et celle recombinee.
+      DOUBLE PRECISION FRECOMB	! Value of the function F recombined from its
+      				       ! Fourier series decomposition.
+      DOUBLE PRECISION ECART	! Relative difference between the exact value of F
+      				       ! and the recombined one.
+      DOUBLE PRECISION ECARTMAX ! Maximum relative difference between the exact value of F
+      				    ! and the recombined one.
       
-      DOUBLE PRECISION PHIECARTMAX ! Angle azimutal pour la configuration donnant ECARTMAX.
-      DOUBLE PRECISION TVECARTMAX  ! Angle zenithal de visee pour ECARTMAX.	
-      DOUBLE PRECISION TSECARTMAX  ! Angle zenithal solaire pour ECARTMAX.	 
-      DOUBLE PRECISION F_ECARTMAX  ! Valeur exacte de F donnant ECARTMAX.
-      DOUBLE PRECISION FRECOMB_ECARTMAX  ! Valeur recombinee de F donnant ECARTMAX.
-      DOUBLE PRECISION SOMECART	! Sommation des ecarts relatifs.
+      DOUBLE PRECISION PHIECARTMAX ! Azimuth angle of the configuration giving ECARTMAX.
+      DOUBLE PRECISION TVECARTMAX  ! Viewing zenith angle for ECARTMAX.
+      DOUBLE PRECISION TSECARTMAX  ! Solar zenith angle for ECARTMAX.
+      DOUBLE PRECISION F_ECARTMAX  ! Exact value of F giving ECARTMAX.
+      DOUBLE PRECISION FRECOMB_ECARTMAX  ! Recombined value of F giving ECARTMAX.
+      DOUBLE PRECISION SOMECART	! Sum of the relative differences.
 
-      DOUBLE PRECISION ECARTMAX_C1C2 ! Ecart relatif maximal entre la valeur exacte de F  
-      				         ! et celle recombinee 
-				         !=> pour le couple (Teta1, Teta2) en cours.
-      DOUBLE PRECISION PHIECARTMAX_C1C2 ! Angle azimutal pour ECARTMAX_C1C2.
-      DOUBLE PRECISION F_ECARTMAX_C1C2  ! Valeur exacte de F donnant ECARTMAX_C1C2.
-      DOUBLE PRECISION FRECOMB_ECARTMAX_C1C2  ! Valeur recombinee de F donnant ECARTMAX_C1C2.      
+      DOUBLE PRECISION ECARTMAX_C1C2 ! Maximum relative difference between the exact value of F
+      				         ! and the recombined one
+				         !=> for the current pair (Teta1, Teta2).
+      DOUBLE PRECISION PHIECARTMAX_C1C2 ! Azimuth angle for ECARTMAX_C1C2.
+      DOUBLE PRECISION F_ECARTMAX_C1C2  ! Exact value of F giving ECARTMAX_C1C2.
+      DOUBLE PRECISION FRECOMB_ECARTMAX_C1C2  ! Recombined value of F giving ECARTMAX_C1C2.
             
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations 
-      INTEGER*4 OS_NB ! Ordre des développements des fonctions de phase 
-			 ! en Polynomes de Legendre.
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
+      INTEGER*4 OS_NB ! Order of the expansions of the phase functions
+			 ! in Legendre polynomials.
  	    
-      INTEGER*4 IL	! Ordre maximale utile pour la fonction E.
-      INTEGER*4 I1	! Indice de numéro d'angle Teta1.
-      INTEGER*4 I2	! Indice de numéro d'angle Teta2.
-      INTEGER*4 IS	! Ordre IS de la decomposition en series de Fourier.
-      INTEGER*4 IS2	! Ordre IS de la decomposition en series de Fourier.
-      INTEGER*4 IER  ! code d'erreur =0 si pas d'erreur, =-1 sinon  
+      INTEGER*4 IL	! Maximum useful order for the function E.
+      INTEGER*4 I1	! Index of the angle number Teta1.
+      INTEGER*4 I2	! Index of the angle number Teta2.
+      INTEGER*4 IS	! Order IS of the Fourier series decomposition.
+      INTEGER*4 IS2	! Order IS of the Fourier series decomposition.
+      INTEGER*4 IER  ! error code =0 if no error, =-1 otherwise
       INTEGER*4 I
-      INTEGER*4 COMPT	! Nombre de configurations pour la sommation des ecarts relatifs.
+      INTEGER*4 COMPT	! Number of configurations for the sum of the relative differences.
 
-      	! Elément M11 de la matrice de reflexion en fonction de l'ordre IS
-	! de la serie de Fourier, pour une une incidence sous Teta1 et une 
-	! reflexion sous Teta2
+      	! Element M11 of the reflection matrix versus the order IS
+	! of the Fourier series, for an incidence at Teta1 and a
+	! reflection at Teta2
       REAL M11(0:CTE_OS_NB_MAX)		
       
       LOGICAL TRACE
 
       CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX 
-                     ! Nom du fichier RES_MAT_REFLEX
-                     ! avec arborescence complète
+                     ! Name of the file RES_MAT_REFLEX
+                     ! with complete directory tree
      
 	
 C* Initialisation
@@ -513,43 +513,43 @@ C---------------------------------------------------------
       COMPT = 0
       
 
-C* Creation du fichier resultat de SOS_FSF_ROUJEAN
+C* Creation of the result file of SOS_FSF_ROUJEAN
 C---------------------------------------------------------
       OPEN(UNIT=4,FILE=FIC_RES_MAT_REFLEX,FORM='UNFORMATTED',ERR=991)
 
-C* Boucle sur l'angle Teta1 > 0.
+C* Loop on the angle Teta1 > 0.
 C---------------------------------
       DO  3 I1=1 ,LUM_NBMU
 
-C* Cosinus et sinus de Teta1 : angle d'incidence
+C* Cosine and sine of Teta1: incidence angle
 C---------------------------------
          C1=RMU(I1)
          S1=DSQRT(1-C1*C1)
 
-C*   Boucle sur l'angle teta2 > 0.
+C*   Loop on the angle teta2 > 0.
 C---------------------------------
          DO 4 I2=1 ,LUM_NBMU	
 
-C*   Cosinus et sinus de Teta2 : angle de reflexion
+C*   Cosine and sine of Teta2: reflection angle
 C---------------------------------
            C2=RMU(I2)
            S2=DSQRT(1-C2*C2)
 
-C*   Determination de F pour phi = 0 a PI par pas PI/CTE_PH_NU
+C*   Determination of F for phi = 0 to PI with step PI/CTE_PH_NU
 C-------------------------------------------------------------         
            Q=INCTE_PI/CTE_PH_NU
            DO 6 I=0,CTE_PH_NU
               PHIOS=Q*I
-	       PHIRJ = INCTE_PI - PHIOS	!Adaptation convention Roujean
+	       PHIRJ = INCTE_PI - PHIOS	!Adaptation to the Roujean convention
               CALL SOS_CALC_F_ROUJEAN(K0,K1,K2,C1,S1,C2,S2,PHIRJ,F)     
               U(I)=F
 	      
-	      IF(F.LT.0.D+00) GOTO 993	!BRDF < 0 => cas d'erreur.
+	      IF(F.LT.0.D+00) GOTO 993	!BRDF < 0 => error case.
  6         CONTINUE
 
 		
-C*   Determination des valeurs min et max de F
-C*   pour I1 et I2 fixes mais PHI variant => pour fichier Trace
+C*   Determination of the min and max values of F
+C*   for fixed I1 and I2 but varying PHI => for the trace file
 C--------------------------------------------------------------
 	   IF (TRACE) THEN
 	       FMAX=-1.D+300
@@ -574,11 +574,11 @@ C--------------------------------------------------------------
 
 
 	 
-C*   Realisation de la decomposition en serie de Fourier.
-C*   Boucle sur l'ordre de la serie.                     
+C*   Fourier series decomposition.
+C*   Loop on the order of the series.
 C--------------------------------------------------------------------
 
-C--------- Initialisations 
+C--------- Initialisations
 C--------------------------------       
           DO IS=0,OS_NB
 	      E(IS) = 0.D+00
@@ -587,12 +587,12 @@ C--------------------------------
 	   B1_PREC = 1.D+300		
 
 
-C--------- Boucle sur l'ordre IS 
+C--------- Loop on the order IS
 C-------------------------------- 	   
 	   DO 13 IS=0,OS_NB
               
 
-C--------- Determination de E(IS) 
+C--------- Determination of E(IS)
 C--------------------------------      
 	      Y = 0.D+00      
 	      DO I=0,CTE_PH_NU
@@ -601,19 +601,19 @@ C--------------------------------
 	      ENDDO
 	      E(IS) = Y*Q / INCTE_PI
 	      
-C--------- Determination de l'ecart maximal entre F exact et recombine : B1
+C--------- Determination of the maximum difference between exact and recombined F: B1
 C---------------------------------------------------------------------      
 	      B1=0.D+00			!initialisation
 	      DO I=0,CTE_PH_NU
 	         PHIOS=Q*I
-	         PHIRJ = INCTE_PI - PHIOS	!Adaptation convention Roujean
+	         PHIRJ = INCTE_PI - PHIOS	!Adaptation to the Roujean convention
                 CALL SOS_CALC_F_ROUJEAN(K0,K1,K2,C1,S1,C2,S2,PHIRJ,F)     
 
-C-------------- Calcul de F recombine à partir de la fonction E(IS) pour PHI fixe. 
+C-------------- Computation of the recombined F from the function E(IS) for fixed PHI.
                  T1 = E(0)
 		 DO IS2 = 1, IS		 
 		     T1 = T1+2.*E(IS2)*DCOS(IS2*PHIOS)	!Azimuth convention OS		     
-		 ENDDO !Fin boucle sur IS2
+		 ENDDO !End of loop on IS2
 		 
 		 DO IS2 = 0, IS		 
 		     IF(IS2.EQ.0) THEN
@@ -621,29 +621,29 @@ C-------------- Calcul de F recombine à partir de la fonction E(IS) pour PHI fi
 	             ELSE 
 	                T1=T1+2.*E(IS2)*DCOS(IS2*PHIOS)	!Azimuth convention OS
 	             ENDIF		     
-		 ENDDO !Fin boucle sur IS2
+		 ENDDO !End of loop on IS2
        
                  B1=MAX( DABS((T1-F)/F) , B1)
 		 		 
-	      ENDDO !Fin boucle sur I (phi = 0 a PI)
+	      ENDDO !End of loop on I (phi = 0 to PI)
 	           	     
 
-C--------- Test d'arret de la decomposition :
-C---------    * Arret si l'ecart relatif maximal entre F exacte et recombinee est
-C---------      inferieur au seuil CTE_SEUIL_SF_ROUJEAN
-C---------      ou s'il augmente par rapport a l'ordre precedent.
-C---------    * Poursuite de la boucle sur IS sinon.
+C--------- Stop test of the decomposition:
+C---------    * Stop if the maximum relative difference between exact and recombined F
+C---------      is below the threshold CTE_SEUIL_SF_ROUJEAN
+C---------      or if it increases with respect to the previous order.
+C---------    * Otherwise the loop on IS goes on.
 C-------------------------------------------------------------------------------- 		
               IF (B1.GT.CTE_SEUIL_SF_ROUJEAN) GOTO 14
               IL=IS	      
-              GOTO 17	!Sortie de boucle sur IS
+              GOTO 17	!Exit of the loop on IS
 	      
  14           IF(B1.LT.B1_PREC) GOTO 141
               IL=IS-1
-	      GOTO 17	!Sortie de boucle sur IS
+	      GOTO 17	!Exit of the loop on IS
 	      
  141	      B1_PREC=B1	        
- 13        CONTINUE	!Fin de boucle sur IS     
+ 13        CONTINUE	!End of loop on IS
 	   IL=OS_NB
 
 
@@ -652,27 +652,27 @@ C-------------------------------------------------------------------------------
 
 
 C------------------------------------------------------------------------
-C* Stockage de la decomposition en series de Fourier de la matrice de 
-C* reflexion de Roujean pour les directions Teta1 et Teta2
+C* Storage of the Fourier series decomposition of the Roujean
+C* reflection matrix for the directions Teta1 and Teta2
 C--------------------------------------------------------------------------
 
-C* Conversion de type pour chaque ordre IS : double précision -> réel
+C* Type conversion for each order IS: double precision -> real
 C---------------------------------------------------------------------
 17          DO IS=0,OS_NB
                 M11(IS)=E(IS)  		               
             ENDDO
 
-C* Enregistrement pour le couple (Teta1, Teta2) de la decomposition
-C* en series de Fourier de BRDF (convertie en luminance normalisée
-C* et adaptee au code des OS).
+C* Recording for the pair (Teta1, Teta2) of the decomposition
+C* in Fourier series of the BRDF (converted into normalised radiance
+C* and adapted to the OS code).
 C-----------------------------------------------------------------
             WRITE(4,err=992) M11
 
 
 
-C* Fichier Trace : Calculs de paramètres d'analyse de qualite
-C*                 de la decomposition en series de Fourier
-C*                 et enregistrements.
+C* Trace file: Computation of quality analysis parameters
+C*                 of the Fourier series decomposition
+C*                 and recordings.
 C-----------------------------------------------------------------
            IF (TRACE) THEN
 
@@ -681,7 +681,7 @@ C-----------------------------------------------------------------
 	      Q=INCTE_PI/CTE_PH_NU
 	      DO I=0,CTE_PH_NU
 	         PHIOS=I*Q
-		  PHIRJ = INCTE_PI - PHIOS		!Adaptation convention Roujean
+		  PHIRJ = INCTE_PI - PHIOS		!Adaptation to the Roujean convention
 	         CALL SOS_CALC_F_ROUJEAN(K0,K1,K2,C1,S1,C2,S2,PHIRJ,F)
 		 
                 FRECOMB = E(0)
@@ -692,7 +692,7 @@ C-----------------------------------------------------------------
 	         IF(F.NE.0.D+00) THEN
 	            ECART = DABS((FRECOMB-F)/F)   
 
-C*       Analyse pour tous les azimuts du couple courant (Teta1, Teta2)	
+C*       Analysis for all the azimuths of the current pair (Teta1, Teta2)
 		     IF(ECART.GT.ECARTMAX_C1C2) THEN
 		        ECARTMAX_C1C2 = ECART
 		        PHIECARTMAX_C1C2 = PHIOS*180./INCTE_PI	!Azimuth convention OS
@@ -700,7 +700,7 @@ C*       Analyse pour tous les azimuts du couple courant (Teta1, Teta2)
 	               FRECOMB_ECARTMAX_C1C2 = FRECOMB
 		     ENDIF 
 		    
-C*       Analyse pour tous les azimuts et tous les couples (Teta1, Teta2)		    
+C*       Analysis for all the azimuths and all the pairs (Teta1, Teta2)
 	            IF(ECART.GT.ECARTMAX) THEN
 	               ECARTMAX = ECART
 	               PHIECARTMAX = PHIOS*180./INCTE_PI	!Azimuth convention OS
@@ -713,7 +713,7 @@ C*       Analyse pour tous les azimuts et tous les couples (Teta1, Teta2)
 	            SOMECART=SOMECART + ECART
 	            COMPT = COMPT + 1
 		 ENDIF
-	      ENDDO !Fin boucle sur I (phi)
+	      ENDDO !End of loop on I (phi)
          	
 	      	
 	      IF(F_ECARTMAX_C1C2.NE.0.D+00) THEN	 
@@ -729,19 +729,19 @@ C*       Analyse pour tous les azimuts et tous les couples (Teta1, Teta2)
 	      WRITE(99,*,err=921)   	    
                  
 	      
-           END IF !Fin Trace
+           END IF !End of Trace
       
       	
 		                            
- 4       CONTINUE	!Fin de boucle sur Teta2 (I2)
+ 4       CONTINUE	!End of loop on Teta2 (I2)
  
- 3    CONTINUE	!Fin de boucle sur Teta1 (I1)
+ 3    CONTINUE	!End of loop on Teta1 (I1)
  
  
 
 
-C* Fichier Trace : Enregistrements des paramètres d'analyse de qualite
-C*                 de la decomposition en series de Fourier.
+C* Trace file: Recording of the quality analysis parameters
+C*                 of the Fourier series decomposition.
 C----------------------------------------------------------------- 
       IF (TRACE) THEN
          WRITE(99,*,err=921)
@@ -785,12 +785,12 @@ C-----------------------------------------------------------------
        
       
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       GOTO 9999
       
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C------------------------------------------------------
   921 WRITE(6,*) 'Erreur d''écriture sur le fichier trace Surface'
       IER=-1
@@ -810,7 +810,7 @@ C------------------------------------------------------
  9999 CONTINUE
 
 
-C* Fermeture fichier :'RES_MAT_REFLEX'
+C* File closing: 'RES_MAT_REFLEX'
 C-------------------------------------
       CLOSE(4)
  
@@ -829,7 +829,7 @@ C--------
 2500  FORMAT(5X,12hLimit order:,I3,3h ; ,14h Error max => ,1X,4hphi:,
      &1X,F6.2,3h, F:,1X,E11.4,2X,11h, F recomb:,1X,E11.4)                               
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_FSF_ROUJEAN
+      END         !END OF PROCEDURE SOS_FSF_ROUJEAN
 
 
 
@@ -838,113 +838,113 @@ C--------
 C==============================================================================
 C PROCEDURE: SOS_CALC_F_ROUJEAN
 C ==========
-C      Cette procédure calcule la BRDF du modèle de Roujean:
+C      This procedure computes the BRDF of the Roujean model:
 C	 F(Teta1,Teta2,phi) = K0 + K1*F1(Teta1,Teta2,phi) + K2*F2(Teta1,Teta2,phi)
 C
-C	 avec Teta1 : angle zenithal d'incidence : tetas  (0 < Teta1 < PI/2),
-C             Teta2 : angle zenithal de reflexion : tetav(0 < Teta2 < PI/2),
-C             phi   : angle azimutal relatif entre les directions
-C                     d'incidence et de reflexion selon la convention 
-C                     du modèle de Roujean  (0 <= phi <= PI),
+C	 with Teta1 : incidence zenith angle: tetas  (0 < Teta1 < PI/2),
+C             Teta2 : reflection zenith angle: tetav(0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                     of incidence and reflection with the convention
+C                     of the Roujean model  (0 <= phi <= PI),
 C
-C	      K0, K1, K2 : coefficients du modèle de Roujean,
+C	      K0, K1, K2 : coefficients of the Roujean model,
 C			
 C            F1 = [ (PI-phi)*cos(phi)+sin(phi) ]*tgs*tgv / 2*PI
 C                 -[ tgs + tgv + SQRT{tgs**2+tgv**2-2*tgs*tgv*cos(phi)} ] / PI
 C
-C		  en posant tgs = tan(tetas) et tgv = tan(tetav),
+C		  with tgs = tan(tetas) and tgv = tan(tetav),
 C
 C            F2 = [ (PI/2-zeta)*cos(zeta)+sin(zeta) ] * (4/3*PI) 
 C                 / [ cos(tetas)+cos(tetav) ]   - 1/3
 C
-C                 avec zeta l'angle de phase defini par :
+C                 with zeta the phase angle defined by:
 C                 cos(zeta) = cos(tetas)*cos(tetav)+sin(tetas)*sin(tetav)*cos(phi). 
 C
 C
-C      La BRDF du modèle de Roujean est convertie de reflectance en une 
-C      grandeur utile pour les OS : luminance normalisée * cos(Teta2),
-C      c'est a dire : BRDF * cos(Teta1) * cos(Teta2).			
+C      The BRDF of the Roujean model is converted from reflectance into a
+C      quantity useful for the OS: normalised radiance * cos(Teta2),
+C      i.e.: BRDF * cos(Teta1) * cos(Teta2).
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C       K0	(double)   (E) Coefficient du modèle de Roujean.
-C       K1	(double)   (E) Coefficient du modèle de Roujean.
-C       K2	(double)   (E) Coefficient du modèle de Roujean.
-C	 C1	(double)   (E) Cos(Teta1).
-C	 S1	(double)   (E) Sin(Teta1).
-C	 C2	(double)   (E) Cos(Teta2).
-C	 S2	(double)   (E) Sin(Teta2).
-C       PHI     (double)   (E) Azimut relatif pour la convention
-C                              du modèle de Roujean (radians).
-C 	 F	(double)   (S) Valeur de F(Teta1,Teta2,phi).
+C       K0	(double)   (I) Coefficient of the Roujean model.
+C       K1	(double)   (I) Coefficient of the Roujean model.
+C       K2	(double)   (I) Coefficient of the Roujean model.
+C	 C1	(double)   (I) Cos(Teta1).
+C	 S1	(double)   (I) Sin(Teta1).
+C	 C2	(double)   (I) Cos(Teta2).
+C	 S2	(double)   (I) Sin(Teta2).
+C       PHI     (double)   (I) Relative azimuth for the convention
+C                              of the Roujean model (radians).
+C 	 F	(double)   (O) Value of F(Teta1,Teta2,phi).
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Aucun
+C None
 C
 C==============================================================================
       SUBROUTINE SOS_CALC_F_ROUJEAN(K0,K1,K2,C1,S1,C2,S2,PHI,F)
 
       IMPLICIT NONE
 
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------------------------------------
-      DOUBLE PRECISION K0	! (E) Paramètre du modèle de Roujean.
-      DOUBLE PRECISION K1	! (E) Paramètre du modèle de Roujean.
-      DOUBLE PRECISION K2	! (E) Paramètre du modèle de Roujean.
+      DOUBLE PRECISION K0	! (I) Parameter of the Roujean model.
+      DOUBLE PRECISION K1	! (I) Parameter of the Roujean model.
+      DOUBLE PRECISION K2	! (I) Parameter of the Roujean model.
 
-      DOUBLE PRECISION C1	! (E)  Cos(Teta1).
-      DOUBLE PRECISION S1	! (E)  Sin(Teta1).
-      DOUBLE PRECISION C2	! (E)  Cos(Teta2).
-      DOUBLE PRECISION S2	! (E)  Sin(Teta2).
-      DOUBLE PRECISION PHI	! (E) Azimut relatif pour la convention 
-      				!     Roujean (radians).
+      DOUBLE PRECISION C1	! (I)  Cos(Teta1).
+      DOUBLE PRECISION S1	! (I)  Sin(Teta1).
+      DOUBLE PRECISION C2	! (I)  Cos(Teta2).
+      DOUBLE PRECISION S2	! (I)  Sin(Teta2).
+      DOUBLE PRECISION PHI	! (I) Relative azimuth for the convention
+      				!     of Roujean (radians).
       
-      DOUBLE PRECISION xPHI	! Valeur de PHI réellement utilisee :
-      				! => valeur entre 0 et PI.
+      DOUBLE PRECISION xPHI	! Value of PHI actually used:
+      				! => value between 0 and PI.
       
-      DOUBLE PRECISION xC1	! Valeur de C1 réellement utilisee.
-      DOUBLE PRECISION xS1	! Valeur de S1 réellement utilisee.
-      DOUBLE PRECISION xC2	! Valeur de C2 réellement utilisee.
-      DOUBLE PRECISION xS2	! Valeur de S2 réellement utilisee.
+      DOUBLE PRECISION xC1	! Value of C1 actually used.
+      DOUBLE PRECISION xS1	! Value of S1 actually used.
+      DOUBLE PRECISION xC2	! Value of C2 actually used.
+      DOUBLE PRECISION xS2	! Value of S2 actually used.
       
-      DOUBLE PRECISION F	! (S) Valeur de la BRDF de Roujean 
-      				! pour la geometrie d'observation
-				! (convertie en luminance normalisée * cos(teta2).	
+      DOUBLE PRECISION F	! (O) Value of the Roujean BRDF
+      				! for the observation geometry
+				! (converted into normalised radiance * cos(teta2).
       
-      DOUBLE PRECISION F1	! Fonction de la BRDF de ROUJEAN.
-      DOUBLE PRECISION F2	! Fonction de la BRDF de ROUJEAN.
+      DOUBLE PRECISION F1	! Function of the ROUJEAN BRDF.
+      DOUBLE PRECISION F2	! Function of the ROUJEAN BRDF.
       
-      DOUBLE PRECISION COSPHI	! Cosinus de l'azimut relatif.
-      DOUBLE PRECISION TANTS	! Tangente de l'angle d'incidence.
-      DOUBLE PRECISION TANTV	! Tangente de l'angle de reflexion.
+      DOUBLE PRECISION COSPHI	! Cosine of the relative azimuth.
+      DOUBLE PRECISION TANTS	! Tangent of the incidence angle.
+      DOUBLE PRECISION TANTV	! Tangent of the reflection angle.
             
-      DOUBLE PRECISION ZETA	! Angle de phase.
-      DOUBLE PRECISION COSZETA	! Cosinus de l'angle de phase entre les
-      				       ! directions d'incidence et de reflexion.
+      DOUBLE PRECISION ZETA	! Phase angle.
+      DOUBLE PRECISION COSZETA	! Cosine of the phase angle between the
+      				       ! directions of incidence and reflection.
 
-      DOUBLE PRECISION PI	! Valeur de PI
+      DOUBLE PRECISION PI	! Value of PI
       
 
-C* Traitements
+C* Processing
 C---------------------------------    
       PI=4.D+00*DATAN(1.D+00)
 
-C*   Controle des angles                 
+C*   Check of the angles
 C---------------------------------------------------------      
 
-C*   Conversion de PHI entre 0 et PI
+C*   Conversion of PHI between 0 and PI
       xPHI = PHI
       IF(xPHI.LT.0.D+00) xPHI = - xPHI
       IF(xPHI.GT.PI) xPHI = 2.*PI - xPHI
 
       
-C*   Controle des angles zenitaux de visee et d'eclairement
+C*   Check of the viewing and illumination zenith angles
       xC1=C1
       xS1=S1
       xC2=C2
@@ -960,13 +960,13 @@ C*   Controle des angles zenitaux de visee et d'eclairement
       ENDIF	
 	
 	
-C*   Calcul du cos(phi) et des tangentes de Tetas et Tetav                
+C*   Computation of cos(phi) and of the tangents of Tetas and Tetav
 C---------------------------------------------------------     	
       COSPHI = DCOS(xPHI)
       TANTS =  xS1 / xC1
       TANTV =  xS2 / xC2
 
-C*   Calcul de F1                 
+C*   Computation of F1
 C---------------------------------------------------------      
       F1 = 0.5 * ( (PI-xPHI)*COSPHI + DSIN(xPHI) ) * TANTS * TANTV 
       F1 = F1 - TANTS - TANTV
@@ -974,11 +974,11 @@ C---------------------------------------------------------
       F1 = F1 / PI
       
       
-C*   Calcul de F2                 
+C*   Computation of F2
 C---------------------------------------------------------            
       COSZETA = xC1*xC2+xS1*xS2*COSPHI  
 
-      !Gestion du cas d'une petite erreur d'arrondie numérique donnant un dépassement de 1 ou -1
+      !Management of the case of a small numerical rounding error giving a value beyond 1 or -1
       IF ( DABS(DABS(COSZETA)-1.D+00).LE.CTE_SEUIL_NUM ) THEN
          IF ( (COSZETA.GE.(1.-CTE_SEUIL_NUM))
      &       .AND.(COSZETA.LE.(1.+CTE_SEUIL_NUM)) ) THEN
@@ -996,30 +996,30 @@ C---------------------------------------------------------
 
 
 
-C*   Calcul de F               
+C*   Computation of F
 C---------------------------------------------------------            
       F = K0 + K1*F1 + K2*F2
 
-C*   Conversion reflectance -> luminance normalisée (*C1)
-C*   et adaptation aux OS -> *C2.  
+C*   Conversion reflectance -> normalised radiance (*C1)
+C*   and adaptation to the OS -> *C2.
 C*
 C*   NB : 
-C*    - L'adaptation au code des OS par multiplication de 
-C*      cos(tetav) doit utiliser la valeur correspondante au 
-C*      fichier des angles de Gauss car c'est cette valeur
-C*      qui sera prise dans les calculs du code des OS
-C*      (on prend C2 et non pas xC2).
-C*    - De même, la conversion de réflectance en luminance normalisée  
-C*      est faite pour la valeur de cos(TetaIncident) vraie, et non pas
-C*      seuillée par CTE_TETAS_LIM_ROUJEAN, car les calculs de flux
-C*      dans SOS_OS nécessitent d'utiliser l'angle d'incidence vrai : 
-C*      on prend C1 et non pas xC1.
+C*    - The adaptation to the OS code by multiplication by
+C*      cos(tetav) must use the value corresponding to the
+C*      Gauss angle file because this is the value
+C*      used in the computations of the OS code
+C*      (C2 is used and not xC2).
+C*    - Likewise, the conversion from reflectance to normalised radiance
+C*      is made for the true value of cos(TetaIncident), not the one
+C*      thresholded by CTE_TETAS_LIM_ROUJEAN, because the flux computations
+C*      in SOS_OS need the true incidence angle:
+C*      C1 is used and not xC1.
                    
 C--------------------------------------------------------- 	
       F = F*C2*C1	     
 
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_CALC_F_ROUJEAN
+      END         !END OF PROCEDURE SOS_CALC_F_ROUJEAN
 
 
 
@@ -1033,69 +1033,69 @@ C---------------------------------------------------------
 C==============================================================================
 C PROCEDURE:  SOS_MISE_FORMAT_RJ
 C ==========
-C      Cette procédure reordonne les elements de la matrice Mij en une matrice
-C      Pij utilisable par le code des OS.
+C      This procedure reorders the elements of the matrix Mij into a matrix
+C      Pij usable by the OS code.
 C
-C      Les elements M11, enregistres dans le fichier "RES_MAT_REFLEX", donnent
-C      pour chaque couple d'angles (Teta1, Teta2) la decomposition en series 
-C      de Fourier associee. Les autres elements (de polarisation) ne sont pas 
-C      precalcules car ils sont poses nuls.
+C      The elements M11, stored in the file "RES_MAT_REFLEX", give
+C      for each pair of angles (Teta1, Teta2) the associated Fourier series
+C      decomposition. The other (polarisation) elements are not
+C      precomputed since they are set to zero.
 C
-C      Les elements Pij, enregistres dans le fichier de sortie, donnent
-C      pour chaque ordre de la decomposition en series de Fourier
-C      la reflexion associee a l'ensemble des couples (Teta1, Teta2) .
+C      The elements Pij, stored in the output file, give
+C      for each order of the Fourier series decomposition
+C      the reflection associated with all the pairs (Teta1, Teta2).
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C     FIC_RES_MAT_REFLEX (CHARACTER)  : (E) Nom du fichier temporaire RES_MAT_REFLEX
-C                                           avec arborescence complète.
+C     FIC_RES_MAT_REFLEX (CHARACTER)  : (I) Name of the temporary file RES_MAT_REFLEX
+C                                           with complete directory tree.
 
-C      FIC  (CHARACTER*CTE_LENFIC2)  (E)  Nom complet du fichier resultat.
-C      NBMU (I4)  : (E)  Nombre d'angles (positifs) effectivement utiles.
-C      OS_NB (I4) : (E)  Ordre des développements des fonctions de phase 
-C		         en Polynomes de Legendre a utiliser.
-C      IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon
+C      FIC  (CHARACTER*CTE_LENFIC2)  (I)  Complete name of the result file.
+C      NBMU (I4)  : (I)  Number of actually useful (positive) angles.
+C      OS_NB (I4) : (I)  Order of the expansions of the phase functions
+C		         in Legendre polynomials to be used.
+C      IER  (I4)   (O) : error code =0 if no error, =-1 otherwise
 C
 C
-C Autre resultat fourni par la procédure
+C Other result provided by the procedure
 C -------------------------------------
-C      Fichier resultat : FIC, fichier de BRDF du modèle de Roujean.
+C      Result file: FIC, BRDF file of the Roujean model.
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier temporaire RES_MAT_REFLEX
-C       Fichier binaire non formatte, cree par SOS_FSF_ROUJEAN
-C       Fichier cree dans le repertoire de lancement du programme
-C       Enregistrement pour chaque couple (Teta1, Teta2) de
-C       la decomposition en series de Fourier de : M11 (n valeurs réelles)
+C   -->Content of the temporary file RES_MAT_REFLEX
+C       Unformatted binary file, created by SOS_FSF_ROUJEAN
+C       File created in the directory where the program is run
+C       Record for each pair (Teta1, Teta2) of
+C       the Fourier series decomposition of: M11 (n real values)
 C
-C   -->Contenu du fichier BRDF ROUJEAN
-C       Fichier binaire non formatte, cree par SOS_MISE_FORMAT_RJ
-C       Il contient la matrice de reflexion de surface 
-C       c'est a dire les elements Pij de la matrice de reflexion 
-C              P11(CTE_OS_NBMU,CTE_OS_NBMU) (réel),
-C              P12(CTE_OS_NBMU,CTE_OS_NBMU) (réel),
-C              P13(CTE_OS_NBMU,CTE_OS_NBMU) (réel),
-C              P21(CTE_OS_NBMU,CTE_OS_NBMU) (réel),
-C              P22(CTE_OS_NBMU,CTE_OS_NBMU) (réel),
-C              P23(CTE_OS_NBMU,CTE_OS_NBMU) (réel),
-C              P31(CTE_OS_NBMU,CTE_OS_NBMU) (réel),
-C              P32(CTE_OS_NBMU,CTE_OS_NBMU) (réel),
-C              P33(CTE_OS_NBMU,CTE_OS_NBMU) (réel)
+C   -->Content of the ROUJEAN BRDF file
+C       Unformatted binary file, created by SOS_MISE_FORMAT_RJ
+C       It contains the surface reflection matrix
+C       i.e. the elements Pij of the reflection matrix
+C              P11(CTE_OS_NBMU,CTE_OS_NBMU) (real),
+C              P12(CTE_OS_NBMU,CTE_OS_NBMU) (real),
+C              P13(CTE_OS_NBMU,CTE_OS_NBMU) (real),
+C              P21(CTE_OS_NBMU,CTE_OS_NBMU) (real),
+C              P22(CTE_OS_NBMU,CTE_OS_NBMU) (real),
+C              P23(CTE_OS_NBMU,CTE_OS_NBMU) (real),
+C              P31(CTE_OS_NBMU,CTE_OS_NBMU) (real),
+C              P32(CTE_OS_NBMU,CTE_OS_NBMU) (real),
+C              P33(CTE_OS_NBMU,CTE_OS_NBMU) (real)
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C      Le fichier RES_MAT_REFLEX n'existe pas
-C      Le fichier de BRDF Roujean existe
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C      The file RES_MAT_REFLEX does not exist
+C      The Roujean BRDF file exists
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C
 C=============================================================================
@@ -1104,23 +1104,23 @@ C=============================================================================
 
       IMPLICIT NONE
 
-C* Definition des variables                    
+C* Definition of variables
 C*--------------------------------------------------------------------
-      CHARACTER*CTE_LENFIC2 FIC	! Nom du fichier resultat.
+      CHARACTER*CTE_LENFIC2 FIC	! Name of the result file.
 
       CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX 
-                     ! Nom du fichier RES_MAT_REFLEX
-                     ! avec arborescence complète
+                     ! Name of the file RES_MAT_REFLEX
+                     ! with complete directory tree
 
-      	! Elément M11 de la matrice de reflexion en fonction de l'ordre IS
-	! de la serie de Fourier, pour une incidence sous Teta1 et une 
-	! reflexion sous Teta2.
+      	! Element M11 of the reflection matrix versus the order IS
+	! of the Fourier series, for an incidence at Teta1 and a
+	! reflection at Teta2.
       REAL M11(0:CTE_OS_NB_MAX)		
       
 
-      	! Eléments Pij de la matrice de reflexion en fonction de la direction
-	! d'incidence et de reflexion, pour un ordre IS du développement
-	! en series de Fourier
+      	! Elements Pij of the reflection matrix versus the directions
+	! of incidence and reflection, for an order IS of the expansion
+	! in Fourier series
       REAL P11(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P12(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P13(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)	
@@ -1131,30 +1131,30 @@ C*--------------------------------------------------------------------
       REAL P32(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P33(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
 
-      INTEGER*4 IS	! Ordre de la decomposition en series de Fourier.
-      INTEGER*4 I	! Indice de l'angle d'incidence Teta1.
-      INTEGER*4 J	! Indice de l'angle de reflexion Teta2.
-      INTEGER*4 IER     ! code d'erreur =0 si pas d'erreur, =-1 sinon  
-      INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
-      INTEGER*4 OS_NB ! Ordre des développements des fonctions de phase 
-			 ! en Polynomes de Legendre.
+      INTEGER*4 IS	! Order of the Fourier series decomposition.
+      INTEGER*4 I	! Index of the incidence angle Teta1.
+      INTEGER*4 J	! Index of the reflection angle Teta2.
+      INTEGER*4 IER     ! error code =0 if no error, =-1 otherwise
+      INTEGER*4 NBMU    ! Number of actual angles of the simulations
+      INTEGER*4 OS_NB ! Order of the expansions of the phase functions
+			 ! in Legendre polynomials.
        
-C* Ouverture fichier
+C* File opening
 C------------------------------------------------------------
       OPEN(UNIT=1,FILE=FIC_RES_MAT_REFLEX,FORM='UNFORMATTED',
      &     STATUS='OLD',ERR=991)
       OPEN(UNIT=2,FILE=FIC,FORM='UNFORMATTED',
      &     STATUS='NEW',ERR=991)
 
-C* Boucle sur l'ordre de la decomposition en series de Fourier
+C* Loop on the order of the Fourier series decomposition
 C------------------------------------------------------------
       DO 1 IS=0,OS_NB
 
-C* Boucle sur les directions d'incidence Teta1
+C* Loop on the incidence directions Teta1
 C---------------------------------------------
          DO 2 I=1,NBMU
 
-C* Boucle sur les directions de reflexion Teta2
+C* Loop on the reflection directions Teta2
 C-----------------------------------------------
             DO 3 J=1,NBMU
                READ(1,err=992) M11
@@ -1170,10 +1170,10 @@ C-----------------------------------------------
  3          CONTINUE
  2       CONTINUE
 
-C*       Enregistrement des tableaux de la matrice de reflexion 
-C*       a l'ordre IS de la decomposition en series de Fourier.
-C*       Bornes d'enregistrement des tableaux limitées au 
-C*       dimensionnement utile -NBMU:NBMU
+C*       Recording of the arrays of the reflection matrix
+C*       at order IS of the Fourier series decomposition.
+C*       Record bounds of the arrays limited to the
+C*       useful dimension -NBMU:NBMU
 C-------------------------------------------------------------- 
 	 WRITE(2,err=992) ((P11(I,J),I=1,NBMU),J=1,NBMU),
      &	                  ((P12(I,J),I=1,NBMU),J=1,NBMU),
@@ -1185,19 +1185,19 @@ C--------------------------------------------------------------
      &	                  ((P32(I,J),I=1,NBMU),J=1,NBMU),
      &	                  ((P33(I,J),I=1,NBMU),J=1,NBMU)
 
-C* Retour au debut du fichier avant passage a l'ordre IS suivant.
+C* Back to the beginning of the file before the next order IS.
 C---------------------------------------------------------------
          REWIND (1)
  1    CONTINUE
 
 
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       GOTO 9999
       
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C------------------------------------------------------
   991 WRITE(6,*) 'SOS_MISE_FORMAT_RJ : '//
      &           'Erreur a l''ouverture d''un fichier'
@@ -1210,13 +1210,13 @@ C------------------------------------------------------
 
  9999 CONTINUE
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(1)
       CLOSE(2)
       
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_MISE_FORMAT_RJ
+      END         !END OF PROCEDURE SOS_MISE_FORMAT_RJ
 
 
 

@@ -19,316 +19,316 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_SURFACE.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Ce module genere les matrices de réflexion pour différents types de
-C*	 modèles.  
+C* FILE: SOS_SURFACE.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: This module generates the reflection matrices for different types of
+C*	 models.
 C*       
 C*
-C* AUTEUR: 
-C*   Fondement algorithmique: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
-C*   Reprise du codage et développement : CS GROUP France, B.Lafrance, X.Lenot
+C* AUTHOR:
+C*   Algorithmic basis: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
+C*   Code rework and development: CS GROUP France, B.Lafrance, X.Lenot
 C*
 C* DATE: creation 1.0 : 30/04/2002
 C*
-C* MOD:VERSION:1.1: Mise a niveau des codes du LOA (codes relatifs au Glitter).
-C*                  Développements d'adaptation des codes aux autres modèles.
-C* MOD:VERSION:2.0: Correction d'une erreur sur la polarisation de surface
-C*                  pour la routine SOS_MAT_REFLEXION.
+C* MOD:VERSION:1.1: Upgrade of the LOA codes (codes related to the Glitter).
+C*                  Developments to adapt the codes to the other models.
+C* MOD:VERSION:2.0: Correction of an error on the surface polarisation
+C*                  for routine SOS_MAT_REFLEXION.
 C* MOD:VERSION:2.1: 07/07/2008 
-C*                  Modification du format de lecture du paramètre WIND,
-C*                  pour correction d'une erreur de décodage si valeur entière.
-C*			WIND passe de F4.1 en F4
+C*                  Change of the reading format of the parameter WIND,
+C*                  to correct a decoding error for integer values.
+C*			WIND changed from F4.1 to F4
 C* MOD:VERSION:3.0: 17/11/2009 
-C*                  * Modification du passage des arguments : 
-C*                      - passage par couples (mot clef, valeur). 
-C*                      - adaptation de la gestion des cas d'erreurs. 
-C*                  * Conversion des messages d'erreurs en anglais. 
+C*                  * Change of the argument passing:
+C*       - passing by pairs (keyword, value).
+C*       - adaptation of the error case management.
+C*                  * Error messages converted to English.
 C* MOD:VERSION:3.1: 22/12/2009 
-C*                  Modification du format de lecture des paramètres Alpha et Beta du modèle Nadal
-C*                  pour correction d'une erreur de décodage si valeur entière.
-C*			ALPHA passe de F6.4 en F6
-C*			BETA  passe de F4.1 en F4
+C*                  Change of the reading format of the parameters Alpha and Beta of the Nadal model
+C*                  to correct a decoding error for integer values.
+C*			ALPHA changed from F6.4 to F6
+C*			BETA  changed from F4.1 to F4
 C*                  
 C* MOD:VERSION:4.0: 10/01/2010 
 C*
-C*   - Suppression de la constante SOS_OS_FICANGLE (de SOS.h) 
-C*     au profit d'un passage par argument du nom du fichier des angles (produit par SOS_ANGLES).
+C*   - Removal of the constant SOS_OS_FICANGLE (from SOS.h)
+C*     in favour of passing the name of the angle file (produced by SOS_ANGLES) as argument.
 C*
-C*   - Modification de la taille des tableaux de luminance :
-C*     ==> Passage de CTE_OS_NBMU à CTE_OS_NBMU_MAX.
-C*     ==> Boucle sur les angles jusqu'à LUM_NBMU égal au nombre effectif d'angles utilisés.
+C*   - Change of the size of the radiance arrays:
+C*     ==> Changed from CTE_OS_NBMU to CTE_OS_NBMU_MAX.
+C*     ==> Loop on the angles up to LUM_NBMU, equal to the actual number of angles used.
 C*
-C*   - Suppression des constantes CTE_OS_NB, CTE_OS_NS et CTE_OS_NM (de SOS.h)  
-C*     au profit : d'un passage par argument des valeurs OS_NB, OS_NS, OS_NM (lus dans le fichier des angles)
+C*   - Removal of the constants CTE_OS_NB, CTE_OS_NS and CTE_OS_NM (from SOS.h)
+C*     in favour of passing the values OS_NB, OS_NS, OS_NM (read in the angle file) as arguments
 C*
-C*   - Modification de la taille des tableaux de decomposition en polynomes de Legendre :
-C*     ==> Passage de CTE_OS_NB à CTE_OS_NB_MAX.
-C*     ==> Passage de CTE_OS_NS à CTE_OS_NS_MAX.
-C*     ==> Passage de CTE_OS_NM à CTE_OS_NM_MAX.
-C*     ==> Boucle sur les ordre jusqu'à OS_NB, OS_NS ou OS_NM 
+C*   - Change of the size of the arrays of the decomposition in Legendre polynomials:
+C*     ==> Changed from CTE_OS_NB to CTE_OS_NB_MAX.
+C*     ==> Changed from CTE_OS_NS to CTE_OS_NS_MAX.
+C*     ==> Changed from CTE_OS_NM to CTE_OS_NM_MAX.
+C*     ==> Loop on the orders up to OS_NB, OS_NS or OS_NM
 C*
-C*   - Routines SOS_MISE_FORMAT & SOS_BPDF_AJOUT_BRDF : Modification de la  
-C*     ligne d'enregistrement ou de lecture des tableaux de la  matrice de 
-C*     réflexion a l'ordre IS de la decomposition en séries de Fourier :
-C*     ==> limitation aux bornes utiles -LUM_NBMU:LUM_NBMU
-C*       Rem : pas de modification des bornes d'enregistrement des fichiers 
-C*             temporaire RES_FRESNEL, SOS_MAT_REFLEX car il ne s'agit pas 
-C*             de produits finaux.
+C*   - Routines SOS_MISE_FORMAT & SOS_BPDF_AJOUT_BRDF: change of the
+C*     record or reading line of the arrays of the reflection
+C*     matrix at order IS of the Fourier series decomposition:
+C*     ==> limited to the useful bounds -LUM_NBMU:LUM_NBMU
+C*       Rem: no change of the record bounds of the temporary files
+C*             RES_FRESNEL, SOS_MAT_REFLEX since they are not
+C*             final products.
 C*
-C*   - Adaptation de l'appel des routines de denomination des fichiers
+C*   - Adaptation of the call of the file naming routines
 C*     (SOS_NOM_FICGLITTER, SOS_NOM_FICROUJ, SOS_NOM_FICRH, SOS_NOM_FICBREON, SOS_NOM_FICNADAL)
-C*     aux nouveaux paramètres NBMU_GAUSS et FICANGLES_USER
+C*     to the new parameters NBMU_GAUSS and FICANGLES_USER
 C*
-C*   - Adaptation de la routine SOS_BPDF_AJOUT_BRDF au passage du paramètre
-C*     LUM_NBMU (nb d'angles utiles) et de OS_NB
+C*   - Adaptation of routine SOS_BPDF_AJOUT_BRDF to the passing of the parameter
+C*     LUM_NBMU (nb of useful angles) and OS_NB
 C*
-C*   - Adaptation de l'appel des routines SOS_GLITTER, SOS_ROUJEAN, SOS_RONDEAUX_BREON, 
-C*     SOS_NADAL et SOS_BPDF_AJOUT_BRDF aux passages des paramètres
-C*     LUM_NBMU (nb d'angles utiles), RMU (table des cosinus des angles) 
-C*     et CHR (table des poids des angles), ainsi que OS_NB, OS_NS et OS_NM
+C*   - Adaptation of the call of routines SOS_GLITTER, SOS_ROUJEAN, SOS_RONDEAUX_BREON,
+C*     SOS_NADAL and SOS_BPDF_AJOUT_BRDF to the passing of the parameters
+C*     LUM_NBMU (nb of useful angles), RMU (table of the cosines of the angles)
+C*     and CHR (table of the weights of the angles), as well as OS_NB, OS_NS and OS_NM
 C*
 C* MOD:VERSION:4.1: 24/06/2010 
-C*     Les etiquettes de FORMAT en ,X, passent en ,1X, pour eviter des erreurs de compilation.
+C*     FORMAT labels ,X, changed to ,1X, to avoid compilation errors.
 C*
 C* MOD:VERSION:4.2: 06/06/2013
 C*
-C*   -  Les paramètres d'entrée sont fournis sous la forme de liste de paramètres
-C*      et non plus sous la forme de couples avec mot cle associe => tous les
-C*	paramètres deviennent donc obligatoires
+C*   -  The input parameters are given as a list of parameters
+C*      and no longer as pairs with associated keyword => all
+C*	 parameters are therefore mandatory
 C*
-C*   -  Modification de la valeur de Pi, declaree en constante dans le fichier
-C*      (INCTE_PI remplace CTE_PI)
+C*   -  Change of the value of Pi, declared as a constant in the file
+C*      (INCTE_PI replaces CTE_PI)
 C*  
 C* MOD:VERSION:4.3: 24/02/2016 
-C*    - Ajustements mineurs pour le respect strict des 72 colonnes 
+C*    - Minor adjustments to strictly respect the 72 columns
 C*
-C*    - Changement de la manière de lire les fichiers formatés (Angles, ...)
-C*      pour être compatible avec le compilateur gfortran.
+C*    - Change of the way the formatted files are read (Angles, ...)
+C*      to be compatible with the gfortran compiler.
 C* 
 C*  
 C* MOD:VERSION:5.0: 12/08/2020
-C*   - Ajout des routines de calcul de la matrice BPDF de Maignan (avec BRDF de Roujean):
-C*     --> Appel de la routine SOS_NOM_FICMAIGNAN (définie dans le fichier SOS_NOM_FIC_SURFACE.F)
-C*     --> Introduction du nouveau paramètre d'entrée: COEF_C_MAIGNAN qui intervient dans le modèle de Maignan.
+C*   - Added routines for the computation of the Maignan BPDF matrix (with Roujean BRDF):
+C*     --> Call of routine SOS_NOM_FICMAIGNAN (defined in the file SOS_NOM_FIC_SURFACE.F)
+C*     --> Introduction of the new input parameter COEF_C_MAIGNAN, used in the Maignan model.
 C*
-C*   - Appel de la nouvelle routine SOS_SURFACE_BPDF au lieu de SOS_RONDEAUX_BREON et SOS_NADAL (qui sont supprimées)
-C*     pour gérer le calcul des matrices de BRDF/BPDF de surface (modèles de Rondeaux, Bréon, Nadal et Maignan).
+C*   - Call of the new routine SOS_SURFACE_BPDF instead of SOS_RONDEAUX_BREON and SOS_NADAL (removed)
+C*     to manage the computation of the surface BRDF/BPDF matrices (Rondeaux, Bréon, Nadal and Maignan models).
 C*   
-C*   - Introduction d'un répertoire DIR_TMP pour la localisation des fichiers temporaires.
+C*   - Introduction of a directory DIR_TMP for the location of the temporary files.
 C*
-C*   -  Passage du nom des fichiers temporaires (RES_GSF, RES_FRESNEL, RES_MAT_REFLEX, FICTMP_BPDF),
-C*      avec arborescence complète, aux sous-routines SOS_GLITTER, SOS_ROUJEAN, SOS_SURFACE_BPDF, 
-C*      SOS_MAT_FRESNEL et SOS_MAT_REFLEXION.
+C*   -  Names of the temporary files (RES_GSF, RES_FRESNEL, RES_MAT_REFLEX, FICTMP_BPDF) passed,
+C*      with complete directory tree, to the subroutines SOS_GLITTER, SOS_ROUJEAN, SOS_SURFACE_BPDF,
+C*      SOS_MAT_FRESNEL and SOS_MAT_REFLEXION.
 C*
-C*   - Modification des seuils pour les tests de valeurs limites sur les coefficients KO, K1 et K2 
-C*     du modèle de Roujean : passe de 1000 à 10 
-C*     (quelques cas avec K2 supérieurs à 1 selon l'article de ROUJEAN ET AL (A Bidirectional Reflectance Model 
+C*   - Change of the thresholds for the tests of limit values of the coefficients KO, K1 and K2
+C*     of the Roujean model: changed from 1000 to 10
+C*     (some cases with K2 larger than 1 in the paper of ROUJEAN ET AL (A Bidirectional Reflectance Model
 C*      of the Earth's Surface for the Correction of Remote Sensing Data, JOURNAL OF GEOPHYSICAL RESEARCH,1992).
 C*
 C* MOD:VERSION:5.1: 31/08/2022
-C*    - Renommage des constantes de SOS_* en CTE_*
-C*    - Conversion des traces en Anglais.
+C*    - Constants renamed from SOS_* to CTE_*
+C*    - Traces converted to English.
 C*
 C* MOD:VERSION:5.2: 26/09/2023
-C*    - Suppression d'une virgule après la commande READ(...) en deux endroits.
-C*      Impact nul sur les résultats de simulations, mais levant un warning à la compilation.
-C*    - Modification de syntaxes pour compatibilité avec Fortran 2018 pour compilateur gcc/10.2.0:
-C*         - Boucle de complétude à zéro dans la routine SOS_MAT_REFLEXION 
-C*         - Boucles d'initialisation pour l'ordre IS >= 2 dans la routine SOS_NOYAUX_FRESNEL
-C*         - Boucles sur Teta1 et Teta2 dans la routine SOS_NOYAUX_FRESNEL
+C*    - Removal of a comma after the command READ(...) in two places.
+C*      No impact on the simulation results, but raised a warning at compilation.
+C*    - Syntax changes for compatibility with Fortran 2018 for the gcc/10.2.0 compiler:
+C*         - Zero-completion loop in routine SOS_MAT_REFLEXION
+C*         - Initialisation loops for order IS >= 2 in routine SOS_NOYAUX_FRESNEL
+C*         - Loops on Teta1 and Teta2 in routine SOS_NOYAUX_FRESNEL
 C*
 C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Définition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisees :
-C    CTE_LENDIR : Longueur des noms de répertoires.
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_LENKEYWORD : Taille maximale des Keywords pour le passage des arguments
-C    INCTE_PI : Valeur de PI
-C    CTE_OS_NBMU_MAX : Nombre maximal d'angles positifs.
-C    CTE_OS_NB_MAX :  Valeur maximale pour l'ordre limite du développement en 
-C                     polynomes de Legendre.
-C    CTE_OS_NS_MAX :  Valeur maximale pour l'ordre limite du développement en polynomes 
-C                     de Legendre des éléments de la matrice de Fresnel 
-C                     et en séries de Fourier des luminances.
-C    CTE_OS_NM_MAX :  Valeur maximale pour l'ordre limite  du développement 
-C                     en séries de Fourier de la fonction G.
+C Constants used:
+C    CTE_LENDIR : Length of directory names.
+C     CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_LENKEYWORD : Maximum size of the keywords for argument passing
+C    INCTE_PI : Value of PI
+C    CTE_OS_NBMU_MAX : Maximum number of positive angles.
+C    CTE_OS_NB_MAX :  Maximum value of the limit order of the expansion in
+C                     Legendre polynomials.
+C    CTE_OS_NS_MAX :    Maximum value of the limit order of the expansion in Legendre
+C                     polynomials of the Fresnel matrix elements
+C                     and in Fourier series of the radiances.
+C    CTE_OS_NM_MAX :    Maximum value of the limit order of the expansion
+C                     in Fourier series of the G function.
 C
-C Constantes spécifiques :
-C    LENLINE  : Longueur maximale d'une ligne de données lue dans un fichier
+C Specific constants:
+C    LENLINE  : Maximum length of a data line read in a file
 C----------------------------------------------------------------------------
 #include "SOS.h"
 #define INCTE_PI DACOS(-1.D+00)
 #define LENLINE 1000
 
 C==============================================================================
-C PROGRAMME: SOS_SURFACE
+C PROGRAM: SOS_SURFACE
 C ==========  
-C      Ce programme calcule les matrice de réflexion (BRDF et/ou BPDF) 
-C      de différents modèles:
-C	- Réflexion du glitter,
-C	- Modèle de BRDF de Roujean pour simuler la réflexion en intensite 
-C        de couverts vegetaux,
-C	- Modèle simplifie de BPDF de Rondeaux et Herman (RH) pour simuler la 
-C	  réflexion en polarisation des couverts vegetaux,
-C	- Modèle simplifie de BPDF de Breon, pour simuler la réflexion
-C        en polarisation des sols nus,
-C	- Modèle de BPDF de Nadal dont l'intérêt est de permettre de simuler 
-C	  la polarisation de différents types de surface, d'une manière 
-C	  simplifiee mais représentative.
-C        ==> PB D'APPLICABILITE AU FORMALISME DE SOS
-C            MODELE NON UTILISABLE.
-C	- Modèle de BPDF de Maignan représentatif des surfaces désertiques. 
+C      This program computes the reflection matrices (BRDF and/or BPDF)
+C      of different models:
+C	- Glitter reflection,
+C	- Roujean BRDF model to simulate the reflection in intensity
+C        of vegetation covers,
+C	- Simplified BPDF model of Rondeaux and Herman (RH) to simulate the
+C	  reflection in polarisation of vegetation covers,
+C	- Simplified BPDF model of Breon, to simulate the reflection
+C        in polarisation of bare soils,
+C	- Nadal BPDF model, whose interest is to simulate
+C	  the polarisation of different types of surfaces, in a
+C	  simplified but representative way.
+C        ==> PROBLEM OF APPLICABILITY TO THE SOS FORMALISM
+C            MODEL NOT USABLE.
+C	- Maignan BPDF model, representative of desert surfaces.
 C
-C       Aux 4 derniers modèles de BPDF (Rondeaux, Breon, Nadal, Maignan), 
-C       on ajoute la BRDF de Roujean.
+C       The Roujean BRDF is added to the last 4 BPDF models
+C       (Rondeaux, Breon, Nadal, Maignan).
 C
-C Donnees en entrée du programme
+C Input data of the program
 C ------------------------------
-C     -->Les paramètres/arguments du programme
+C    -->Parameters/arguments of the program
 C
-C	      ISURF  (I4) : (E) Type de surface ISURF 
-C			       (format de decodage en entier I4)
-C      		0 :surface lambertienne d'albédo RHO.
-C			1 :surface lambertienne + glitter.
-C			2 :surface lambertienne + réflexion de Fresnel.
-C		       3 :surface lambertienne + BRDF de Roujean.
-C			4 :surface lambertienne + BRDF de Roujean + BPDF de Rondeaux.
-C			5 :surface lambertienne + BRDF de Roujean + BPDF de Breon.
-C			6 :surface lambertienne + BRDF de Roujean + BPDF de Nadal.	
-C			7 :surface lambertienne + BRDF de Roujean + BPDF de Maignan.		 	
+C            ISURF  (I4)    : (I) Surface type ISURF
+C			       (decoding format: integer I4)
+C      		0 :Lambertian surface of albedo RHO.
+C			1 :Lambertian surface + glitter.
+C			2 :Lambertian surface + Fresnel reflection.
+C		       3 :Lambertian surface + Roujean BRDF.
+C			4 :Lambertian surface + Roujean BRDF + Rondeaux BPDF.
+C			5 :Lambertian surface + Roujean BRDF + Breon BPDF.
+C			6 :Lambertian surface + Roujean BRDF + Nadal BPDF.
+C			7 :Lambertian surface + Roujean BRDF + Maignan BPDF.
 C
-C             FICANGLES (CHARACTER) : (E) nom complet du fichier des angles utilisés 
-C                                      pour les calculs de luminance et BRDF
-C                 		      (répertoire + nom fichier + extension)
+C            FICANGLES (CHARACTER) : (I) complete name of the file of the angles used
+C                                         for the radiance and BRDF computations
+C				  (directory + file name + extension)
 C
-C             IND (I4) : (E) Indice de réfraction de la surface / air.		 	
+C             IND (I4) : (I) Refractive index surface / air.
 C
-C             WIND (DOUBLE) : (E) ==> Associé à : ISURF = 1
-C 	      		       Vitesse du vent en m/s.	
+C            WIND (DOUBLE) : (I) ==> Associated with: ISURF = 1
+C 	      		       Wind speed in m/s.
 C		
-C             K0_ROUJEAN (DOUBLE) : (E) ==> Associé à : ISURF >= 3
-C 	       		     Paramètre k0 du modèle de BRDF de Roujean.       	
+C            K0_ROUJEAN (DOUBLE) : (I) ==> Associated with: ISURF >= 3
+C 	       		      Parameter k0 of the Roujean BRDF model.
 C		
-C             K1_ROUJEAN (DOUBLE) : (E) ==> Associé à : ISURF >= 3
-C 	      		    Paramètre k1 du modèle de BRDF de Roujean.       	
+C            K1_ROUJEAN (DOUBLE) : (I) ==> Associated with: ISURF >= 3
+C 	      			     Parameter k1 of the Roujean BRDF model.
 C		
-C             K2_ROUJEAN (DOUBLE) : (E) ==> Associé à : ISURF >= 3
-C 	      		    Paramètre k2 du modèle de BRDF de Roujean.       	
+C            K2_ROUJEAN (DOUBLE) : (I) ==> Associated with: ISURF >= 3
+C 	      			     Parameter k2 of the Roujean BRDF model.
 C
-C             ALPHA_NADAL (DOUBLE) : (E) ==> Associé à : ISURF = 6
-C 	      			Paramètre alpha du modèle de BPDF de Nadal.       	
+C            ALPHA_NADAL (DOUBLE) : (I) ==> Associated with: ISURF = 6
+C 	      			     Parameter alpha of the Nadal BPDF model.
 C
-C             BETA_NADAL (DOUBLE) : (E) ==> Associé à : ISURF = 6
-C 	      		       Paramètre beta du modèle de BPDF de Nadal.       
+C            BETA_NADAL (DOUBLE) : (I) ==> Associated with: ISURF = 6
+C 	      			     Parameter beta of the Nadal BPDF model.
 C
-C             COEF_C_MAIGNAN (DOUBLE) : (E) ==> Associé à : ISURF = 7
-C 	      		       Paramètre C*exp(-NDVI) du modèle de BPDF de Maignan.  	
+C            COEF_C_MAIGNAN (DOUBLE) : (I) ==> Associated with: ISURF = 7
+C 	      		            Parameter C*exp(-NDVI) of the Maignan BPDF model.
 C
-C             FICLOG (CHARACTER): (E) nom complet du fichier trace (répertoire + nom fichier + extension)
-C                                     ou =0, si pas de  trace	 
+C             FICLOG (CHARACTER): (I) complete name of the trace file (directory + file name + extension)
+C                                    or =0 if no trace
 C
-C             DIRS (CHARACTER) : (E) Répertoire de stockage des fichiers de matrice de réflexion 
-C                   		        de surface (fichier Glitter ou autres BRDF/BPDF).
+C             DIRS (CHARACTER) : (I) Storage directory of the reflection matrix files
+C                   		            files (Glitter file or other BRDF/BPDF).
 C
-C             DIRROUJEAN (CHARACTER) : (E) ==> Associé à : ISURF = 3 4 5 6 ou 7
-C					répertoire de stockage des fichiers de BRDF de Roujean,
-C                                  appliquées aux modèles de BPDF.
+C             DIRROUJEAN (CHARACTER) : (I) ==> Associated with: ISURF = 3 4 5 6 or 7
+C					storage directory of the Roujean BRDF files,
+C                                  applied to the BPDF models.
 C
-C             DIR_TMP  (CHARACTER)  : (E) répertoire temporaire de génération des fichiers
+C             DIR_TMP  (CHARACTER)  : (I) temporary directory where the files are generated
 C
-C      	IER (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+C     IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C
 C                                 
 C
-C    -->Fichiers
-C       Le fichier Trace.
-C       Le fichier résultat contenant l'expression, pour le code des OS, de la 
-C       decomposition en séries de Fourier de la matrice de réflexion de surface.
-C       Des fichiers intermédiaires (non conservés) : 
-C           commentaires et description dans les routines appelées.
-C       Le fichier des angles et paramètres internes pour les limites des développements.
+C    -->Files
+C       The Trace file.
+C       The result file containing the expression, for the OS code, of the
+C       Fourier series decomposition of the surface reflection matrix.
+C       Intermediate files (not kept):
+C           comments and description in the called routines.
+C       The file of angles and internal parameters for the expansion limits.
 C         
 C       
 C
-C Resultats fournis par le programme
+C Results provided by the program
 C ----------------------------------
-C fichier BRDF / BPDF de la matrice de réflexion de surface
-C pour une décomposition en séries de Fourier
+C BRDF / BPDF file of the surface reflection matrix
+C for a Fourier series decomposition
 C
-C Variable d'environnement
+C Environment variable
 C ------------------------
-C   Aucune
+C   None
 C
 C
-C Description des fichiers utilisés
+C Description of the files used
 C ---------------------------------
 C
-C   -->Contenu du fichier BRDF / BPDF résultat
-C       Fichier binaire non formatte, cree par SOS_MISE_FORMAT
-C       Il contient la matrice de réflexion de surface 
-C       (fichier GLITTER ou autres BRDF / BPDF):
-C       c'est a dire les éléments Pij de la matrice de réflexion 
-C              P11(LUM_NBMU,LUM_NBMU) (réel),
-C              P12(LUM_NBMU,LUM_NBMU) (réel),
-C              P13(LUM_NBMU,LUM_NBMU) (réel),
-C              P21(LUM_NBMU,LUM_NBMU) (réel),
-C              P22(LUM_NBMU,LUM_NBMU) (réel),
-C              P23(LUM_NBMU,LUM_NBMU) (réel),
-C              P31(LUM_NBMU,LUM_NBMU) (réel),
-C              P32(LUM_NBMU,LUM_NBMU) (réel),
-C              P33(LUM_NBMU,LUM_NBMU) (réel)
+C   -->Content of the result BRDF / BPDF file
+C       Unformatted binary file, created by SOS_MISE_FORMAT
+C       It contains the surface reflection matrix
+C       (GLITTER file or other BRDF / BPDF):
+C       i.e. the elements Pij of the reflection matrix
+C              P11(LUM_NBMU,LUM_NBMU) (real),
+C              P12(LUM_NBMU,LUM_NBMU) (real),
+C              P13(LUM_NBMU,LUM_NBMU) (real),
+C              P21(LUM_NBMU,LUM_NBMU) (real),
+C              P22(LUM_NBMU,LUM_NBMU) (real),
+C              P23(LUM_NBMU,LUM_NBMU) (real),
+C              P31(LUM_NBMU,LUM_NBMU) (real),
+C              P32(LUM_NBMU,LUM_NBMU) (real),
+C              P33(LUM_NBMU,LUM_NBMU) (real)
 C
-C        --> Enregistrement sur le domaine limité aux angles utiles
+C        --> Record on the domain limited to the useful angles
 C                                  --------------------------------
 C
 C
-C    -->Contenu du fichier des angles:
-C       Fichier ascii formatté, crée par SOS_ANGLES.
-C       Il contient l'information sur les angles à utiliser 
-C       et sur les ordres des développements adaptes : 
-C		  NB_TOTAL_ANGLES :  Nb d'angles total à utiliser
-C               NB_GAUSS_ANGLES :  Nb d'angles de Gauss
-C               ANGLES_USERFILE :  Nom du fichier des angles utilisateur
-C	         SOLAR ZENITH ANGLE : Angle zenithal solaire (degrés)
-C		  INTERNAL_IMUS :      Numéro d'indice de table correspondant
-C               INTERNAL_OS_NB :   Ordre des développements des fonctions de phase 
-C				       en Polynomes de Legendre à utiliser.
-C               INTERNAL_OS_NS :   Ordre maximal à utiliser pour le développement en
-C                                  polynomes de Legendre des éléments de la matrice de Fresnel 
-C                                  et en séries de Fourier des calculs de luminance.
-C               INTERNAL_OS_NM :   Ordre maximal du développement en séries de Fourier  
-C                                  de la fonction G des calculs de matrice de réflexion.
-C               INDEX COS_ANGLE WEIGHT OUTPUT: lignes donnant le numéro d'angle, son cosinus 
-C                                              et son poids, s'il est donné en sortie "utilisateur"
-C                                              au format I4,1X,2D21.14,1X,I4
+C    -->Content of the angle file:
+C       Formatted ascii file, created by SOS_ANGLES.
+C       It contains the information on the angles to be used
+C       and on the adapted expansion orders:
+C		  NB_TOTAL_ANGLES :  Total nb of angles to be used
+C               NB_GAUSS_ANGLES :  Nb of Gauss angles
+C               ANGLES_USERFILE :  Name of the user angles file
+C	         SOLAR ZENITH ANGLE : Solar zenith angle (degrees)
+C		  INTERNAL_IMUS :      Corresponding array index number
+C               INTERNAL_OS_NB :   Order of the expansions of the phase functions
+C		           in Legendre polynomials to be used.
+C             INTERNAL_OS_NS :   Maximum order to be used for the expansion in
+C                        Legendre polynomials of the Fresnel matrix elements
+C                        and in Fourier series of the radiance computations.
+C             INTERNAL_OS_NM :   Maximum order of the expansion in Fourier series
+C                                of the G function of the reflection matrix computations.
+C               INDEX COS_ANGLE WEIGHT OUTPUT: lines giving the angle number, its cosine
+C                                            and its weight, and whether it is a "user" output
+C                                              with format I4,1X,2D21.14,1X,I4
 C         
 C
-C Common utilisé:
+C Common used:
 C --------------
-C  Aucun
+C None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------        
-C     -Erreur dans un sous-programme
-C     -Erreur à l'ouverture du fichier Trace
-C     -Paramètres non valables
+C     -Error in a subroutine
+C     -Error when opening the trace file
+C     -Invalid parameters
 C
-C     Affichage d'un message à l'écran, arrêt du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C   
 C
-C  Sous programmes utilisés:
+C  Subroutines used:
 C --------------------------
-C  Ce programme fait appel aux routines:
+C  This program calls the routines:
 C     - SOS_NOM_FICGLITTER   |
 C     - SOS_NOM_FICROUJ      |
-C     - SOS_NOM_FICRH        | -> Fichier SOS_NOM_FIC_SURFACE.F
+C     - SOS_NOM_FICRH        | -> File SOS_NOM_FIC_SURFACE.F
 C     - SOS_NOM_FICBREON     |
 C     - SOS_NOM_FICNADAL     |
 C     - SOS_GLITTER
@@ -346,93 +346,93 @@ C============================================================================
       
       IMPLICIT NONE
       
-C* Définition des variables   
+C* Definition of variables
 C*-------------------------------------------------------------------------- 
          
-      CHARACTER*CTE_LENDIR DIRS	     ! Chemin d'accès au fichier SURFACE résultat .
-      CHARACTER*CTE_LENDIR DIRROUJEAN   ! Répertoire de stockage des fichiers de BRDF 
-                                        ! de Roujean, appliquées aux modèles de BPDF.  
-      CHARACTER*CTE_LENDIR DIR_TMP      ! Chemin d'accès aux fichiers SURFACE en cours de génération                                             
-      CHARACTER*CTE_LENFIC1 FICS        ! Nom du fichier SURFACE (sans arborescence).
-      CHARACTER*CTE_LENFIC2 FICLOG      ! Nom du fichier trace SURFACE.
-      CHARACTER*CTE_LENFIC2 FICANGLES   ! Chemin et nom du fichier des angles effectifs
-      CHARACTER*CTE_LENFIC2 FICANGLES_USER  ! Chemin et nom du fichier des angles "utilisateurs"
-      CHARACTER*CTE_LENFIC2 FICSURF_TMP     ! Chemin et nom du fichier SURFACE en cours de génération
-      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Nom du fichier RES_MAT_REFLEX
-                                               ! avec arborescence complète.
-      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Nom du fichier RES_GSF avec arborescence complète.
-      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Nom du fichier RES_FRESNEL avec arborescence complète.
-      CHARACTER*CTE_LENFIC2 FICGLITTER ! Nom complet du fichier Glitter.
-      CHARACTER*CTE_LENFIC2 FICROUJ    ! Nom complet du fichier du modèle de ROUJEAN.
-      CHARACTER*CTE_LENFIC2 FICRH      ! Nom cpmplet du fichier du modèle de RH.
-      CHARACTER*CTE_LENFIC2 FICBREON   ! Nom complet du fichier du modèle de BREON.
-      CHARACTER*CTE_LENFIC2 FICNADAL   ! Nom complet du fichier du modèle de NADAL.
-      CHARACTER*CTE_LENFIC2 FICMAIGNAN ! Nom complet du fichier du modèle de NADAL.
-      CHARACTER*CTE_LENFIC2 FICTMP_BPDF ! Nom complet du fichier temporaire pour la BPDF sans complément de la BRDF. 
-      CHARACTER*CTE_LENCOM  COMMAND     ! Chaine de commande pour appel système.
+      CHARACTER*CTE_LENDIR DIRS	     ! Access path to the result SURFACE file.
+      CHARACTER*CTE_LENDIR DIRROUJEAN   ! Storage directory of the Roujean BRDF
+                                        ! files, applied to the BPDF models.
+      CHARACTER*CTE_LENDIR DIR_TMP      ! Access path to the SURFACE files being generated
+      CHARACTER*CTE_LENFIC1 FICS        ! Name of the SURFACE file (without directory tree).
+      CHARACTER*CTE_LENFIC2 FICLOG      ! Name of the SURFACE trace file.
+      CHARACTER*CTE_LENFIC2 FICANGLES   ! Path and name of the file of the actual angles
+      CHARACTER*CTE_LENFIC2 FICANGLES_USER  ! Path and name of the "user" angles file
+      CHARACTER*CTE_LENFIC2 FICSURF_TMP     ! Path and name of the SURFACE file being generated
+      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Name of the file RES_MAT_REFLEX
+                                               ! with complete directory tree.
+      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Name of the file RES_GSF with complete directory tree.
+      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Name of the file RES_FRESNEL with complete directory tree.
+      CHARACTER*CTE_LENFIC2 FICGLITTER ! Complete name of the Glitter file.
+      CHARACTER*CTE_LENFIC2 FICROUJ    ! Complete name of the ROUJEAN model file.
+      CHARACTER*CTE_LENFIC2 FICRH      ! Complete name of the RH model file.
+      CHARACTER*CTE_LENFIC2 FICBREON   ! Complete name of the BREON model file.
+      CHARACTER*CTE_LENFIC2 FICNADAL   ! Complete name of the NADAL model file.
+      CHARACTER*CTE_LENFIC2 FICMAIGNAN ! Complete name of the MAIGNAN model file.
+      CHARACTER*CTE_LENFIC2 FICTMP_BPDF ! Complete name of the temporary file for the BPDF without the BRDF complement.
+      CHARACTER*CTE_LENCOM  COMMAND     ! Command string for system call.
   
-      CHARACTER*LENLINE LIGNE_TEXTE    ! Ligne de caractères pour décodage de paramètres   
-      CHARACTER*1000 CVAL	       ! Chaine de caractères pour la lecture de valeurs inutilisees
+      CHARACTER*LENLINE LIGNE_TEXTE    ! Character line for decoding parameters
+      CHARACTER*1000 CVAL	       ! Character string to read unused values
       
-      LOGICAL EX		! Verifie existence d'un fichier.
-      LOGICAL TRACE     	! = vrai,si écriture dans le fichier trace
+      LOGICAL EX		! Checks the existence of a file.
+      LOGICAL TRACE     	! = true if writing in the trace file
 
-      INTEGER*4 NBMU_GAUSS  ! Nombre d'angles de Gauss utilisés       
-      INTEGER*4 LUM_NBMU    ! Nombre d'angles effectifs des simulations
-      INTEGER*4 LDIRS	! Longueur de la chaine de caractère DIRS.
-      INTEGER*4 LDIRTMP     ! Longueur de la chaine de caractères DIRTMP 
-      INTEGER*4 LDIRROUJEAN	! Longueur de la chaine de caractère DIRROUJEAN
-      INTEGER*4 LFICS	! Longueur de la chaine de caractère FICS.  
-      INTEGER*4 LFICTMP	! Longueur de la chaine de caractères FICSURF_TMP          
-      INTEGER*4 LCOM        ! Longueur de la chaine de caractères COMMAND      
-      INTEGER*4 IER     	! Code d'erreur =0 si pas d'erreur, =-1 sinon     
-      INTEGER*4 J	       ! Indice de tableau                    
-      INTEGER*4 OS_NB 	! Ordre des développements des fonctions de phase 
-				! en Polynomes de Legendre.
-      INTEGER*4 OS_NS    	! Ordre maximal du développement en polynomes de Legendre   
-				! des éléments de la matrice de Fresnel.
-      INTEGER*4 OS_NM    	! Ordre maximal du développement en séries de Fourier  
-				! de la fonction G des calculs de matrice de réflexion.
+      INTEGER*4 NBMU_GAUSS  ! Number of Gauss angles used
+      INTEGER*4 LUM_NBMU    ! Number of actual angles of the simulations
+      INTEGER*4 LDIRS	! Length of the character string DIRS.
+      INTEGER*4 LDIRTMP     ! Length of the character string DIRTMP
+      INTEGER*4 LDIRROUJEAN	! Length of the character string DIRROUJEAN
+      INTEGER*4 LFICS	! Length of the character string FICS.
+      INTEGER*4 LFICTMP	! Length of the character string FICSURF_TMP
+      INTEGER*4 LCOM        ! Length of the character string COMMAND
+      INTEGER*4 IER     	! Error code =0 if no error, =-1 otherwise
+      INTEGER*4 J	       ! Array index
+      INTEGER*4 OS_NB 	! Order of the expansions of the phase functions
+				! in Legendre polynomials.
+      INTEGER*4 OS_NS    	! Maximum order of the expansion in Legendre polynomials
+				! of the Fresnel matrix elements.
+      INTEGER*4 OS_NM    	! Maximum order of the expansion in Fourier series
+				! of the G function of the reflection matrix computations.
   
-      INTEGER*2 ISURF	! Type de surface          
+      INTEGER*2 ISURF	! Surface type
 
-      INTEGER*4 IFIN        ! Nb de caractères significatifs d'une chaine. 
+      INTEGER*4 IFIN        ! Nb of significant characters of a string.
  
 
       DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-                                             !Cosinus des angles de Gauss (et utilisateur).
+                                             !Cosines of the Gauss (and user) angles.
       DOUBLE PRECISION CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-                                             !Poids des angles de Gauss.				
+                                             !Weights of the Gauss angles.
           
-      DOUBLE PRECISION WIND	! Vitesse du vent (m/s).
+      DOUBLE PRECISION WIND	! Wind speed (m/s).
       
-      DOUBLE PRECISION IND	! Indice de réfraction du dioptre.	
+      DOUBLE PRECISION IND	! Refractive index of the interface.
       
-      DOUBLE PRECISION K0_ROUJEAN,K1_ROUJEAN,K2_ROUJEAN	!Paramètres du modèle de Roujean
+      DOUBLE PRECISION K0_ROUJEAN,K1_ROUJEAN,K2_ROUJEAN	!Parameters of the Roujean model
       
-      DOUBLE PRECISION ALPHA_NADAL	!Paramètre alpha du modèle de Nadal.
-      DOUBLE PRECISION BETA_NADAL	!Paramètre beta du modèle de Nadal.
-      DOUBLE PRECISION COEF_C_MAIGNAN !Paramètre C*exp(-NDVI) du modèle de Maignan.
+      DOUBLE PRECISION ALPHA_NADAL	!Parameter alpha of the Nadal model.
+      DOUBLE PRECISION BETA_NADAL	!Parameter beta of the Nadal model.
+      DOUBLE PRECISION COEF_C_MAIGNAN !Parameter C*exp(-NDVI) of the Maignan model.
    
       
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0
      
-C --- Dénomination du fichier de BRDF/BPDF temporaire 
-C     pour sa création dans l'espace de travail avant déplacement 
-C     dans l'espace d'archivage.
+C --- Naming of the temporary BRDF/BPDF file
+C     for its creation in the work space before moving it
+C     to the archive space.
       LDIRTMP = INDEX(DIR_TMP,'/TMP') +3
       FICSURF_TMP=DIR_TMP(1:LDIRTMP)//'/'//"SURFACE_FILE_BUILDING_TMP"
       LFICTMP = INDEX(FICSURF_TMP,' ') - 1
 
-C     Fichier temporaire RES_GSF
+C      Temporary file RES_GSF
       FIC_RES_GSF = DIR_TMP(1:LDIRTMP)//'/'//"RES_GSF"
       FIC_RES_FRESNEL = DIR_TMP(1:LDIRTMP)//'/'//"RES_FRESNEL"
       FIC_RES_MAT_REFLEX = DIR_TMP(1:LDIRTMP)//'/'//"RES_MAT_REFLEX"
       FICTMP_BPDF = DIR_TMP(1:LDIRTMP)//'/'//"FICTMP_BPDF"
 
-C     Suppression des fichiers temporaires potentiellement existants
+C     Removal of the possibly existing temporary files
       INQUIRE(FILE=FICSURF_TMP,EXIST=EX)
       IF (EX) THEN 
          OPEN(UNIT=3,FILE=FICSURF_TMP,FORM='UNFORMATTED')
@@ -464,7 +464,7 @@ C     Suppression des fichiers temporaires potentiellement existants
       ENDIF
 
 
-C* Ouverture du fichier Trace 
+C* Opening of the trace file
 C------------------------------------------------------
       IF (FICLOG.EQ.'NO_LOG_FILE') THEN
 	  TRACE=.FALSE.
@@ -474,7 +474,7 @@ C------------------------------------------------------
       ENDIF
             	 
 
-C* Lecture des tables d'angles et de poids utiles aux simulations
+C* Reading of the angle and weight tables used by the simulations
 C* -----------------------------------------------------------------     
       OPEN(UNIT=10,FILE=FICANGLES,STATUS='OLD',ERR=950)
       
@@ -487,10 +487,10 @@ C* -----------------------------------------------------------------
       READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) NBMU_GAUSS
       
       READ(10,'(a)',ERR=951) LIGNE_TEXTE
-      !On ne conserve que la partie après le séparateur ':'
+      !Only the part after the separator ':' is kept
       IFIN=INDEX(LIGNE_TEXTE,':')	
       LIGNE_TEXTE=LIGNE_TEXTE(IFIN+1:LENLINE)	
-      !On recherche la fin de ligne utile ' ' pour réduire la taille de la chaine
+      !Search for the end of the useful line ' ' to reduce the string size
       IFIN=INDEX(LIGNE_TEXTE,' ')
       FICANGLES_USER=LIGNE_TEXTE(1:IFIN)
       
@@ -558,10 +558,10 @@ C* -----------------------------------------------------------------
 1000    CONTINUE	
 	 WRITE (99,*,ERR=960) " " 
 	 WRITE (99,*,ERR=960) " "  	
-      ENDIF !Fichier Trace	 
+      ENDIF !Trace file
 
 
-c* Taille du chemin complet au répertoire de sortie
+c* Size of the complete path to the output directory
 C* -----------------------------------------------------------------     
 
       LDIRS = INDEX(DIRS,' ')
@@ -574,13 +574,13 @@ C* -----------------------------------------------------------------
 
 
 C =====================================================================
-C* Cas du GLITTER
+C* GLITTER case
 C =====================================================================
 
       IF (ISURF.EQ.1) THEN
 
 	
-C* Constitution du nom du fichier GLITTER
+C* Building of the name of the GLITTER file
 C  --------------------------------------
 	 CALL SOS_NOM_FICGLITTER(NBMU_GAUSS,FICANGLES_USER,IND,WIND,
      &	                         FICS)      
@@ -588,7 +588,7 @@ C  --------------------------------------
 	 LFICS=INDEX(FICGLITTER,' ')-1	
 	 WRITE(6,*) "File : ",FICGLITTER(1:LFICS)
 	 
-C* Si le fichier GLITTER existe déjà, le programme n'est pas lancé
+C* If the GLITTER file already exists, the program is not run
 C  ---------------------------------------------------------------     
          INQUIRE(FILE=FICGLITTER(1:LFICS),EXIST=EX)
 	  
@@ -597,7 +597,7 @@ C  ---------------------------------------------------------------
 	  
 	 ELSE   
       
-C* Calcul du fichier Glitter
+C* Computation of the Glitter file
 C  ------------------------- 
            WRITE(6,*)'==> Starting the file computation'
 	    CALL SOS_GLITTER(LUM_NBMU,RMU,CHR,WIND,IND,
@@ -605,41 +605,41 @@ C  -------------------------
      &                      FIC_RES_GSF,FIC_RES_FRESNEL,
      &                      FIC_RES_MAT_REFLEX,
      &	                     FICSURF_TMP,TRACE,IER)
-            IF (IER.NE.0) GOTO 993   ! cas d'erreur
+            IF (IER.NE.0) GOTO 993   ! error case
 
-C* Déplacement de FICSURF_TMP vers FICGLITTER
+C* Move of FICSURF_TMP to FICGLITTER
 C---------------------------------------------------------------------
             COMMAND=
      &      'mv '//FICSURF_TMP(1:LFICTMP)//' '//FICGLITTER(1:LFICS)
-            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
             LCOM = LCOM + (4+LFICTMP)
             IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
             INQUIRE(FILE=FICGLITTER(1:LFICS),EXIST=EX)
-            IF (EX) THEN !Si le fichier de BRDF/BPDF existe on détruit le fichier temporaire (généré par autre traitement)
+            IF (EX) THEN !If the BRDF/BPDF file exists, the temporary file (generated by another process) is deleted
                OPEN(UNIT=3,FILE=FICSURF_TMP,FORM='UNFORMATTED')
                CLOSE(3,STATUS='DELETE') 
-            ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de BRDF/BPDF
+            ELSE !Otherwise it is moved to the storage space of the BRDF/BPDF files
                CALL SYSTEM(COMMAND)  
             ENDIF    
          ENDIF
 
 	  
-      ENDIF ! Cas du Glitter
+      ENDIF ! Glitter case
 	 
 
 
 
 C =====================================================================
-C* Cas BRDF de ROUJEAN
-C*   NB : Calculée également pour les modèles de BPDF.
+C* ROUJEAN BRDF case
+C*   NB: Also computed for the BPDF models.
 C =====================================================================
 
       IF (ISURF.GE.3) THEN
 
 
-C* Controle de cohérence par rapport au format F7.3
-C  Valeurs de K0, K1,K2 forcées au format F7.3
+C* Consistency check with respect to the format F7.3
+C  Values of K0, K1, K2 forced to the format F7.3
 C  -----------------------------------------	
         IF((K0_ROUJEAN.LT.0.).OR.(K0_ROUJEAN.GE.10.)) GOTO 9910
 	 IF((K1_ROUJEAN.LT.0.).OR.(K1_ROUJEAN.GE.10.)) GOTO 9910
@@ -650,7 +650,7 @@ C  -----------------------------------------
 	 K2_ROUJEAN = DNINT(K2_ROUJEAN*1000.D+00) / 1000.D+00	 	 
 
 	
-C* Constitution du nom du fichier de ROUJEAN
+C* Building of the name of the ROUJEAN file
 C  -----------------------------------------
 	 CALL SOS_NOM_FICROUJ(NBMU_GAUSS,FICANGLES_USER,
      &                       K0_ROUJEAN,K1_ROUJEAN,K2_ROUJEAN,FICS)     
@@ -658,7 +658,7 @@ C  -----------------------------------------
 	 LFICS=INDEX(FICROUJ,' ')-1      
 	 WRITE(6,*) "File : ",FICROUJ(1:LFICS)
 	 
-C* Si le fichier existe déjà, le programme n'est pas lancé
+C* If the file already exists, the program is not run
 C  --------------------------------------------------------	 
          INQUIRE(FILE=FICROUJ(1:LFICS),EXIST=EX)	 
 	 
@@ -667,45 +667,45 @@ C  --------------------------------------------------------
 	    
 	 ELSE   
       
-C* Calcul du fichier de ROUJEAN
+C* Computation of the ROUJEAN file
 C  -----------------------------
             WRITE(6,*)'==> Starting the file computation'
 	     CALL SOS_ROUJEAN(LUM_NBMU,RMU,CHR,OS_NB,
      &	                      K0_ROUJEAN,K1_ROUJEAN,K2_ROUJEAN,
      &	                      FIC_RES_MAT_REFLEX,FICSURF_TMP,TRACE,IER)
 
-            IF (IER.NE.0) GOTO 994   ! cas d'erreur
+            IF (IER.NE.0) GOTO 994   ! error case
 
-C* Déplacement de FICSURF_TMP vers FICROUJ
+C* Move of FICSURF_TMP to FICROUJ
 C---------------------------------------------------------------------
             COMMAND=
      &      'mv '//FICSURF_TMP(1:LFICTMP)//' '//FICROUJ(1:LFICS)
-            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
             LCOM = LCOM + (4+LFICTMP)
             IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
             INQUIRE(FILE=FICROUJ(1:LFICS),EXIST=EX)
-            IF (EX) THEN !Si le fichier de BRDF/BPDF existe on détruit le fichier temporaire (généré par autre traitement)
+            IF (EX) THEN !If the BRDF/BPDF file exists, the temporary file (generated by another process) is deleted
                OPEN(UNIT=3,FILE=FICSURF_TMP,FORM='UNFORMATTED')
                CLOSE(3,STATUS='DELETE') 
-            ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de BRDF/BPDF
+            ELSE !Otherwise it is moved to the storage space of the BRDF/BPDF files
                CALL SYSTEM(COMMAND)  
             ENDIF
 	       
          ENDIF
 	 
-      ENDIF ! Cas de la BRDF de Roujean
+      ENDIF ! Case of the Roujean BRDF
 
 
 
 	 
 C =====================================================================
-C* Cas BPDF de Rondeaux - Herman
+C* Case of the Rondeaux - Herman BPDF
 C =====================================================================
 
       IF (ISURF.EQ.4) THEN
 
-C* Constitution du nom du fichier de Rondeaux - Herman
+C* Building of the name of the Rondeaux - Herman file
 C  ---------------------------------------------------
 	 CALL SOS_NOM_FICRH(NBMU_GAUSS,FICANGLES_USER,IND,
      &	                    K0_ROUJEAN,K1_ROUJEAN,K2_ROUJEAN,FICS)
@@ -713,7 +713,7 @@ C  ---------------------------------------------------
 	 LFICS=INDEX(FICRH,' ')-1
 	 WRITE(6,*) "File : ",FICRH(1:LFICS)
 	 
-C* Si le fichier existe déjà, le programme n'est pas lancé
+C* If the file already exists, the program is not run
 C  -------------------------------------------------------	 
         INQUIRE(FILE=FICRH(1:LFICS),EXIST=EX)
 	 	 
@@ -723,7 +723,7 @@ C  -------------------------------------------------------
 	 ELSE   
   
             
-C* Calcul du fichier de Rondeaux - Herman
+C* Computation of the Rondeaux - Herman file
 C  --------------------------------------
            WRITE(6,*)'==> Starting the file computation'
 	    CALL SOS_SURFACE_BPDF(LUM_NBMU,RMU,CHR,IND,
@@ -733,52 +733,52 @@ C  --------------------------------------
      &                           FIC_RES_GSF,FIC_RES_FRESNEL,
      &                           FIC_RES_MAT_REFLEX,
      &	                          FICTMP_BPDF,TRACE,IER)     
-            IF (IER.NE.0) GOTO 995   ! cas d'erreur
+            IF (IER.NE.0) GOTO 995   ! error case
 
 
 		
-C* Ajout de la BRDF de Roujean
+C* Addition of the Roujean BRDF
 C---------------------------------------------------------------------
             CALL SOS_BPDF_AJOUT_BRDF(FICTMP_BPDF,FICROUJ,LUM_NBMU,OS_NB,
      &	                              FICSURF_TMP,IER)
-	     IF (IER.NE.0) GOTO 998   ! cas d'erreur
+	     IF (IER.NE.0) GOTO 998   ! error case
 
-C* Déplacement de FICSURF_TMP vers FICRH
+C* Move of FICSURF_TMP to FICRH
 C---------------------------------------------------------------------
             COMMAND=
      &      'mv '//FICSURF_TMP(1:LFICTMP)//' '//FICRH(1:LFICS)
-            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
             LCOM = LCOM + (4+LFICTMP)
             IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
             INQUIRE(FILE=FICRH(1:LFICS),EXIST=EX)
-            IF (EX) THEN !Si le fichier de BRDF/BPDF existe on détruit le fichier temporaire (généré par autre traitement)
+            IF (EX) THEN !If the BRDF/BPDF file exists, the temporary file (generated by another process) is deleted
                OPEN(UNIT=3,FILE=FICSURF_TMP,FORM='UNFORMATTED')
                CLOSE(3,STATUS='DELETE') 
-            ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de BRDF/BPDF
+            ELSE !Otherwise it is moved to the storage space of the BRDF/BPDF files
                CALL SYSTEM(COMMAND)  
             ENDIF
 
 
-C* Destruction du fichier temporaire
+C* Deletion of the temporary file
 C---------------------------------------   
 	     OPEN(UNIT=3,FILE=FICTMP_BPDF,FORM='UNFORMATTED')
             CLOSE(3,STATUS='DELETE') 
 	    	                   
 	        	       
-        ENDIF ! Si fichier à créer.
+        ENDIF ! If the file is to be created.
 
-      ENDIF ! Cas de la BPDF de Rondeaux - Herman
+      ENDIF ! Case of the Rondeaux - Herman BPDF
 
 
 
 C =====================================================================
-C* Cas BPDF de BREON
+C* Case of the BREON BPDF
 C =====================================================================
 
       IF (ISURF.EQ.5) THEN
 
-C* Constitution du nom du fichier de BREON
+C* Building of the name of the BREON file
 C  ---------------------------------------
 	 CALL SOS_NOM_FICBREON(NBMU_GAUSS,FICANGLES_USER,IND,
      &	                       K0_ROUJEAN,K1_ROUJEAN,K2_ROUJEAN,FICS)   
@@ -786,7 +786,7 @@ C  ---------------------------------------
 	 LFICS=INDEX(FICBREON,' ')-1
 	 WRITE(6,*) FICBREON(1:LFICS)
 	 
-C* Si le fichier existe déjà, le programme n'est pas lancé
+C* If the file already exists, the program is not run
 C  --------------------------------------------------------	 
         INQUIRE(FILE=FICBREON(1:LFICS),EXIST=EX)	 
 	 
@@ -795,7 +795,7 @@ C  --------------------------------------------------------
 	  
 	 ELSE        
             
-C* Calcul du fichier de Rondeaux - Herman
+C* Computation of the Breon file
 C  --------------------------------------
             WRITE(6,*)'==> Starting the file computation'
 	     CALL SOS_SURFACE_BPDF(LUM_NBMU,RMU,CHR,IND,
@@ -805,50 +805,50 @@ C  --------------------------------------
      &                            FIC_RES_GSF,FIC_RES_FRESNEL,
      &                            FIC_RES_MAT_REFLEX,
      &	                           FICTMP_BPDF,TRACE,IER)  
-            IF (IER.NE.0) GOTO 995   ! cas d'erreur
+            IF (IER.NE.0) GOTO 995   ! error case
 
-C* Ajout de la BRDF de Roujean
+C* Addition of the Roujean BRDF
 C---------------------------------------------------------------------
             CALL SOS_BPDF_AJOUT_BRDF(FICTMP_BPDF,FICROUJ,LUM_NBMU,OS_NB,
      &                               FICSURF_TMP,IER)
-	     IF (IER.NE.0) GOTO 998   ! cas d'erreur
+	     IF (IER.NE.0) GOTO 998   ! error case
 
-C* Déplacement de FICSURF_TMP vers FICBREON
+C* Move of FICSURF_TMP to FICBREON
 C---------------------------------------------------------------------
             COMMAND=
      &      'mv '//FICSURF_TMP(1:LFICTMP)//' '//FICBREON(1:LFICS)
-            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
             LCOM = LCOM + (4+LFICTMP)
             IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
             INQUIRE(FILE=FICBREON(1:LFICS),EXIST=EX)
-            IF (EX) THEN !Si le fichier de BRDF/BPDF existe on détruit le fichier temporaire (généré par autre traitement)
+            IF (EX) THEN !If the BRDF/BPDF file exists, the temporary file (generated by another process) is deleted
                OPEN(UNIT=3,FILE=FICSURF_TMP,FORM='UNFORMATTED')
                CLOSE(3,STATUS='DELETE') 
-            ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de BRDF/BPDF
+            ELSE !Otherwise it is moved to the storage space of the BRDF/BPDF files
                CALL SYSTEM(COMMAND)  
             ENDIF
 	    
-C* Destruction du fichier temporaire
+C* Deletion of the temporary file
 C---------------------------------------   
 	     OPEN(UNIT=3,FILE=FICTMP_BPDF,FORM='UNFORMATTED')
             CLOSE(3,STATUS='DELETE') 
 	       
-        ENDIF ! Si fichier à créer.
+        ENDIF ! If the file is to be created.
 
-      ENDIF ! Cas de la BPDF de Breon 
+      ENDIF ! Case of the Breon BPDF
 
 
 
 C =====================================================================
-C* Cas BPDF de NADAL
+C* Case of the NADAL BPDF
 C =====================================================================
 
       IF (ISURF.EQ.6) THEN	
 
 		
-C* Controle de cohérence par rapport aux formats F6.4 et F4.1
-C  Valeurs de alpha et beta forcées à ces formats
+C* Consistency check with respect to the formats F6.4 and F4.1
+C  Values of alpha and beta forced to these formats
 C  -----------------------------------------	
         IF((ALPHA_NADAL.LT.0.).OR.(ALPHA_NADAL.GE.10.)) GOTO 9915
 	 IF((BETA_NADAL.LT.0.).OR.(BETA_NADAL.GE.100.)) GOTO 9915
@@ -856,7 +856,7 @@ C  -----------------------------------------
 	 ALPHA_NADAL = DNINT(ALPHA_NADAL*10000.D+00) / 10000.D+00
 	 BETA_NADAL = DNINT(BETA_NADAL*10.D+00) / 10.D+00	
 		
-C* Constitution du nom du fichier de NADAL
+C* Building of the name of the NADAL file
 C  ---------------------------------------
 	 CALL SOS_NOM_FICNADAL(NBMU_GAUSS,FICANGLES_USER,IND,
      &	                       ALPHA_NADAL,BETA_NADAL,
@@ -865,7 +865,7 @@ C  ---------------------------------------
 	 LFICS=INDEX(FICNADAL,' ')-1
 	 WRITE(6,*) "File : ",FICNADAL(1:LFICS)
 	 
-C* Si le fichier existe déjà, le programme n'est pas lancé
+C* If the file already exists, the program is not run
 C  --------------------------------------------------------	 
         INQUIRE(FILE=FICNADAL(1:LFICS),EXIST=EX)
 	 	 
@@ -874,7 +874,7 @@ C  --------------------------------------------------------
 	  
 	 ELSE   
             
-C* Calcul du fichier de NADAL
+C* Computation of the NADAL file
 C  ---------------------------
             WRITE(6,*)'==> Starting the file computation'
 	     CALL SOS_SURFACE_BPDF(LUM_NBMU,RMU,CHR,IND,
@@ -884,49 +884,49 @@ C  ---------------------------
      &                            FIC_RES_GSF,FIC_RES_FRESNEL,
      &                            FIC_RES_MAT_REFLEX,
      &	                           FICTMP_BPDF,TRACE,IER)  
-            IF (IER.NE.0) GOTO 997   ! cas d'erreur
+            IF (IER.NE.0) GOTO 997   ! error case
 
-C* Ajout de la BRDF de Roujean
+C* Addition of the Roujean BRDF
 C---------------------------------------------------------------------
             CALL SOS_BPDF_AJOUT_BRDF(FICTMP_BPDF,FICROUJ,LUM_NBMU,OS_NB,
      &                               FICSURF_TMP,IER)
-	     IF (IER.NE.0) GOTO 998   ! cas d'erreur
+	     IF (IER.NE.0) GOTO 998   ! error case
 
-C* Déplacement de FICSURF_TMP vers FICNADAL
+C* Move of FICSURF_TMP to FICNADAL
 C---------------------------------------------------------------------
             COMMAND=
      &      'mv '//FICSURF_TMP(1:LFICTMP)//' '//FICNADAL(1:LFICS)
-            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
             LCOM = LCOM + (4+LFICTMP)
             IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
             INQUIRE(FILE=FICNADAL(1:LFICS),EXIST=EX)
-            IF (EX) THEN !Si le fichier de BRDF/BPDF existe on détruit le fichier temporaire (généré par autre traitement)
+            IF (EX) THEN !If the BRDF/BPDF file exists, the temporary file (generated by another process) is deleted
                OPEN(UNIT=3,FILE=FICSURF_TMP,FORM='UNFORMATTED')
                CLOSE(3,STATUS='DELETE') 
-            ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de BRDF/BPDF
+            ELSE !Otherwise it is moved to the storage space of the BRDF/BPDF files
                CALL SYSTEM(COMMAND)  
             ENDIF  
 
-C* Destruction du fichier temporaire
+C* Deletion of the temporary file
 C---------------------------------------   
 	     OPEN(UNIT=3,FILE=FICTMP_BPDF,FORM='UNFORMATTED')
             CLOSE(3,STATUS='DELETE') 
 	       
-        ENDIF ! Si fichier à créer.
+        ENDIF ! If the file is to be created.
 	 
-      ENDIF ! Cas de la BPDF de Nadal
+      ENDIF ! Case of the Nadal BPDF
 
 
 
 
 C =====================================================================
-C* Cas BPDF de MAIGNAN
+C* Case of the MAIGNAN BPDF
 C =====================================================================
 
       IF (ISURF.EQ.7) THEN
 
-C* Constitution du nom du fichier de BREON
+C* Building of the name of the MAIGNAN file
 C  ---------------------------------------
 	 CALL SOS_NOM_FICMAIGNAN(NBMU_GAUSS,FICANGLES_USER,IND,
      &	                         COEF_C_MAIGNAN,
@@ -935,7 +935,7 @@ C  ---------------------------------------
 	 LFICS=INDEX(FICMAIGNAN,' ')-1  
 	 WRITE(6,*) "File : ",FICMAIGNAN(1:LFICS)
 	 
-C* Si le fichier existe déjà, le programme n'est pas lancé
+C* If the file already exists, the program is not run
 C  --------------------------------------------------------	 
         INQUIRE(FILE=FICMAIGNAN(1:LFICS),EXIST=EX)	 
 	 
@@ -944,7 +944,7 @@ C  --------------------------------------------------------
 	  
 	 ELSE        
             
-C* Calcul du fichier de Rondeaux - Herman
+C* Computation of the Maignan file
 C  --------------------------------------
             WRITE(6,*)'==> Starting the file computation'
 
@@ -955,54 +955,54 @@ C  --------------------------------------
      &                            FIC_RES_GSF,FIC_RES_FRESNEL,
      &                            FIC_RES_MAT_REFLEX,
      &	                           FICTMP_BPDF,TRACE,IER)    
-            IF (IER.NE.0) GOTO 996   ! cas d'erreur
+            IF (IER.NE.0) GOTO 996   ! error case
 
 
-C* Ajout de la BRDF de Roujean
+C* Addition of the Roujean BRDF
 C---------------------------------------------------------------------
             CALL SOS_BPDF_AJOUT_BRDF(FICTMP_BPDF,FICROUJ,LUM_NBMU,OS_NB,
      &                               FICSURF_TMP,IER)
-	     IF (IER.NE.0) GOTO 998   ! cas d'erreur
+	     IF (IER.NE.0) GOTO 998   ! error case
 
-C* Déplacement de FICSURF_TMP vers FICMAIGNAN
+C* Move of FICSURF_TMP to FICMAIGNAN
 C---------------------------------------------------------------------
             COMMAND=
      &      'mv '//FICSURF_TMP(1:LFICTMP)//' '//FICMAIGNAN(1:LFICS)
-            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
             LCOM = LCOM + (4+LFICTMP)
             IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
             INQUIRE(FILE=FICMAIGNAN(1:LFICS),EXIST=EX)
-            IF (EX) THEN !Si le fichier de BRDF/BPDF existe on détruit le fichier temporaire (généré par autre traitement)
+            IF (EX) THEN !If the BRDF/BPDF file exists, the temporary file (generated by another process) is deleted
                OPEN(UNIT=3,FILE=FICSURF_TMP,FORM='UNFORMATTED')
                CLOSE(3,STATUS='DELETE') 
-            ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de BRDF/BPDF
+            ELSE !Otherwise it is moved to the storage space of the BRDF/BPDF files
                CALL SYSTEM(COMMAND)  
             ENDIF
 	    
-C* Destruction du fichier temporaire
+C* Deletion of the temporary file
 C---------------------------------------   
 	     OPEN(UNIT=3,FILE=FICTMP_BPDF,FORM='UNFORMATTED')
             CLOSE(3,STATUS='DELETE') 
 	       
-        ENDIF ! Si fichier à créer.
+        ENDIF ! If the file is to be created.
 
-      ENDIF ! Cas de la BPDF de Maignan 
-
-
+      ENDIF ! Case of the Maignan BPDF
 
 
-C* Fermeture fichier
+
+
+C* File closing
 C-------------------
 
       IF (TRACE) CLOSE(99)      
-      CLOSE(10) !Fichier des angles
+      CLOSE(10) !Angle file
        
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
             
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
   800 WRITE(6,*) '  ERROR on parameters for SOS_SURFACE'
       WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
@@ -1120,7 +1120,7 @@ C---------
  9999 RETURN
  	 
 
-      END 	!FIN DU PROGRAMME SOS_SURFACE
+      END 	!END OF PROGRAM SOS_SURFACE
       
       
       
@@ -1129,106 +1129,106 @@ C---------
 C==============================================================================
 C PROCEDURE: SOS_MAT_FRESNEL
 C ==========
-C      Cette procédure calcule le développement de la matrice de Fresnel
-C      dans la base des polynomes de Legendre.
+C      This procedure computes the expansion of the Fresnel matrix
+C      in the basis of the Legendre polynomials.
 C			
-C      La matrice de Fresnel, exprimee pour un repere lie au plan de réflexion
-C      s'ecrit :
+C      The Fresnel matrix, expressed in a frame tied to the reflection plane,
+C      is:
 C                  | R11(teta)  R12(teta)    0      |
 C         F(teta)= | R12(teta)  R11(teta)    0      |
 C                  |    0          0      R33(teta) |
 C
-C         avec :
-C           _ teta : angle de réflexion par rapport a la normale au dioptre,
+C         with:
+C           _ teta : reflection angle with respect to the normal of the interface,
 C           _ R11(teta) = 0.5 * (RL*RL + RR*RR),
 C           _ R12(teta) = 0.5 * (RL*RL - RR*RR),
 C           _ R33(teta) = RL*RR,
 C
-C         L'indice de réfraction relatif du dioptre, entre le milieu de 
-C         réflexion et le milieu de transmission, est IND.
+C         The relative refractive index of the interface, between the reflection
+C         medium and the transmission medium, is IND.
 C
-C         On calcule RL et RR en fonction de IND et teta, par :
-C           _ RL : le coefficient de réflexion parallele
+C         RL and RR are computed from IND and teta by:
+C           _ RL : the parallel reflection coefficient
 C
 C               RL(teta) = [ IND**2 * cos(teta) - SQRT(IND**2 - sin(teta)**2) ]
 C                        / [ IND**2 * cos(teta) + SQRT(IND**2 - sin(teta)**2) ]
 C
-C           _ RR : le coefficient de réflexion perpendiculaire
+C           _ RR : the perpendicular reflection coefficient
 C
 C               RR(teta) = [ cos(teta) - SQRT(IND**2 - sin(teta)**2) ]
 C                        / [ cos(teta) + SQRT(IND**2 - sin(teta)**2) ]
 C
 C
 C
-C      Le développement donne les paramètres ALPHA(k), BETA(k), GAMMA(k) et
-C      ZETA(k) associes à la matrice de Fresnel.
-C      Ils sont enregistres de k=0 à OS_NS dans le fichier "RES_FRESNEL".
+C      The expansion gives the parameters ALPHA(k), BETA(k), GAMMA(k) and
+C      ZETA(k) associated with the Fresnel matrix.
+C      They are stored from k=0 to OS_NS in the file "RES_FRESNEL".
 C
 C
-C      NB: DEMARCHE D'IMPLEMENTATION :
+C      NB: IMPLEMENTATION APPROACH:
 C      *******************************
-C          L'implementation du code est adaptee pour un calcul de la matrice 
-C          de réflexion (routine SOS_MAT_REFLEXION) n'utilisant que des valeurs
-C           positives des cos(Angle de Gauss). Pour y parvenir :
-C          - On utilise non pas l'angle de diffusion vraie mais son angle
-C            complémentaire (2*angle de réflexion) : DEM 1
+C          The implementation of the code is adapted to a computation of the
+C          reflection matrix (routine SOS_MAT_REFLEXION) using only positive
+C           values of cos(Gauss angle). To achieve this:
+C          - The complementary angle of the true scattering angle is used
+C            (2*reflection angle): DEM 1
 C            (routine SOS_MAT_FRESNEL).
-C          - On utilise non pas le vrai coefficient de réflexion parallele
-C            mais son oppose : DEM 2 (routine SOS_MAT_FRESNEL).
+C          - The opposite of the true parallel reflection coefficient
+C            is used: DEM 2 (routine SOS_MAT_FRESNEL).
 C
-C          En aval, la routine calculant la matrice de réflexion introduit
-C          un coefficient (-1)**N pour la sommation sur les termes de la 
-C          séries de Fourier pour assurer la cohérence de l'ensemble : DEM 3.
+C          Downstream, the routine computing the reflection matrix introduces
+C          a coefficient (-1)**N in the summation on the terms of the
+C          Fourier series to make the whole consistent: DEM 3.
 C
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C      LUM_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles.
-C	RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double) : (E) Tableau des mu de Gauss 
-C                               (angles complémentaires des angles de diffusion).
-C	CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double) : (E) Tableau des poids de Gauss.
-C 	IND   (double) :   (E) Indice de réfraction de l'eau / air.
-C      OS_NS (I4) : (E) Ordre maximal à utiliser pour le développement en
-C                        polynomes de Legendre des éléments de la matrice de Fresnel 
-C                        et en séries de Fourier des calculs de luminance.
-C      FIC_RES_FRESNEL (CHARACTER)  : (S) Nom du fichier temporaire RES_FRESNEL
-C                                         avec arborescence complète.
-C      TRACE (logical)  : (E) = vrai,si écriture dans le fichier trace
-C                               (No d'unite logique du fichier trace =99)
-C      IER  (I4)  :  (S)  code d'erreur =0 si pas d'erreur, =-1 sinon 
+C      LUM_NBMU (I4) : (I) Number of actually useful (positive) angles.
+C	RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double) : (I) Array of the Gauss mu
+C                               (complementary angles of the scattering angles).
+C	CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double) : (I) Array of the Gauss weights.
+C 	IND   (double) :   (I) Refractive index water / air.
+C       OS_NS (I4) : (I) Maximum order to be used for the expansion in
+C                        Legendre polynomials of the Fresnel matrix elements
+C                        and in Fourier series of the radiance computations.
+C      FIC_RES_FRESNEL (CHARACTER)  : (O) Name of the temporary file RES_FRESNEL
+C                                      with complete directory tree.
+C      TRACE (logical)  : (I) = true if writing in the trace file
+C              (logical unit number of the trace file =99)
+C     IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C
-C Autre résultat fourni par la procédure
+C Other result provided by the procedure
 C -------------------------------------
-C      Fichier temporaire RES_FRESNEL
-C      Informations dans le fichier de trace (optionnel)
-C         (No d'unite logique du fichier trace =99 , 
-C          fichier cree/ouvert par le programme appelant)
+C      Temporary file RES_FRESNEL
+C      Information in the trace file (optional)
+C         (logical unit number of the trace file =99,
+C          file created/opened by the calling program)
 C
 C 
-C Description des fichiers utilisés
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier temporaire RES_FRESNEL
-C      Fichier Ascii, format d'un enregistrement 4E15.8, 
-C      cree par SOS_MAT_FRESNEL
-C      Fichier cree dans le répertoire de lancement du programme
-C      Si un fichier de meme nom existe déjà, il est ecrase
-C      Nombre d'enregistrements : de k=0 a OS_NS
-C      Chaque enregistrement contient les paramètres ALPHA(k), BETA(k), 
-C      GAMMA(k) et ZETA(k) associes a la matrice de Fresnel
+C   -->Content of the temporary file RES_FRESNEL
+C      Ascii file, record format 4E15.8,
+C      created by SOS_MAT_FRESNEL
+C      File created in the directory where the program is run
+C      If a file with the same name already exists, it is overwritten
+C      Number of records: from k=0 to OS_NS
+C      Each record contains the parameters ALPHA(k), BETA(k),
+C      GAMMA(k) and ZETA(k) associated with the Fresnel matrix
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C
 C==============================================================================
@@ -1237,92 +1237,92 @@ C==============================================================================
 
       IMPLICIT NONE
 
-C* Définition des variables                    
+C* Definition of variables
 C*----------------------------------------------------------------------
       DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Tableau des mu de Gauss 
-      				! (angles complémentaires des angles de diffusion).
+      				! Array of the Gauss mu
+      				! (complementary angles of the scattering angles).
       DOUBLE PRECISION CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Tableau des poids de Gauss.
+      				! Array of the Gauss weights.
 
-      DOUBLE PRECISION IND	! Indice de réfraction de l'eau / air.
+      DOUBLE PRECISION IND	! Refractive index water / air.
 	
-      DOUBLE PRECISION ALPHA(0:CTE_OS_NS_MAX)    ! Paramètres alpha(k).
-      DOUBLE PRECISION BETA(0:CTE_OS_NS_MAX)	! Paramètres beta(k).
-      DOUBLE PRECISION GAMMA(0:CTE_OS_NS_MAX)    ! Paramètres gamma(k).
-      DOUBLE PRECISION ZETA(0:CTE_OS_NS_MAX)	! Paramètres zeta(k).
+      DOUBLE PRECISION ALPHA(0:CTE_OS_NS_MAX)    ! Parameters alpha(k).
+      DOUBLE PRECISION BETA(0:CTE_OS_NS_MAX)	! Parameters beta(k).
+      DOUBLE PRECISION GAMMA(0:CTE_OS_NS_MAX)    ! Parameters gamma(k).
+      DOUBLE PRECISION ZETA(0:CTE_OS_NS_MAX)	! Parameters zeta(k).
 
-      DOUBLE PRECISION DELTA(0:CTE_OS_NS_MAX)	! Paramètres delta(k).
+      DOUBLE PRECISION DELTA(0:CTE_OS_NS_MAX)	! Parameters delta(k).
 
       DOUBLE PRECISION A	!
       DOUBLE PRECISION B	!
       DOUBLE PRECISION C	!
 
-      DOUBLE PRECISION RL	! Coefficient de réflexion parallele.
-      DOUBLE PRECISION RR	! Coefficient de réflexion perpendiculaire.
+      DOUBLE PRECISION RL	! Parallel reflection coefficient.
+      DOUBLE PRECISION RR	! Perpendicular reflection coefficient.
 
       DOUBLE PRECISION R11(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-                                ! Element R11 de la matrice de Fresnel
-      				! en fonction de l'angle de réflexion.
+                                ! Element R11 of the Fresnel matrix
+      				! versus the reflection angle.
       DOUBLE PRECISION R12(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)     
-      				! Element R12 de la matrice de Fresnel.
+      				! Element R12 of the Fresnel matrix.
       DOUBLE PRECISION R33(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)    
-      				! Element R33 de la matrice de Fresnel
+      				! Element R33 of the Fresnel matrix
 
-      DOUBLE PRECISION IT	! Valeur de R11 recalculée à partir de sa
-      				! decomposition en BETA(k).
-      DOUBLE PRECISION QT	! Valeur de R12 recalculée à partir de sa
-      				! decomposition en GAMMA(k).	
-      DOUBLE PRECISION UT	! Valeur de R33 recalculée à partir de sa
-      				! decomposition en DELTA(k).			
+      DOUBLE PRECISION IT	! Value of R11 recomputed from its
+      				! decomposition in BETA(k).
+      DOUBLE PRECISION QT	! Value of R12 recomputed from its
+      				! decomposition in GAMMA(k).
+      DOUBLE PRECISION UT	! Value of R33 recomputed from its
+      				! decomposition in DELTA(k).
 
       DOUBLE PRECISION PL(-1:CTE_OS_NS_MAX+1)
-                      !Polynomes de Legendre a l'ordre L calcule pour un angle
+                      !Legendre polynomials of order L computed for one angle
       DOUBLE PRECISION POL(0:CTE_OS_NS_MAX+1)
-                      !Fonction de Legendre d'ordre S=2 et d'ordre L variable
-		        !(calcule pour un angle)
+                      !Legendre function of order S=2 and variable order L
+		        !(computed for one angle)
 		       			
-      DOUBLE PRECISION D	!Variable pour le calcul de POL.
-      DOUBLE PRECISION E	!Variable pour le calcul de POL.
+      DOUBLE PRECISION D	!Variable for the computation of POL.
+      DOUBLE PRECISION E	!Variable for the computation of POL.
 
       DOUBLE PRECISION X
-      DOUBLE PRECISION XRMU	!Valeur utilisee du tableau des angles de Gauss
+      DOUBLE PRECISION XRMU	!Value used from the array of Gauss angles
 
       DOUBLE PRECISION X2				
       DOUBLE PRECISION XX	
       DOUBLE PRECISION XXX
 
-      DOUBLE PRECISION CO1     !Variable pour le calcul des ALPHA(k) et ZETA(k)
-      DOUBLE PRECISION CO2     !Variable pour le calcul des ALPHA(k) et ZETA(k)
-      DOUBLE PRECISION CO3     !Variable pour le calcul des ALPHA(k) et ZETA(k)
+      DOUBLE PRECISION CO1     !Variable for the computation of ALPHA(k) and ZETA(k)
+      DOUBLE PRECISION CO2     !Variable for the computation of ALPHA(k) and ZETA(k)
+      DOUBLE PRECISION CO3     !Variable for the computation of ALPHA(k) and ZETA(k)
 
-      DOUBLE PRECISION SOM1    !Variable pour le calcul des ALPHA(k) et ZETA(k)
-      DOUBLE PRECISION SOM2    !Variable pour le calcul des ALPHA(k) et ZETA(k)
-      DOUBLE PRECISION SOM3    !Variable pour le calcul des ALPHA(k) et ZETA(k)
-      DOUBLE PRECISION SOM4    !Variable pour le calcul des ALPHA(k) et ZETA(k)
+      DOUBLE PRECISION SOM1    !Variable for the computation of ALPHA(k) and ZETA(k)
+      DOUBLE PRECISION SOM2    !Variable for the computation of ALPHA(k) and ZETA(k)
+      DOUBLE PRECISION SOM3    !Variable for the computation of ALPHA(k) and ZETA(k)
+      DOUBLE PRECISION SOM4    !Variable for the computation of ALPHA(k) and ZETA(k)
 
-      LOGICAL TRACE        ! = vrai,si écriture dans le fichier trace
+      LOGICAL TRACE        ! = true if writing in the trace file
 
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
 
-      INTEGER*4 OS_NS   ! Ordre maximal du développement en polynomes de Legendre   
-			   ! des éléments de la matrice de Fresnel.
-      INTEGER*4 IER     ! code d'erreur =0 si pas d'erreur, =-1 sinon  
-      INTEGER*4 J	! Indice de tableau.
-      INTEGER*4 K	! Indice de tableau.
+      INTEGER*4 OS_NS   ! Maximum order of the expansion in Legendre polynomials
+			   ! of the Fresnel matrix elements.
+      INTEGER*4 IER     ! error code =0 if no error, =-1 otherwise
+      INTEGER*4 J	! Array index.
+      INTEGER*4 K	! Array index.
       INTEGER*4	NN
       INTEGER*4	MM
       INTEGER*4 I	
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Nom du fichier RES_FRESNEL
-                                            ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Name of the file RES_FRESNEL
+                                            ! with complete directory tree
 
 
-C* Ouverture du fichier résultat
+C* Opening of the result file
 C---------------------------------
       OPEN(UNIT=3,FILE=FIC_RES_FRESNEL,ERR=991)
 
-C* Initilisation
+C* Initialisation
 C---------------------------------	
       DO 101 K=0,OS_NS
          BETA(K)=0.D+00
@@ -1332,7 +1332,7 @@ C---------------------------------
          DELTA(K)=0.D+00
   101 CONTINUE
   
-C* Fichier trace 
+C* Trace file
 C-----------------
       IF (TRACE) THEN
          WRITE(99,*,err=921)
@@ -1341,36 +1341,36 @@ C-----------------
      &	    'expansion into Legendre functions' 
       END IF
 			
-C* Calcul des éléments de la matrice de réflexion de Fresnel	
+C* Computation of the elements of the Fresnel reflection matrix
 C--------------------------------------------------------------
       DO 104 J=-LUM_NBMU,LUM_NBMU
          IF(J.EQ.0) GOTO 104
 
-C* Cosinus de l'angle complémentaire de l'angle de diffusion :
-C* angle de diffusion = PI - 2* angle de réflexion.
+C* Cosine of the complementary angle of the scattering angle:
+C* scattering angle = PI - 2* reflection angle.
 C-------------------------------------------------------------	 	
          C=RMU(J)				! DEM 1
 	
-C* Cosinus de l'angle de réflexion :	
+C* Cosine of the reflection angle:
 C------------------------------------------------------
          C=DSQRT(.5*(1+C))
 
 
-C* Coefficients de réflexion parallele (oppose a la valeur vraie)
-C* et perpendiculaire
+C* Parallel reflection coefficients (opposite of the true value)
+C* and perpendicular
 C-----------------------------------------------------------------	
          A=DSQRT(IND*IND-1.D+00+C*C)
 	 B=IND*IND*C
          RL=-(B-A)/(B+A)			! DEM 2  	
          RR=(C-A)/(C+A)
 
-C* Elements de la matrice de Fresnel
+C* Elements of the Fresnel matrix
 C-----------------------------------	  	   		
          R11(J)=.5*(RL*RL+RR*RR)
          R12(J)=.5*(RL*RL-RR*RR)
          R33(J)=RL*RR
 	 
-C* Fichier trace 
+C* Trace file
 C-----------------
          IF (TRACE) THEN
 	   WRITE(99,200,err=921) 
@@ -1381,15 +1381,15 @@ C-----------------
  104  CONTINUE
 
 
-C* Calcul des paramètres BETA(k) de la decomposition de la fonction
-C* R11(teta) en polynomes de Legendre.
+C* Computation of the parameters BETA(k) of the decomposition of the function
+C* R11(teta) in Legendre polynomials.
 C------------------------------------------------------------------
       DO 4 J=-LUM_NBMU,LUM_NBMU
          IF(J.EQ.0) GO TO 4
          X=R11(J)*CHR(J)
          XRMU=RMU(J)
 
-C* Calcul des polynomes de Legendre d'ordre K, pour la valeur de mu fixee.
+C* Computation of the Legendre polynomials of order K, for the fixed value of mu.
 C------------------------------------------------------
          PL(-1)=0.D+00
          PL(0)=1.D+00
@@ -1403,13 +1403,13 @@ C------------------------------------------------------
            BETA(K)=(2*K+1)*BETA(K)*.5
     6 CONTINUE
     
-C* Fichier trace 
+C* Trace file
 C-----------------
       IF (TRACE) THEN
           WRITE(99,*,err=921) '  '
 	   WRITE(99,*,err=921) ' Recomposition of the R11 function'
       
-C* Controle de la recombinaison de R11  
+C* Check of the recombination of R11
 C--------------------------------------
            DO 8 J=-LUM_NBMU,LUM_NBMU
               IT=0.D+00
@@ -1425,10 +1425,10 @@ C--------------------------------------
 	       WRITE(99,203,err=921) ' RMU ',RMU(J),' R11 ',R11(J),
      &	                            ' R11 recomp  ',IT         
     8      CONTINUE
-      END IF !Fichier Trace
+      END IF !Trace file
       
-C* Calcul des paramètres GAMMA(k) et DELTA(k) de la decomposition des fonctions
-C* R12 et R33 en polynomes ou fonctions de Legendre.
+C* Computation of the parameters GAMMA(k) and DELTA(k) of the decomposition of the functions
+C* R12 and R33 in Legendre polynomials or functions.
 C-----------------------------------------------------------------------------
       DO 11 J=-LUM_NBMU,LUM_NBMU
          IF(J.EQ.0)  GO TO 11
@@ -1462,13 +1462,13 @@ C-----------------------------------------------------------------------------
 
 
 
-C* Fichier trace 
+C* Trace file
 C-----------------
       IF (TRACE) THEN
           WRITE(99,*,err=921) '  '
 	   WRITE(99,*,err=921) ' Recomposition of the R12 function'
       
-C* Controle de la recombinaison de R12  
+C* Check of the recombination of R12
 C--------------------------------------
            DO 81 J=-LUM_NBMU,LUM_NBMU
                  QT=0.D+00
@@ -1494,7 +1494,7 @@ C--------------------------------------
            WRITE(99,*,err=921) '  '
 	   WRITE(99,*,err=921) ' Recomposition of the R33 function'
       
-C* Controle de la recombinaison de R33  
+C* Check of the recombination of R33
 C--------------------------------------
            DO 82 J=-LUM_NBMU,LUM_NBMU
 	      UT=0.D+00
@@ -1512,11 +1512,11 @@ C--------------------------------------
 	         WRITE(99,203,err=921) ' RMU ',RMU(J),' R33 ',R33(J),
      &                              ' R33 recomp  ',UT   
   82       CONTINUE
-      END IF !Fichier Trace
+      END IF !Trace file
       
       
       
-C* Calcul des paramètres ALPHA(k) et ZETA(k) en fonctions des BETA(k) et DELTA(k).
+C* Computation of the parameters ALPHA(k) and ZETA(k) from BETA(k) and DELTA(k).
 C-------------------------------------------------------------------------------
       DO 16 I=2,OS_NS
          CO1=4*(2*I+1.)/FLOAT(I)/(I-1.)/(I+1.)/(I+2.)
@@ -1546,7 +1546,7 @@ C-------------------------------------------------------------------------------
   16  CONTINUE
 
 
-C* Enregistrement des résultats
+C*   Recording of the results
 C---------------------------------
       DO 20 K=0,OS_NS
          WRITE(3,207,err=992)ALPHA(K),BETA(K),GAMMA(K),ZETA(K)
@@ -1554,7 +1554,7 @@ C---------------------------------
 
 
 
-C* Fichier trace 
+C* Trace file
 C-----------------
       IF (TRACE) THEN
            WRITE(99,*,err=921) '  '
@@ -1569,12 +1569,12 @@ C-----------------
    
    
        
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       goto 9999
       
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C------------------------------------------------------
   991 WRITE(6,*) '  ERROR on a file opening for SOS_MAT_FRESNEL'
       IER=-1
@@ -1588,7 +1588,7 @@ C------------------------------------------------------
 
  9999 CONTINUE
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(3)
    
@@ -1600,7 +1600,7 @@ C---------
   205 FORMAT(1X,I3,5(2X,E13.5))
   215 FORMAT(3X,A1,7X,A8,7X,A7,8X,A8,7X,A8,7X,A7)    
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_MAT_FRESNEL
+      END         !END OF PROCEDURE SOS_MAT_FRESNEL
 
 
 
@@ -1608,100 +1608,100 @@ C---------
 C==============================================================================
 C PROCEDURE: SOS_MAT_REFLEXION
 C ==========
-C      Cette procédure calcule la matrice de réflexion de surface 
-C      pour le glitter.
-C      Les angles d'incidence et de réflexion sont exprimes comme etant
-C      inferieurs à 90 degrés (mu de Gauss > 0).
+C      This procedure computes the surface reflection matrix
+C      for the glitter.
+C      The incidence and reflection angles are expressed as being
+C      below 90 degrees (Gauss mu > 0).
 C
 C
 C
-C      NB: DEMARCHE D'IMPLEMENTATION :
+C      NB: IMPLEMENTATION APPROACH:
 C      *******************************
-C          L'implementation du code est adaptee pour un calcul de la matrice 
-C          de réflexion (routine SOS_MAT_REFLEXION) n'utilisant que des valeurs
-C           positives des cos(Angle de Gauss). Pour y parvenir :
-C          - On utilise non pas l'angle de diffusion vraie mais son angle
-C            complémentaire (2*angle de réflexion) : DEM 1
+C          The implementation of the code is adapted to a computation of the
+C          reflection matrix (routine SOS_MAT_REFLEXION) using only positive
+C           values of cos(Gauss angle). To achieve this:
+C          - The complementary angle of the true scattering angle is used
+C            (2*reflection angle): DEM 1
 C            (routine SOS_MAT_FRESNEL).
-C          - On utilise non pas le vrai coefficient de réflexion parallele
-C            mais son oppose : DEM 2 (routine SOS_MAT_FRESNEL).
+C          - The opposite of the true parallel reflection coefficient
+C            is used: DEM 2 (routine SOS_MAT_FRESNEL).
 C
-C          Cette routine calculant la matrice de réflexion introduit
-C          un coefficient (-1)**K pour le calcul des termes de la 
-C          séries de Fourier pour assurer la cohérence de l'ensemble : DEM 3.
+C          This routine computing the reflection matrix introduces
+C          a coefficient (-1)**K in the computation of the terms of the
+C          Fourier series to make the whole consistent: DEM 3.
 C
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C     COEF  (double): (E) Coefficient multiplicateur de la matrice de réflexion.
-C     LUM_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles.
-C     RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)    (E) Tableau des mu de Gauss 
-C                             (angles complémentaires des angles de diffusion).
-C     OS_NB (I4) : (E) Ordre des développements des fonctions de phase 
-C		         en Polynomes de Legendre à utiliser.
-C     OS_NS (I4) : (E) Ordre maximal à utiliser pour le développement en
-C                      polynomes de Legendre des éléments de la matrice de Fresnel 
-C                      et en séries de Fourier des calculs de luminance.
-C     OS_NM (I4) : (E) Ordre maximal du développement en séries de Fourier  
-C                      de la fonction G des calculs de matrice de réflexion.  
-C     FIC_RES_GSF (CHARACTER)  : (E) Nom du fichier temporaire RES_GSF
-C                                    avec arborescence complète.
-C     FIC_RES_FRESNEL (CHARACTER)  : (E) Nom du fichier temporaire RES_FRESNEL
-C                                        avec arborescence complète.
-C     FIC_RES_MAT_REFLEX (CHARACTER)  : (S) Nom du fichier temporaire RES_MAT_REFLEX
-C                                           avec arborescence complète.
-C     IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon 
+C     COEF  (double): (I) Multiplicative coefficient of the reflection matrix.
+C      LUM_NBMU (I4) : (I) Number of actually useful (positive) angles.
+C     RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)    (I) Array of the Gauss mu
+C                             (complementary angles of the scattering angles).
+C             OS_NB (I4) : (I) Order of the expansions of the phase functions
+C		           in Legendre polynomials to be used.
+C       OS_NS (I4) : (I) Maximum order to be used for the expansion in
+C                        Legendre polynomials of the Fresnel matrix elements
+C                        and in Fourier series of the radiance computations.
+C       OS_NM (I4) : (I) Maximum order of the expansion in Fourier series
+C                                of the G function of the reflection matrix computations.
+C      FIC_RES_GSF  (CHARACTER)  : (I) Name of the temporary file RES_GSF
+C                                      with complete directory tree.
+C     FIC_RES_FRESNEL (CHARACTER)  : (I) Name of the temporary file RES_FRESNEL
+C                                      with complete directory tree.
+C      FIC_RES_MAT_REFLEX (CHARACTER)  : (O) Name of the temporary file RES_MAT_REFLEX
+C                                      with complete directory tree.
+C       IER  (I4)   (O) : error code =0 if no error, =-1 otherwise
 C
 C
 C 
-C Description des fichiers utilisés
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier temporaire RES_GSF
-C       Fichier binaire non formatte, cree par SOS_GSF
-C       Fichier cree dans le répertoire de lancement du programme
-C       Chaque enregistrement contient :
-C           -numéro d'angle Teta1 (valeur entiere)
-C           -numéro d'angle Teta2 (valeur entiere)
-C           -ordre maximale utile de la decomposition : IL  (valeur entiere)
-C           -Fonction G decomposee pour (Teta1,Teta2) : (E(J),J=0,IL)
-C            (IL+1 valeurs double précision)
+C   -->Content of the temporary file RES_GSF
+C       Unformatted binary file, created by SOS_GSF
+C       File created in the directory where the program is run
+C       Each record contains:
+C           -number of the angle Teta1 (integer value)
+C           -number of the angle Teta2 (integer value)
+C           -maximum useful order of the decomposition: IL  (integer value)
+C           -Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
+C            (IL+1 double precision values)
 C
-C   -->Contenu du fichier temporaire RES_FRESNEL
-C      Fichier Ascii, format d'un enregistrement 4E15.8, 
-C      cree par SOS_MAT_FRESNEL
-C      Fichier cree dans le répertoire de lancement du programme
-C      Nombre d'enregistrements : de k=0 a OS_NS
-C      Chaque enregistrement contient les paramètres ALPHA(k), BETA(k), 
-C      GAMMA(k) et ZETA(k) associes a la matrice de Fresnel
+C   -->Content of the temporary file RES_FRESNEL
+C      Ascii file, record format 4E15.8,
+C      created by SOS_MAT_FRESNEL
+C      File created in the directory where the program is run
+C      Number of records: from k=0 to OS_NS
+C      Each record contains the parameters ALPHA(k), BETA(k),
+C      GAMMA(k) and ZETA(k) associated with the Fresnel matrix
 C
-C   -->Contenu du fichier temporaire RES_MAT_REFLEX
-C       Fichier binaire non formatte, cree par SOS_MAT_REFLEXION
-C       Fichier cree dans le répertoire de lancement du programme
-C       Si un fichier de meme nom existe déjà, il est ecrase
-C       Enregistrement pour chaque couple (Teta1, Teta2) de
-C       la decomposition en séries de Fourier de la matrice de Fresnel:
+C   -->Content of the temporary file RES_MAT_REFLEX
+C       Unformatted binary file, created by SOS_MAT_REFLEXION
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Record for each pair (Teta1, Teta2) of
+C       the Fourier series decomposition of the Fresnel matrix:
 C       M11,M12,M13,M21,M22,M23,M31,M32,M33 
-C       (n valeurs réelles)
+C       (n real values)
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C    Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C      Le fichier RES_GSF ou le fichier RES_FRESNEL n'existe pas
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C      The file RES_GSF or the file RES_FRESNEL does not exist
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C
 C     
-C  Routines utilisées par la procédure:
+C  Routines used by the procedure:
 C -------------------------------------
-C  Ce programme fait appel aux routines:
+C  This program calls the routines:
 C         -SOS_NOYAUX_FRESNEL
 C
 C=============================================================================
@@ -1711,58 +1711,58 @@ C=============================================================================
 
       IMPLICIT NONE
 
-C* Définition des variables     
+C* Definition of variables
 C*--------------------------------------------------------------------
-      DOUBLE PRECISION COEF !Coefficient multiplicateur de la matrice de réflexion.
+      DOUBLE PRECISION COEF !Multiplicative coefficient of the reflection matrix.
       DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Tableau des mu de Gauss 
-				!(angles complémentaires des angles de diffusion)
+      				! Array of the Gauss mu
+				!(complementary angles of the scattering angles)
 
-      DOUBLE PRECISION ALPHA(0:CTE_OS_NS_MAX)   ! Paramètres alpha(k).
-      DOUBLE PRECISION BETA(0:CTE_OS_NS_MAX)    ! Paramètres beta(k).
-      DOUBLE PRECISION GAMMA(0:CTE_OS_NS_MAX)   ! Paramètres gamma(k).
-      DOUBLE PRECISION ZETA(0:CTE_OS_NS_MAX)    ! Paramètres zeta(k).
+      DOUBLE PRECISION ALPHA(0:CTE_OS_NS_MAX)   ! Parameters alpha(k).
+      DOUBLE PRECISION BETA(0:CTE_OS_NS_MAX)    ! Parameters beta(k).
+      DOUBLE PRECISION GAMMA(0:CTE_OS_NS_MAX)   ! Parameters gamma(k).
+      DOUBLE PRECISION ZETA(0:CTE_OS_NS_MAX)    ! Parameters zeta(k).
 
-      DOUBLE PRECISION G(0:CTE_OS_NM_MAX)	! Fonction G decomposee en séries 
-      					        ! de Fourier.
+      DOUBLE PRECISION G(0:CTE_OS_NM_MAX)	! G function decomposed in Fourier
+      					        ! series.
 
-       ! Element Pij de la matrice de réflexion de Fresnel decomposee en séries 
-	! de Fourier pour un ordre IS = 0 a OS_NS.
-	! Calcul pour la direction d'incidence Teta1 (RMU1)
-	! et de réflexion Teta2 (RMU2).
+       ! Element Pij of the Fresnel reflection matrix decomposed in Fourier
+	! series for an order IS = 0 to OS_NS.
+	! Computation for the incidence direction Teta1 (RMU1)
+	! and the reflection direction Teta2 (RMU2).
       DOUBLE PRECISION BP(0:CTE_OS_NS_MAX,2)    !   Element P11.
-      DOUBLE PRECISION GR(0:CTE_OS_NS_MAX,2)    !   Element P12 ou P21.
-      DOUBLE PRECISION GT(0:CTE_OS_NS_MAX,2)    !   Element -P13 ou -P31.
+      DOUBLE PRECISION GR(0:CTE_OS_NS_MAX,2)    !   Element P12 or P21.
+      DOUBLE PRECISION GT(0:CTE_OS_NS_MAX,2)    !   Element -P13 or -P31.
       DOUBLE PRECISION ARR(0:CTE_OS_NS_MAX,2)   !   Element P22.
-      DOUBLE PRECISION ART(0:CTE_OS_NS_MAX,2)   !   Element -P23 ou -P32.
+      DOUBLE PRECISION ART(0:CTE_OS_NS_MAX,2)   !   Element -P23 or -P32.
       DOUBLE PRECISION ATT(0:CTE_OS_NS_MAX,2)   !   Element P33.
 
-      DOUBLE PRECISION R111    ! Variable de calcul du terme M11(IS,1).
-      DOUBLE PRECISION R121    ! Variable de calcul du terme M12(IS,1).
-      DOUBLE PRECISION R122    ! Variable de calcul du terme M12(IS,2).
-      DOUBLE PRECISION R131    ! Variable de calcul du terme M13(IS,1).
-      DOUBLE PRECISION R132    ! Variable de calcul du terme M13(IS,2).
-      DOUBLE PRECISION R211    ! Variable de calcul du terme M21(IS,1).
-      DOUBLE PRECISION R212    ! Variable de calcul du terme M21(IS,2).
-      DOUBLE PRECISION R221    ! Variable de calcul du terme M22(IS,1).
-      DOUBLE PRECISION R222    ! Variable de calcul du terme M22(IS,2).
-      DOUBLE PRECISION R231    ! Variable de calcul du terme M23(IS,1).
-      DOUBLE PRECISION R232    ! Variable de calcul du terme M23(IS,2).
-      DOUBLE PRECISION R311    ! Variable de calcul du terme M31(IS,1).
-      DOUBLE PRECISION R312    ! Variable de calcul du terme M31(IS,2).
-      DOUBLE PRECISION R321    ! Variable de calcul du terme M32(IS,1).
-      DOUBLE PRECISION R322    ! Variable de calcul du terme M32(IS,2).
-      DOUBLE PRECISION R331    ! Variable de calcul du terme M33(IS,1).
-      DOUBLE PRECISION R332    ! Variable de calcul du terme M33(IS,2).
+      DOUBLE PRECISION R111    ! Variable for the computation of the term M11(IS,1).
+      DOUBLE PRECISION R121    ! Variable for the computation of the term M12(IS,1).
+      DOUBLE PRECISION R122    ! Variable for the computation of the term M12(IS,2).
+      DOUBLE PRECISION R131    ! Variable for the computation of the term M13(IS,1).
+      DOUBLE PRECISION R132    ! Variable for the computation of the term M13(IS,2).
+      DOUBLE PRECISION R211    ! Variable for the computation of the term M21(IS,1).
+      DOUBLE PRECISION R212    ! Variable for the computation of the term M21(IS,2).
+      DOUBLE PRECISION R221    ! Variable for the computation of the term M22(IS,1).
+      DOUBLE PRECISION R222    ! Variable for the computation of the term M22(IS,2).
+      DOUBLE PRECISION R231    ! Variable for the computation of the term M23(IS,1).
+      DOUBLE PRECISION R232    ! Variable for the computation of the term M23(IS,2).
+      DOUBLE PRECISION R311    ! Variable for the computation of the term M31(IS,1).
+      DOUBLE PRECISION R312    ! Variable for the computation of the term M31(IS,2).
+      DOUBLE PRECISION R321    ! Variable for the computation of the term M32(IS,1).
+      DOUBLE PRECISION R322    ! Variable for the computation of the term M32(IS,2).
+      DOUBLE PRECISION R331    ! Variable for the computation of the term M33(IS,1).
+      DOUBLE PRECISION R332    ! Variable for the computation of the term M33(IS,2).
 
-      DOUBLE PRECISION X,Y	! Coefficients multiplicatifs de la matrice de
-      				! réflexion.
+      DOUBLE PRECISION X,Y	! Multiplicative coefficients of the reflection
+      				! matrix.
 
-      	! Elements Mij de la matrice de réflexion en fonction de l'ordre IS
-	! de la série de Fourier, pour 2 directions.
-	! L'indice de direction est :
-	!     _ 1 pour une incidence sous Teta1 et une réflexion sous Teta2,
-	!     _ 2 pour une incidence sous Teta2 et une réflexion sous Teta1.
+      	! Elements Mij of the reflection matrix versus the order IS
+	! of the Fourier series, for 2 directions.
+	! The direction index is:
+	!     _ 1 for an incidence at Teta1 and a reflection at Teta2,
+	!     _ 2 for an incidence at Teta2 and a reflection at Teta1.
       REAL M11(0:CTE_OS_NB_MAX,2)		
       REAL M12(0:CTE_OS_NB_MAX,2)	
       REAL M13(0:CTE_OS_NB_MAX,2)		
@@ -1773,48 +1773,48 @@ C*--------------------------------------------------------------------
       REAL M32(0:CTE_OS_NB_MAX,2)		
       REAL M33(0:CTE_OS_NB_MAX,2)	
 
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
       
-      INTEGER*4 OS_NB ! Ordre des développements des fonctions de phase 
-			 ! en Polynomes de Legendre.
-      INTEGER*4 OS_NS ! Ordre maximal du développement en polynomes de Legendre   
-			 ! des éléments de la matrice de Fresnel.
-      INTEGER*4 OS_NM ! Ordre maximal du développement en séries de Fourier  
-			 ! de la fonction G des calculs de matrice de réflexion.
+      INTEGER*4 OS_NB ! Order of the expansions of the phase functions
+			 ! in Legendre polynomials.
+      INTEGER*4 OS_NS ! Maximum order of the expansion in Legendre polynomials
+			 ! of the Fresnel matrix elements.
+      INTEGER*4 OS_NM ! Maximum order of the expansion in Fourier series
+			 ! of the G function of the reflection matrix computations.
  
-      INTEGER*4 I	! Indice de l'angle Teta1.
-      INTEGER*4 J	! Indice de l'angle Teta2.
+      INTEGER*4 I	! Index of the angle Teta1.
+      INTEGER*4 J	! Index of the angle Teta2.
 
-      INTEGER*4 L	! Ordre de la decomposition en polynomes de Legendre.
-      INTEGER*4 LIM	! Ordre maximal de la decomposition en polynomes
-      			! de Legendre.
-      INTEGER*4 II,II2	! Indices enregistres avec la fonction G(IS).
+      INTEGER*4 L	! Order of the decomposition in Legendre polynomials.
+      INTEGER*4 LIM	! Maximum order of the decomposition in Legendre
+      			! polynomials.
+      INTEGER*4 II,II2	! Indices stored with the function G(IS).
       INTEGER*4 IJ	
-      INTEGER*4 IS	! Ordre de la decomposition en séries de Fourier.
+      INTEGER*4 IS	! Order of the Fourier series decomposition.
       INTEGER*4 K
-      INTEGER*4 I1	! Valeur K+IS
-      INTEGER*4 I2	! Valeur ABS(K-IS)
-      INTEGER*4 IM	! Valeur 1 ou -1.
-      INTEGER*4 IER  ! code d'erreur =0 si pas d'erreur, =-1 sinon  
+      INTEGER*4 I1	! Value K+IS
+      INTEGER*4 I2	! Value ABS(K-IS)
+      INTEGER*4 IM	! Value 1 or -1.
+      INTEGER*4 IER  ! error code =0 if no error, =-1 otherwise
   
       CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX 
-                     ! Nom du fichier RES_MAT_REFLEX
-                     ! avec arborescence complète
+                     ! Name of the file RES_MAT_REFLEX
+                     ! with complete directory tree
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Nom du fichier RES_GSF
-                                        ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Name of the file RES_GSF
+                                        ! with complete directory tree
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Nom du fichier RES_FRESNEL
-                                            ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Name of the file RES_FRESNEL
+                                            ! with complete directory tree
 
       
-C* Creation du fichier résultat de SOS_MAT_REFLEXION
+C* Creation of the result file of SOS_MAT_REFLEXION
 C---------------------------------------------------------
       OPEN(UNIT=4,FILE=FIC_RES_MAT_REFLEX,FORM='UNFORMATTED',ERR=991)
 
 
-C* Lecture des paramètres de la decomposition de la matrice de Fresnel
-C* en polynomes ou fonctions de Legendre.
+C* Reading of the parameters of the decomposition of the Fresnel matrix
+C* in Legendre polynomials or functions.
 C----------------------------------------------------------------------
       OPEN(UNIT=2,FILE=FIC_RES_FRESNEL,STATUS='OLD',ERR=991)
       
@@ -1824,47 +1824,47 @@ C----------------------------------------------------------------------
   
       CLOSE(2)
       
-C* Ouverture du fichier RES_GSF
+C* Opening of the file RES_GSF
 C---------------------------------------------------------
       OPEN(UNIT=3,FILE=FIC_RES_GSF,FORM='UNFORMATTED',
      &     STATUS='OLD',ERR=991)
 
-C* Boucle sur les directions d'incidence et de réflexion.
+C* Loop on the incidence and reflection directions.
 C--------------------------------------------------------
-      DO 25 I=1,LUM_NBMU   !Teta1 : angle zenithal d'incidence  
+      DO 25 I=1,LUM_NBMU   !Teta1 : incidence zenith angle
                            !(0 < Teta1 < PI/2),
-         DO 2 J=1,I        !Teta2 : angle zenithal de réflexion 
+         DO 2 J=1,I        !Teta2 : reflection zenith angle
 	                    !(0 < Teta2 < PI/2),
 
-C* Lecture de la decomposition en séries de Fourier de la fonction G
-C* pour les angles Teta1 et Teta2,avec un ordre maximal utile L.
+C* Reading of the Fourier series decomposition of the function G
+C* for the angles Teta1 and Teta2, with a maximum useful order L.
 C-------------------------------------------------------------------
             READ(3,err=992)II,II2,LIM,(G(K),K=0,LIM)
 
-C* Complément du tableau à 0.
+C* The array is completed with 0.
 C---------------------------------
             DO IJ=LIM+1,OS_NM
                G(IJ)=0.
             ENDDO
 	      
 C------------------------------------------------------------------------
-C* Decomposition en séries de Fourier de la matrice de réflexion de Fresnel
-C* pour les directions Teta1 et Teta2
+C* Fourier series decomposition of the Fresnel reflection matrix
+C* for the directions Teta1 and Teta2
 C--------------------------------------------------------------------------
 
-C*  Calcul des fonctions BP,GR,GT,ARR,ART et ATT en fonction de l'ordre IS
-C*  pour les directions Teta1 et Teta2
+C*  Computation of the functions BP,GR,GT,ARR,ART and ATT versus the order IS
+C*  for the directions Teta1 and Teta2
 C---------------------------------------------------------------------------
             CALL SOS_NOYAUX_FRESNEL(RMU(I),RMU(J),OS_NS,
      &                              ALPHA,BETA,GAMMA,ZETA,
      &                              BP,GR,GT,ARR,ART,ATT)
 
-C* Calcul des éléments de la matrice de réflexion pour chaque ordre IS.
+C* Computation of the elements of the reflection matrix for each order IS.
 C---------------------------------------------------------------------
             DO 24 IS=0,OS_NB
                X=COEF*G(IS)/4.
 	       
-C*   Elements pour IS=0.
+C*   Elements for IS=0.
                R111     =X*BP(0,1)
                R121     =X*GR(0,1)
                R122     =X*GR(0,2)
@@ -1883,7 +1883,7 @@ C*   Elements pour IS=0.
                R331     =X*ATT(0,2)
                R332     =X*ATT(0,1)
 
-C*   Elements pour la sommation de K=1 a OS_NS
+C*   Elements for the summation from K=1 to OS_NS
                IM=1
                DO 3 K=1,OS_NS
                  IM=-IM					! DEM 3
@@ -1911,7 +1911,7 @@ C*   Elements pour la sommation de K=1 a OS_NS
                  R332     =R332     +ATT(K,1)*X
   3            CONTINUE
 
-C* Affectation des résultats aux tableaux résultats Rij(IS)
+C* Assignment of the results to the result arrays Rij(IS)
  244           M11(IS,1)=R111
                M11(IS,2)=R111
                M12(IS,1)=R121
@@ -1930,24 +1930,24 @@ C* Affectation des résultats aux tableaux résultats Rij(IS)
                M32(IS,2)=-R322
                M33(IS,1)=-R331
                M33(IS,2)=-R332
- 24         CONTINUE	!Fin de boucle sur IS
+ 24         CONTINUE	!End of loop on IS
 
-C* Enregistrement de l'ordre pour le couple (Teta1, Teta2) de
-C* la decomposition en séries de Fourier de la matrice de Fresnel.
+C* Recording of the order for the pair (Teta1, Teta2) of
+C* the Fourier series decomposition of the Fresnel matrix.
 C-----------------------------------------------------------------
             WRITE(4,err=992) M11,M12,M13,M21,M22,M23,M31,M32,M33
 
- 2       CONTINUE	!Fin de boucle sur Teta2 (J)
+ 2       CONTINUE	!End of loop on Teta2 (J)
 
- 25   CONTINUE	!Fin de boucle sur Teta1 (I)
+ 25   CONTINUE	!End of loop on Teta1 (I)
  
  
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       goto 9999
       
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C----------------------------------------------------------    
   991 WRITE(6,*) '  ERROR on a file opening for SOS_MAT_REFLEXION'
       IER=-1
@@ -1959,7 +1959,7 @@ C----------------------------------------------------------
 
  9999 CONTINUE
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(2)
       CLOSE(3)
@@ -1970,7 +1970,7 @@ C---------
  1300 FORMAT(4(E15.8))  
    
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_MAT_REFLEXION
+      END         !END OF PROCEDURE SOS_MAT_REFLEXION
 
 
 
@@ -1979,50 +1979,50 @@ C---------
 C==============================================================================
 C PROCEDURE: SOS_NOYAUX_FRESNEL
 C ==========
-C      Cette procédure calcule la decomposition en séries de Fourier de
-C      la matrice de Fresnel selon l'azimut, pour les directions Teta1 et Teta2.
+C      This procedure computes the Fourier series decomposition of
+C      the Fresnel matrix versus the azimuth, for the directions Teta1 and Teta2.
 C
-C      On calcule les éléments de matrice suivants :
+C      The following matrix elements are computed:
 C         BP(IS,mu)    GR(IS,mu)    GT(IS,mu)
 C         ARR(IS,mu)   ART(IS,mu)   ATT(IS,mu)
-C      pour les ordres IS de la decomposition en séries de Fourier
-C      et pour mu = cos(Teta1) ou cos(Teta2).
+C      for the orders IS of the Fourier series decomposition
+C      and for mu = cos(Teta1) or cos(Teta2).
 C
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C	RMU1   (double)	 (E) Cos(Teta1).
-C	RMU2   (double)	 (E) Cos(Teta2).
-C       OS_NS (I4)           (E) Ordre maximal à utiliser pour le développement en
-C                                polynomes de Legendre des éléments de la matrice 
-C                                de Fresnel  et en séries de Fourier des calculs 
-C                                de luminance.
+C	RMU1   (double)	 (I) Cos(Teta1).
+C	RMU2   (double)	 (I) Cos(Teta2).
+C       OS_NS (I4)           (I) Maximum order to be used for the expansion in
+C                                Legendre polynomials of the elements of the Fresnel
+C                                matrix and in Fourier series of the radiance
+C                                computations.
 C
-C	ALPHA(0:CTE_OS_NS_MAX)  (double)	(E) Paramètres alpha(k).
-C	BETA(0:CTE_OS_NS_MAX)   (double)	(E) Paramètres beta(k).
-C	GAMMA(0:CTE_OS_NS_MAX)  (double)	(E) Paramètres gamma(k).
-C	ZETA(0:CTE_OS_NS_MAX)   (double)	(E) Paramètres zeta(k).
+C	ALPHA(0:CTE_OS_NS_MAX)  (double)	(I) Parameters alpha(k).
+C	BETA(0:CTE_OS_NS_MAX)   (double)	(I) Parameters beta(k).
+C	GAMMA(0:CTE_OS_NS_MAX)  (double)	(I) Parameters gamma(k).
+C	ZETA(0:CTE_OS_NS_MAX)   (double)	(I) Parameters zeta(k).
 C
-C       Element Pij de la matrice de réflexion de Fresnel decomposee en séries 
-C       de Fourier pour un ordre IS = 0 a OS_NS.
-C       Calcul pour la direction d'incidence Teta1 (RMU1)
-C       et de réflexion Teta2 (RMU2).	
-C	BP(0:CTE_OS_NS_MAX,2)   (double)	(S) Element P11.
-C	GR(0:CTE_OS_NS_MAX,2)   (double)	(S) Element P12 ou P21.
-C	GT(0:CTE_OS_NS_MAX,2)   (double)	(S) Element -P13 ou -P31.
-C	ARR(0:CTE_OS_NS_MAX,2)  (double)	(S) Element P22.
-C	ART(0:CTE_OS_NS_MAX,2)  (double)	(S) Element -P23 ou -P32.
-C	ATT(0:CTE_OS_NS_MAX,2)  (double)	(S) Element P33.
+C       Element Pij of the Fresnel reflection matrix decomposed in Fourier
+C       series for an order IS = 0 to OS_NS.
+C       Computation for the incidence direction Teta1 (RMU1)
+C       and the reflection direction Teta2 (RMU2).
+C	BP(0:CTE_OS_NS_MAX,2)   (double)	(O) Element P11.
+C	GR(0:CTE_OS_NS_MAX,2)   (double)	(O) Element P12 or P21.
+C	GT(0:CTE_OS_NS_MAX,2)   (double)	(O) Element -P13 or -P31.
+C	ARR(0:CTE_OS_NS_MAX,2)  (double)	(O) Element P22.
+C	ART(0:CTE_OS_NS_MAX,2)  (double)	(O) Element -P23 or -P32.
+C	ATT(0:CTE_OS_NS_MAX,2)  (double)	(O) Element P33.
 C
 C 
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Aucun
+C None
 C
 C
 C=============================================================================
@@ -2032,50 +2032,50 @@ C=============================================================================
 
       IMPLICIT NONE
 
-C* Définition des variables                                  
+C* Definition of variables
 C*----------------------------------------------------------------------
       DOUBLE PRECISION RMU1	! Cos(Teta1).
       DOUBLE PRECISION RMU2	! Cos(Teta2).
 
-      DOUBLE PRECISION ALPHA(0:CTE_OS_NS_MAX)    ! Paramètres alpha(k).
-      DOUBLE PRECISION BETA(0:CTE_OS_NS_MAX)	! Paramètres beta(k).
-      DOUBLE PRECISION GAMMA(0:CTE_OS_NS_MAX)    ! Paramètres gamma(k).
-      DOUBLE PRECISION ZETA(0:CTE_OS_NS_MAX)	! Paramètres zeta(k).
+      DOUBLE PRECISION ALPHA(0:CTE_OS_NS_MAX)    ! Parameters alpha(k).
+      DOUBLE PRECISION BETA(0:CTE_OS_NS_MAX)	! Parameters beta(k).
+      DOUBLE PRECISION GAMMA(0:CTE_OS_NS_MAX)    ! Parameters gamma(k).
+      DOUBLE PRECISION ZETA(0:CTE_OS_NS_MAX)	! Parameters zeta(k).
 
-      DOUBLE PRECISION R(2)	! tableau contenant cos(Teta1) et cos(Teta2).
+      DOUBLE PRECISION R(2)	! array containing cos(Teta1) and cos(Teta2).
 
-      	! Element Pij de la matrice de réflexion de Fresnel decomposee en séries 
-	! de Fourier pour un ordre IS = 0 a OS_NS.
-	! Calcul pour la direction d'incidence Teta1 (RMU1)
-	! et de réflexion Teta2 (RMU2).	
+      	! Element Pij of the Fresnel reflection matrix decomposed in Fourier
+	! series for an order IS = 0 to OS_NS.
+	! Computation for the incidence direction Teta1 (RMU1)
+	! and the reflection direction Teta2 (RMU2).
       DOUBLE PRECISION BP(0:CTE_OS_NS_MAX,2)    ! Element P11.
-      DOUBLE PRECISION GR(0:CTE_OS_NS_MAX,2)    ! Element P12 ou P21.
-      DOUBLE PRECISION GT(0:CTE_OS_NS_MAX,2)    ! Element -P13 ou -P31.
+      DOUBLE PRECISION GR(0:CTE_OS_NS_MAX,2)    ! Element P12 or P21.
+      DOUBLE PRECISION GT(0:CTE_OS_NS_MAX,2)    ! Element -P13 or -P31.
       DOUBLE PRECISION ARR(0:CTE_OS_NS_MAX,2)   ! Element P22.
-      DOUBLE PRECISION ART(0:CTE_OS_NS_MAX,2)   ! Element -P23 ou -P32.
+      DOUBLE PRECISION ART(0:CTE_OS_NS_MAX,2)   ! Element -P23 or -P32.
       DOUBLE PRECISION ATT(0:CTE_OS_NS_MAX,2)   ! Element P33.
 
       DOUBLE PRECISION PSL(-1:CTE_OS_NS_MAX,2)  
-                            ! Fonction de Legendre PSL pour l'ordre S=IS
-      				! en fonction de l'ordre L et de l'angle mu.
-      DOUBLE PRECISION RSL(-1:CTE_OS_NS_MAX,2)  ! Fonction RSL.
-      DOUBLE PRECISION TSL(-1:CTE_OS_NS_MAX,2)  ! Fonction TSL.
+                            ! Legendre function PSL for the order S=IS
+      				! versus the order L and the angle mu.
+      DOUBLE PRECISION RSL(-1:CTE_OS_NS_MAX,2)  ! Function RSL.
+      DOUBLE PRECISION TSL(-1:CTE_OS_NS_MAX,2)  ! Function TSL.
 
-      DOUBLE PRECISION C	     ! Valeur ponctuelle du mu de Gauss.
-      DOUBLE PRECISION A,B,D,E,F ! Coefficients pour la recurrence 
-      				     ! sur PSL, RSL et TSL.
+      DOUBLE PRECISION C	     ! Single value of the Gauss mu.
+      DOUBLE PRECISION A,B,D,E,F ! Coefficients for the recurrence
+      				     ! on PSL, RSL and TSL.
 
-      DOUBLE PRECISION X	! Variable intermédiaire de calcul.
-      DOUBLE PRECISION XX	! Variable intermédiaire de calcul.
-      DOUBLE PRECISION YY	! Variable intermédiaire de calcul.
+      DOUBLE PRECISION X	! Intermediate computation variable.
+      DOUBLE PRECISION XX	! Intermediate computation variable.
+      DOUBLE PRECISION YY	! Intermediate computation variable.
 
-      DOUBLE PRECISION RAC3	! Racine de 3.
-      DOUBLE PRECISION X26	! 2*racine(6)
+      DOUBLE PRECISION RAC3	! Square root of 3.
+      DOUBLE PRECISION X26	! 2*sqrt(6)
 
-      INTEGER*4 OS_NS   ! Ordre maximal du développement en polynomes de Legendre   
-			   ! des éléments de la matrice de Fresnel.
+      INTEGER*4 OS_NS   ! Maximum order of the expansion in Legendre polynomials
+			   ! of the Fresnel matrix elements.
 
-      INTEGER*4 IS	! Ordre de la decomposition en séries de Fourier.
+      INTEGER*4 IS	! Order of the Fourier series decomposition.
       INTEGER*4 I
       INTEGER*4 J
       INTEGER*4 K
@@ -2087,21 +2087,21 @@ C-------------------------
       RAC3=DSQRT(3.D+00)
       X26=2.*DSQRT(6.D+00)
 
-C* Stockage de cos(Teta1) et cos(Teta2) dans le tableau R.
+C* Storage of cos(Teta1) and cos(Teta2) in the array R.
 C------------------------------------------------------
       R(1)=RMU1
       R(2)=RMU2
 
-C* Decomposition en séries de Fourier de IS = 0 a OS_NS
+C* Fourier series decomposition from IS = 0 to OS_NS
 C----------------------------------------------------------
       DO 1 IS=0,OS_NS
 
 C-----------------------------------------------------
-C* Initialisation des fonctions d'ordre IS pour les
-C* ordres L = 0, 1 et 2.
+C* Initialisation of the functions of order IS for the
+C* orders L = 0, 1 and 2.
 C-----------------------------------------------------
 
-C* Initialisation pour l'ordre IS = 0
+C* Initialisation for the order IS = 0
 C-------------------------------------
          IF (IS.NE.0) GOTO 700
          DO 25 J=1,2
@@ -2118,7 +2118,7 @@ C-------------------------------------
    25    CONTINUE
          GOTO 501
 
-C* Initialisation pour l'ordre IS = 1
+C* Initialisation for the order IS = 1
 C-------------------------------------
   700    IF (IS.NE.1) GOTO 701
          DO 26 J=1,2
@@ -2134,7 +2134,7 @@ C-------------------------------------
    26    CONTINUE
          GOTO 501
 
-C* Initialisation pour l'ordre IS >= 2
+C* Initialisation for the order IS >= 2
 C----------------------------------------
   701    A=1
          DO I=1,IS
@@ -2158,24 +2158,24 @@ C----------------------------------------
              TSL(IS,J)= 2*B*C*X
          ENDDO
 
-C* Calcul des fonctions PSL(L,mu), RSL(L,mu) et TSL(L,mu)
-C* par recurrence sur l'ordre L pour IS fixe.
+C* Computation of the functions PSL(L,mu), RSL(L,mu) and TSL(L,mu)
+C* by recurrence on the order L for fixed IS.
 C------------------------------------------------------
   501    K=2
          IF (IS.GT.2) K=IS
 
          DO 30 L=K,OS_NS-1
-C* Coefficients pour la recurrence sur PSL
+C* Coefficients for the recurrence on PSL
              A=(2*L+1.)/DSQRT((L+IS+1.D+00)*(L-IS+1.))
              B=DSQRT(DFLOAT((L+IS)*(L-IS)))/(2.*L+1.) 
 
-C* Coefficients pour la recurrence sur RSL et TSL
+C* Coefficients for the recurrence on RSL and TSL
              D=(L+1.)*(2*L+1.)/DSQRT((L+3.D+00)*(L-1.)*(L+IS+1.)
      &         *(L-IS+1.))
              E=DSQRT((L+2.D+00)*(L-2.)*(L+IS)*(L-IS))/(L*(2.*L+1.))
              F=2.*IS/(L*(L+1.))
 
-C* Application de la recurrence pour chaque mu de Gauss
+C* Application of the recurrence for each Gauss mu
 C------------------------------------------------------
              DO 31 J=1,2
                 C=R(J)
@@ -2190,15 +2190,15 @@ C------------------------------------------------------
 
 
 C------------------------------------------------------
-C* Calcul des éléments de la matrice de réflexion
+C* Computation of the elements of the reflection matrix
 C------------------------------------------------------
 
-C* Boucles sur les directions Teta1 et Teta2
+C* Loops on the directions Teta1 and Teta2
 C------------------------------------------------------
          DO K=1,2
              J=3-K
 
-C* Initialisation des tableaux
+C* Initialisation of arrays
              BP(IS,K)=0.
              ARR(IS,K)=0.
              ATT(IS,K)=0
@@ -2206,7 +2206,7 @@ C* Initialisation des tableaux
              GT(IS,K)=0.
              ART(IS,K)=0
 
-C* Boucle de sommation sur L = IS a OS_NS
+C* Summation loop on L = IS to OS_NS
 C-----------------------------------------------
              DO L=IS,OS_NS
                 BP(IS,K)=BP(IS,K)+BETA(L)*PSL(L,J)*PSL(L,K)
@@ -2218,13 +2218,13 @@ C-----------------------------------------------
      &		          ALPHA(L)*RSL(L,J)*RSL(L,K)
                 ART(IS,K)=ART(IS,K)+ALPHA(L)*RSL(L,K)*TSL(L,J)+
      &                    ZETA(L)*RSL(L,J)*TSL(L,K)
-             ENDDO  ! boucle sur  L
+             ENDDO  ! loop on L
 	     
-         ENDDO  ! boucle sur K 
+         ENDDO  ! loop on K
 
    1  CONTINUE
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_NOYAUX_FRESNEL
+      END         !END OF PROCEDURE SOS_NOYAUX_FRESNEL
 
 
 
@@ -2234,73 +2234,73 @@ C-----------------------------------------------
 C==============================================================================
 C PROCEDURE:  SOS_MISE_FORMAT
 C ==========
-C      Cette procédure reordonne les éléments de la matrice Mij en une matrice
-C      Pij utilisable par le code des OS.
+C      This procedure reorders the elements of the matrix Mij into a matrix
+C      Pij usable by the OS code.
 C
-C      Les éléments Mij, enregistres dans le fichier "RES_MAT_REFLEX", donnent
-C      pour chaque couple d'angles (Teta1, Teta2) la decomposition en séries 
-C      de Fourier associee. 
+C      The elements Mij, stored in the file "RES_MAT_REFLEX", give
+C      for each pair of angles (Teta1, Teta2) the associated Fourier series
+C      decomposition.
 C
-C      Les éléments Pij, enregistres dans le fichier de sortie, donnent
-C      pour chaque ordre de la decomposition en séries de Fourier
-C      la réflexion associee a l'ensemble des couples (Teta1, Teta2) .
+C      The elements Pij, stored in the output file, give
+C      for each order of the Fourier series decomposition
+C      the reflection associated with all the pairs (Teta1, Teta2).
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C      FIC_RES_MAT_REFLEX (CHARACTER)  : (E) Nom du fichier temporaire RES_MAT_REFLEX
-C                                            avec arborescence complète.
-C      FICGLITTER  (CHARACTER*CTE_LENFIC2) : (S)  Nom complet du fichier résultat.
-C      NBMU (I4)  : (E)  Nombre d'angles (positifs) effectivement utiles.
-C      OS_NB (I4) : (E)  Ordre des développements des fonctions de phase 
-C		         en Polynomes de Legendre à utiliser.
-C      IER  (I4)  : (S)  code d'erreur =0 si pas d'erreur, =-1 sinon
+C     FIC_RES_MAT_REFLEX (CHARACTER)  : (I) Name of the temporary file RES_MAT_REFLEX
+C                                      with complete directory tree.
+C      FICGLITTER  (CHARACTER*CTE_LENFIC2) : (O)  Complete name of the result file.
+C      NBMU (I4)  : (I)  Number of actually useful (positive) angles.
+C             OS_NB (I4) : (I) Order of the expansions of the phase functions
+C		           in Legendre polynomials to be used.
+C     IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C
 C
-C Autre résultat fourni par la procédure
+C Other result provided by the procedure
 C -------------------------------------
-C      Fichier résultat : FICGLITTER, fichier GLITTER
+C      Result file: FICGLITTER, GLITTER file
 C 
-C Description des fichiers utilisés
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier temporaire RES_MAT_REFLEX
-C       Fichier binaire non formatte, cree par SOS_MAT_REFLEXION
-C       Fichier cree dans le répertoire de lancement du programme
-C       Enregistrement pour chaque couple (Teta1, Teta2) de
-C       la decomposition en séries de Fourier de la matrice de Fresnel:
+C   -->Content of the temporary file RES_MAT_REFLEX
+C       Unformatted binary file, created by SOS_MAT_REFLEXION
+C       File created in the directory where the program is run
+C       Record for each pair (Teta1, Teta2) of
+C       the Fourier series decomposition of the Fresnel matrix:
 C       M11,M12,M13,M21,M22,M23,M31,M32,M33 
-C       (n valeurs réelles)
+C       (n real values)
 C
-C   -->Contenu du fichier GLITTER
-C       Fichier binaire non formatte, cree par SOS_MISE_FORMAT
-C       Il contient la matrice de réflexion de surface 
-C       (fichier GLITTER ou autres BRDF):
-C       c'est a dire les éléments Pij de la matrice de réflexion 
-C              P11(LUM_NBMU,LUM_NBMU) (réel), 
-C              P12(LUM_NBMU,LUM_NBMU) (réel),
-C              P13(LUM_NBMU,LUM_NBMU) (réel),
-C              P21(LUM_NBMU,LUM_NBMU) (réel),
-C              P22(LUM_NBMU,LUM_NBMU) (réel),
-C              P23(LUM_NBMU,LUM_NBMU) (réel),
-C              P31(LUM_NBMU,LUM_NBMU) (réel),
-C              P32(LUM_NBMU,LUM_NBMU) (réel),
-C              P33(LUM_NBMU,LUM_NBMU) (réel)
+C   -->Content of the GLITTER file
+C       Unformatted binary file, created by SOS_MISE_FORMAT
+C       It contains the surface reflection matrix
+C       (GLITTER file or other BRDF):
+C       i.e. the elements Pij of the reflection matrix
+C              P11(LUM_NBMU,LUM_NBMU) (real),
+C              P12(LUM_NBMU,LUM_NBMU) (real),
+C              P13(LUM_NBMU,LUM_NBMU) (real),
+C              P21(LUM_NBMU,LUM_NBMU) (real),
+C              P22(LUM_NBMU,LUM_NBMU) (real),
+C              P23(LUM_NBMU,LUM_NBMU) (real),
+C              P31(LUM_NBMU,LUM_NBMU) (real),
+C              P32(LUM_NBMU,LUM_NBMU) (real),
+C              P33(LUM_NBMU,LUM_NBMU) (real)
 C
-C        --> Enregistrements sur le domaine limité aux angles utiles
+C        --> Records on the domain limited to the useful angles
 C                                   --------------------------------
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C      Le fichier RES_MAT_REFLEX n'existe pas
-C      Le fichier Glitter existe
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C      The file RES_MAT_REFLEX does not exist
+C      The Glitter file exists
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C
 C=============================================================================
@@ -2309,18 +2309,18 @@ C=============================================================================
 
       IMPLICIT NONE
 
-C* Définition des variables                    
+C* Definition of variables
 C*--------------------------------------------------------------------
-      CHARACTER*CTE_LENFIC2 FICGLITTER	! Nom du fichier résultat.
+      CHARACTER*CTE_LENFIC2 FICGLITTER	! Name of the result file.
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Nom du fichier RES_MAT_REFLEX
-                                               ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Name of the file RES_MAT_REFLEX
+                                               ! with complete directory tree
 
-      	! Elements Mij de la matrice de réflexion en fonction de l'ordre IS
-	! de la série de Fourier, pour 2 directions.
-	! L'indice de direction est :
-	!     _ 1 pour une incidence sous Teta1 et une réflexion sous Teta2,
-	!     _ 2 pour une incidence sous Teta2 et une réflexion sous Teta1.
+      	! Elements Mij of the reflection matrix versus the order IS
+	! of the Fourier series, for 2 directions.
+	! The direction index is:
+	!     _ 1 for an incidence at Teta1 and a reflection at Teta2,
+	!     _ 2 for an incidence at Teta2 and a reflection at Teta1.
       REAL M11(0:CTE_OS_NB_MAX,2)		
       REAL M12(0:CTE_OS_NB_MAX,2)		
       REAL M13(0:CTE_OS_NB_MAX,2)			
@@ -2331,9 +2331,9 @@ C*--------------------------------------------------------------------
       REAL M32(0:CTE_OS_NB_MAX,2)	
       REAL M33(0:CTE_OS_NB_MAX,2)
 
-      	! Elements Pij de la matrice de réflexion en fonction de la direction
-	! d'incidence et de réflexion, pour un ordre IS du développement
-	! en séries de Fourier
+      	! Elements Pij of the reflection matrix versus the directions
+	! of incidence and reflection, for an order IS of the expansion
+	! in Fourier series
       REAL P11(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P12(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P13(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)	
@@ -2344,15 +2344,15 @@ C*--------------------------------------------------------------------
       REAL P32(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P33(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
 
-      INTEGER*4 NBMU     ! Nombre d'angles effectifs des simulations
-      INTEGER*4 OS_NB    ! Ordre des développements des fonctions de phase 
-			    ! en Polynomes de Legendre.
-      INTEGER*4 IS	! Ordre de la decomposition en séries de Fourier.
-      INTEGER*4 I	! Indice de l'angle d'incidence Teta1.
-      INTEGER*4 J	! Indice de l'angle de réflexion Teta2.
-      INTEGER*4 IER  ! code d'erreur =0 si pas d'erreur, =-1 sinon  
+      INTEGER*4 NBMU     ! Number of actual angles of the simulations
+      INTEGER*4 OS_NB    ! Order of the expansions of the phase functions
+			    ! in Legendre polynomials.
+      INTEGER*4 IS	! Order of the Fourier series decomposition.
+      INTEGER*4 I	! Index of the incidence angle Teta1.
+      INTEGER*4 J	! Index of the reflection angle Teta2.
+      INTEGER*4 IER  ! error code =0 if no error, =-1 otherwise
 	
-C* Ouverture fichier
+C* File opening
 C------------------------------------------------------------	
 	
       OPEN(UNIT=1,FILE=FIC_RES_MAT_REFLEX,FORM='UNFORMATTED',
@@ -2360,19 +2360,19 @@ C------------------------------------------------------------
       OPEN(UNIT=2,FILE=FICGLITTER,FORM='UNFORMATTED',
      &     STATUS='NEW',ERR=991)
 
-C* Boucle sur l'ordre de la decomposition en séries de Fourier
+C* Loop on the order of the Fourier series decomposition
 C------------------------------------------------------------
       DO 1 IS=0,OS_NB
 
-C* Boucle sur les directions d'incidence Teta1
+C* Loop on the incidence directions Teta1
 C---------------------------------------------
          DO 2 I=1,NBMU
 
-C* Boucle sur les directions de réflexion Teta2
+C* Loop on the reflection directions Teta2
 C-----------------------------------------------
 
-C*       Lecture du fichier RES_MAT_REFLEX enregistre pour la taille max
-C*       des tableaux : CTE_OS_NBMU_MAX    
+C*       Reading of the file RES_MAT_REFLEX stored for the max size
+C*       of the arrays: CTE_OS_NBMU_MAX
             DO 3 J=1,I
                READ(1,err=992) M11,M12,M13,M21,M22,M23,M31,M32,M33
                P11(I,J)=M11(IS,1)
@@ -2396,10 +2396,10 @@ C*       des tableaux : CTE_OS_NBMU_MAX
  3          CONTINUE
  2       CONTINUE
  
-C*       Enregistrement des tableaux de la matrice de réflexion 
-C*       a l'ordre IS de la decomposition en séries de Fourier.
-C*       Bornes d'enregistrement des tableaux limitées au 
-C*       dimensionnement utile -NBMU:NBMU
+C*       Recording of the arrays of the reflection matrix
+C*       at order IS of the Fourier series decomposition.
+C*       Record bounds of the arrays limited to the
+C*       useful dimension -NBMU:NBMU
 C-------------------------------------------------------------- 
          WRITE(2,err=992) ((P11(I,J),I=1,NBMU),J=1,NBMU),
      &	                  ((P12(I,J),I=1,NBMU),J=1,NBMU),
@@ -2411,19 +2411,19 @@ C--------------------------------------------------------------
      &	                  ((P32(I,J),I=1,NBMU),J=1,NBMU),
      &	                  ((P33(I,J),I=1,NBMU),J=1,NBMU)
 
-C* Retour au debut du fichier avant passage a l'ordre IS suivant.
+C* Back to the beginning of the file before the next order IS.
 C---------------------------------------------------------------
          REWIND (1)
  1    CONTINUE
 
 
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       goto 9999
       
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C------------------------------------------------------
   991 WRITE(6,*) '  ERROR on a file opening for SOS_MISE_FORMAT'
       IER=-1
@@ -2434,13 +2434,13 @@ C------------------------------------------------------
 
  9999 CONTINUE
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(1)
       CLOSE(2)
       
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_MISE_FORMAT
+      END         !END OF PROCEDURE SOS_MISE_FORMAT
 
       
       
@@ -2448,56 +2448,56 @@ C-------------------
 C==============================================================================
 C PROCEDURE: SOS_BPDF_AJOUT_BRDF
 C ==========
-C      Cette procédure lit deux fichiers de BRDF ou BPDF mis en forme pour les OS
-C      et realise la sommation des termes pour creer un fichier final somme des deux
-C      premiers.
+C      This procedure reads two BRDF or BPDF files formatted for the OS
+C      and sums their terms to create a final file, sum of the first
+C      two.
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C       FICSURF1 (CHARACTER*CTE_LENFIC2) (E) : nom du 1er fichier de réflexion de surface, 
-C                                              au format pour les OS.
-C                                             (nom complet avec répertoire).
-C       FICSURF2 (CHARACTER*CTE_LENFIC2) (E) : nom du 2nd fichier de réflexion de surface, 
-C                                              au format pour les OS.
-C                                             (nom complet avec répertoire).
-C       NBMU (I4)  (E) : nombre d'angles (positifs) effectivement utiles.
-C       OS_NB (I4) (E) : Ordre des développements des fonctions de phase 
-C		         en Polynomes de Legendre à utiliser.
-C       FICS   (CHARACTER*CTE_LENFIC2)  (E)  : nom du fichier SURFACE résultat.
-C                                             (nom complet avec répertoire).
-C       IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon 
+C       FICSURF1 (CHARACTER*CTE_LENFIC2) (I) : name of the 1st surface reflection file,
+C                                              in the OS format.
+C                                             (complete name with directory).
+C       FICSURF2 (CHARACTER*CTE_LENFIC2) (I) : name of the 2nd surface reflection file,
+C                                              in the OS format.
+C                                             (complete name with directory).
+C       NBMU (I4)  (I) : number of actually useful (positive) angles.
+C      OS_NB (I4) (I) : Order of the expansions of the phase functions
+C		           in Legendre polynomials to be used.
+C       FICS   (CHARACTER*CTE_LENFIC2)  (I)  : name of the result SURFACE file.
+C                                             (complete name with directory).
+C       IER  (I4)   (O) : error code =0 if no error, =-1 otherwise
 C
-C Description des fichiers utilisés
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier BRDF ou BPDF
-C       Fichier binaire non formatte.
-C       Il contient la matrice de réflexion de surface (fichier BRDF / BPDF):
-C       c'est a dire les éléments Rij de la matrice de réflexion 
-C       pour OS_NB ordres de la decomposition en séries de Fourier.
-C              P11(LUM_NBMU,LUM_NBMU) (réel),
-C              P12(LUM_NBMU,LUM_NBMU) (réel),
-C              P13(LUM_NBMU,LUM_NBMU) (réel),
-C              P21(LUM_NBMU,LUM_NBMU) (réel),
-C              P22(LUM_NBMU,LUM_NBMU) (réel),
-C              P23(LUM_NBMU,LUM_NBMU) (réel),
-C              P31(LUM_NBMU,LUM_NBMU) (réel),
-C              P32(LUM_NBMU,LUM_NBMU) (réel),
-C              P33(LUM_NBMU,LUM_NBMU) (réel)
+C   -->Content of the BRDF or BPDF file
+C       Unformatted binary file.
+C       It contains the surface reflection matrix (BRDF / BPDF file):
+C       i.e. the elements Rij of the reflection matrix
+C       for OS_NB orders of the Fourier series decomposition.
+C              P11(LUM_NBMU,LUM_NBMU) (real),
+C              P12(LUM_NBMU,LUM_NBMU) (real),
+C              P13(LUM_NBMU,LUM_NBMU) (real),
+C              P21(LUM_NBMU,LUM_NBMU) (real),
+C              P22(LUM_NBMU,LUM_NBMU) (real),
+C              P23(LUM_NBMU,LUM_NBMU) (real),
+C              P31(LUM_NBMU,LUM_NBMU) (real),
+C              P32(LUM_NBMU,LUM_NBMU) (real),
+C              P33(LUM_NBMU,LUM_NBMU) (real)
 C
-C        --> Enregistrements sur le domaine limité aux angles utiles
+C        --> Records on the domain limited to the useful angles
 C                                   --------------------------------
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C============================================================================== 
       SUBROUTINE SOS_BPDF_AJOUT_BRDF(FICSURF1,FICSURF2,NBMU,OS_NB,
@@ -2505,18 +2505,18 @@ C==============================================================================
 
       IMPLICIT NONE
 
-C* Définition des variables   
+C* Definition of variables
 C*--------------------------------------------------------------------------
-      CHARACTER*CTE_LENFIC2 FICSURF1 ! nom du 1er fichier de réflexion 
-      					  ! de surface, au format pour les OS.
-      CHARACTER*CTE_LENFIC2 FICSURF2 ! nom du 2nd fichier de réflexion 
-      					  ! de surface, au format pour les OS.
-      CHARACTER*CTE_LENFIC2 FICS     ! nom du fichier résultat de réflexion 
-      					  ! de surface, au format pour les OS.
+      CHARACTER*CTE_LENFIC2 FICSURF1 ! name of the 1st surface reflection
+      					  ! file, in the OS format.
+      CHARACTER*CTE_LENFIC2 FICSURF2 ! name of the 2nd surface reflection
+      					  ! file, in the OS format.
+      CHARACTER*CTE_LENFIC2 FICS     ! name of the result surface reflection
+      					  ! file, in the OS format.
 					  
-      	! Elements Pij de la matrice de réflexion en fonction de la direction
-	! d'incidence et de réflexion, pour un ordre IS du développement
-	! en séries de Fourier. Format d'entrée des OS pour le 1er fichier.
+      	! Elements Pij of the reflection matrix versus the directions
+	! of incidence and reflection, for an order IS of the expansion
+	! in Fourier series. OS input format for the 1st file.
       REAL P11_SURF1(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P12_SURF1(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P13_SURF1(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)	
@@ -2527,9 +2527,9 @@ C*--------------------------------------------------------------------------
       REAL P32_SURF1(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P33_SURF1(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
            
-        ! Elements Pij de la matrice de réflexion en fonction de la direction
-	! d'incidence et de réflexion, pour un ordre IS du développement
-	! en séries de Fourier. Format d'entrée des OS pour le 2nd fichier.
+        ! Elements Pij of the reflection matrix versus the directions
+	! of incidence and reflection, for an order IS of the expansion
+	! in Fourier series. OS input format for the 2nd file.
       REAL P11_SURF2(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P12_SURF2(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P13_SURF2(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)	
@@ -2540,9 +2540,9 @@ C*--------------------------------------------------------------------------
       REAL P32_SURF2(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P33_SURF2(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)   
           
-        ! Elements Pij de la matrice de réflexion en fonction de la direction
-	! d'incidence et de réflexion, pour un ordre IS du développement
-	! en séries de Fourier. Format d'entrée des OS pour le fichier résultat.
+        ! Elements Pij of the reflection matrix versus the directions
+	! of incidence and reflection, for an order IS of the expansion
+	! in Fourier series. OS input format for the result file.
       REAL P11(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P12(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P13(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)	
@@ -2553,18 +2553,18 @@ C*--------------------------------------------------------------------------
       REAL P32(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL P33(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
 
-      INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
-      INTEGER*4 OS_NB   ! Ordre des développements des fonctions de phase 
-			   ! en Polynomes de Legendre.
+      INTEGER*4 NBMU    ! Number of actual angles of the simulations
+      INTEGER*4 OS_NB   ! Order of the expansions of the phase functions
+			   ! in Legendre polynomials.
 
-      INTEGER*4 IS	! Ordre de la decomposition en séries de Fourier.
-      INTEGER*4 I	! Indice de l'angle d'incidence Teta1.
-      INTEGER*4 J	! Indice de l'angle de réflexion Teta2.
-      INTEGER*4 IER  ! code d'erreur =0 si pas d'erreur, =-1 sinon	  					  					  
+      INTEGER*4 IS	! Order of the Fourier series decomposition.
+      INTEGER*4 I	! Index of the incidence angle Teta1.
+      INTEGER*4 J	! Index of the reflection angle Teta2.
+      INTEGER*4 IER  ! error code =0 if no error, =-1 otherwise
       	      
       
 
-C* Ouverture des fichiers
+C* Opening of the files
 C------------------------------------------------------------		    
       OPEN(UNIT=1,FILE=FICSURF1,FORM='UNFORMATTED',
      &     STATUS='OLD',ERR=991)
@@ -2574,13 +2574,13 @@ C------------------------------------------------------------
      &     STATUS='NEW',ERR=991)
 
 	   
-C* Boucle sur l'ordre de la decomposition en séries de Fourier
+C* Loop on the order of the Fourier series decomposition
 C------------------------------------------------------------      
       DO 1 IS=0,OS_NB
 
-C*      Lecture des fichiers qui ont ete enregistres avec des 
-C*      bornes de tableaux limitées au dimensionnement 
-C*      utile -NBMU:NBMU           
+C*      Reading of the files that were written with
+C*    array bounds limited to the useful
+C*    dimension -NBMU:NBMU
 	   READ(1,err=992)
      &	       ((P11_SURF1(I,J),I=1,NBMU),J=1,NBMU),
      &	       ((P12_SURF1(I,J),I=1,NBMU),J=1,NBMU),
@@ -2604,11 +2604,11 @@ C*      utile -NBMU:NBMU
      &	       ((P33_SURF2(I,J),I=1,NBMU),J=1,NBMU) 
 
            
-C* Boucle sur les directions d'incidence Teta1
+C* Loop on the incidence directions Teta1
 C---------------------------------------------
          DO 2 I=1,NBMU
 
-C* Boucle sur les directions de réflexion Teta2
+C* Loop on the reflection directions Teta2
 C-----------------------------------------------
             DO 3 J=1,NBMU
                P11(I,J) = P11_SURF1(I,J) + P11_SURF2(I,J)  
@@ -2623,10 +2623,10 @@ C-----------------------------------------------
  3          CONTINUE
  2       CONTINUE
  
-C*       Enregistrement des tableaux de la matrice de réflexion 
-C*       a l'ordre IS de la decomposition en séries de Fourier.
-C*       Bornes d'enregistrement des tableaux limitées au 
-C*       dimensionnement utile -NBMU:NBMU
+C*       Recording of the arrays of the reflection matrix
+C*       at order IS of the Fourier series decomposition.
+C*       Record bounds of the arrays limited to the
+C*       useful dimension -NBMU:NBMU
 C-------------------------------------------------------------- 
 	 WRITE(3,err=992) ((P11(I,J),I=1,NBMU),J=1,NBMU),
      &	                  ((P12(I,J),I=1,NBMU),J=1,NBMU),
@@ -2641,13 +2641,13 @@ C--------------------------------------------------------------
  1    CONTINUE
 
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       GOTO 9999
  
  
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C----------------------------------------------------------
   991 WRITE(6,*) '  ERROR on a file opening for SOS_BPDF_AJOUT_BRDF'
       IER=-1
@@ -2659,12 +2659,12 @@ C----------------------------------------------------------
 
  9999 CONTINUE
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(1)
       CLOSE(2)
       CLOSE(3)
       
       RETURN            
-      END      !FIN DE LA PROCEDURE SOS_BPDF_AJOUT_BRDF 
+      END      !END OF PROCEDURE SOS_BPDF_AJOUT_BRDF
       

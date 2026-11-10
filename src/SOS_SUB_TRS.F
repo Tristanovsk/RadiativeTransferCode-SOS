@@ -19,76 +19,76 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_SUB_TRS.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Librairie de fonctions pour les calculs d'absorption atmosphérique
-C*	 Ce fichier est issu du code TRS du LOA qui calcule la transmission
-C*	 atmosphérique due à l'absorption. Il a été adapté pour inclusion
-C*	 dans les OS 
+C* FILE: SOS_SUB_TRS.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: Library of functions for the atmospheric absorption computations
+C*	 This file comes from the LOA TRS code, which computes the atmospheric
+C*	 transmission due to absorption. It has been adapted to be included
+C*	 in the OS
 C*
-C* AUTEUR: 
-C*   Code initial: Laboratoire d'Optique Atmosphérique (LOA, Villeneuve d'Ascq).
-C*   Reprise du codage et développement : CS GROUP France, X.Lenot, B.Lafrance
+C* AUTHOR:
+C*   Initial code: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
+C*   Code rework and development: CS GROUP France, X.Lenot, B.Lafrance
 C* D
 C*
-C* MOD:VERSION:1.0: DATE: 24/06/2013 : Création du fichier 
+C* MOD:VERSION:1.0: DATE: 24/06/2013 : File creation
 C*
 C* MOD:VERSION:1.1: DATE: 24/02/2016
-C*    - Tableau NEXP passe de Double Précision à Integer
+C*    - Array NEXP changed from Double Precision to Integer
 C*
 C* MOD:VERSION:2.0: DATE: 08/06/2020
-C*    - Ajustements pour l'usage de nouveaux fichiers de coefficients CKD, 
-C*      incluant la prise en compte des continuums avec les raies d'absorption
-C*      ==> Suppression des routines relatives aux données de continuum
+C*    - Adjustments for the use of new files of CKD coefficients,
+C*      including the continuums together with the absorption lines
+C*      ==> Removal of the routines related to the continuum data
 C*          CONTINUUMNEW, CONT_H2O, CONT_O3, CONT_N2, CONT_O2, CONT_NO2, 
-C*          CONT_SO2, O3CHAPW, ABSCNT, CONTHLBL, CNTCO2LBL et FUDGE.
-C*      ==> Suppression des BLOCK de DATA associées.
-C*      ==> Reprise complète des routines READ_CKD_COEFF et COEFF_ABS_CKD.
-C*      ==> Modification de la dimension du tableau RO des quantités d'absorbant
-C*          dans la routine DATATM pour inclure le NO2
+C*          CONT_SO2, O3CHAPW, ABSCNT, CONTHLBL, CNTCO2LBL and FUDGE.
+C*      ==> Removal of the associated DATA BLOCKs.
+C*      ==> Complete rework of the routines READ_CKD_COEFF and COEFF_ABS_CKD.
+C*      ==> Change of the dimension of the array RO of the absorber amounts
+C*          in routine DATATM to include NO2
 C*
-C*    - Suppression de la routine ZEROIT devenue obsolète.
+C*    - Removal of the obsolete routine ZEROIT.
 C*
 C* MOD:VERSION:2.1: DATE: 26/10/2021
-C*    - Correction de la gestion d'une pression de surface fournie par l'utilisateur dans la routine DATATM.
+C*    - Correction of the management of a surface pressure given by the user in routine DATATM.
 C*
 C*
 C* MOD:VERSION:2.2: DATE: 07/07/2022
-C*    - Suppression du passage par la variable d'environnement SOS_ABS_FIC.
-C*    - Renommage des constantes de SOS_* en CTE_*
+C*    - Removal of the use of the environment variable SOS_ABS_FIC.
+C*    - Constants renamed from SOS_* to CTE_*
 C*
 C* MOD:VERSION:2.3: DATE: 16/06/2023
-C*    - Modification des préfixes des fichiers CKD 'coef_xxx_' pour indiquer le gaz en majuscules.
-C*    - Ajout des paramètres KDIS_KI_H2O,TAB_CONC_H2O et NB_CONC_H2O en arguments de la routine READ_CKD_COEFF.
-C*    - Ajustements de la routine READ_CKD_COEFF pour lecture des données CKD H2O
-C*    - Correction de la routine READ_CKD_COEFF : le test sur NUMAX_FILE et NUMIN_FILE passe de > 10000 à >= 10000
-C*                                                pour inclure 10000 dans le cas d'encodage sur 5 chiffres 
+C*    - Change of the prefixes of the CKD files 'coef_xxx_' to give the gas in capital letters.
+C*    - Parameters KDIS_KI_H2O, TAB_CONC_H2O and NB_CONC_H2O added as arguments of routine READ_CKD_COEFF.
+C*    - Adjustments of routine READ_CKD_COEFF to read the H2O CKD data
+C*    - Correction of routine READ_CKD_COEFF: the test on NUMAX_FILE and NUMIN_FILE changed from > 10000 to >= 10000
+C*                                                to include 10000 in the case of a 5-digit encoding
 C*
 C*
 C*
-C* FONCTIONS INCLUSES :
-C*  - DATATM : lecture des profils en gaz absorbants
-C*  - COEFF_ABS_CKD : calcul des coefficients CKD pour une exponentielle d'un 
-C*                    absorbant  et un intervalle spectral donné
-C*  - READ_CKD_COEFF  : lecture des tables de coefficients CKD
-C*  - TROPICA : lecture du profil "tropical"
-C*  - MIDLASU : lecture du profil "Middle Latitude Summer"
-C*  - MIDLAWI : lecture du profil "Middle Latitude Winter"
-C*  - SUBSUMM : lecture du profil Sub-Artic Summer
-C*  - SUBWINT : lecture du profil Sub-Artic Winter
-C*  - USTAD62 : lecture du profil USST62 (U.S. Standard Atmosphere)
+C* INCLUDED FUNCTIONS:
+C*  - DATATM : reading of the absorbing gas profiles
+C*  - COEFF_ABS_CKD : computation of the CKD coefficients for one exponential of an
+C*                    absorber and a given spectral interval
+C*  - READ_CKD_COEFF  : reading of the tables of CKD coefficients
+C*  - TROPICA : reading of the "tropical" profile
+C*  - MIDLASU : reading of the "Middle Latitude Summer" profile
+C*  - MIDLAWI : reading of the "Middle Latitude Winter" profile
+C*  - SUBSUMM : reading of the Sub-Arctic Summer profile
+C*  - SUBWINT : reading of the Sub-Arctic Winter profile
+C*  - USTAD62 : reading of the USST62 profile (U.S. Standard Atmosphere)
 C* 
 C*----------------------------------------------------------------------------
-C* Définition des constantes  
+C* Definition of constants
 C*---------------------------------------------------------------------------- 
-C* Constantes utilisées :
-C*    CTE_NBABS : Nombre de corps absorbants
-C*    CTE_CKD_NUMAX : Nombre d'onde maximal couvert par les fichiers de coeff CKD(en cm-1)
-C*    CTE_CKD_NB_NU_PER_FILE : Nombre de longueurs d'onde par fichier CKD 
-C*    CTE_CKD_NWVL_MAX : Nombre maximal de longueurs d'onde dans les tables de coeff CKD
-C*    CTE_CKD_NAI_MAX  : Nombre maximal d'exponentiels des développements 
-C*    CTE_CKD_NT_MAX   : Nombre maximal de températures
-C*    CTE_CKD_NP_MAX   : Nombre maximal de pressions
+C* Constants used:
+C*    CTE_NBABS : Number of absorbers
+C*    CTE_CKD_NUMAX : Maximum wavenumber covered by the CKD coeff files (in cm-1)
+C*    CTE_CKD_NB_NU_PER_FILE : Number of wavelengths per CKD file
+C*    CTE_CKD_NWVL_MAX : Maximum number of wavelengths in the CKD coeff tables
+C*    CTE_CKD_NAI_MAX  : Maximum number of exponentials of the expansions
+C*    CTE_CKD_NT_MAX   : Maximum number of temperatures
+C*    CTE_CKD_NP_MAX   : Maximum number of pressures
 
 
 
@@ -101,71 +101,71 @@ C******************************************************************************
 C==============================================================================
 C PROCEDURE: COEFF_ABS_CKD      
 C ==========
-C      Interpole les coefficients ki(P,T) d'une exponentielle, d'un gaz et d'une longueur d'onde
-C      à la pression et température fournies en entrée.
+C      Interpolates the coefficients ki(P,T) of one exponential, one gas and one wavelength
+C      at the pressure and temperature given as input.
 C
-C      Interpolation linéaire sur la pression.
-C      Puis interpolation Splint sur la température.
+C      Linear interpolation on pressure.
+C      Then Splint interpolation on temperature.
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
 C
-C     NABS  (I2) : (E) Indice du corps absorbant
-C                        ==> pour KDIS_KI(IT, IP_INF, IK, NABS, LAMB)
+C     NABS  (I2) : (I) Index of the absorber
+C                        ==> for KDIS_KI(IT, IP_INF, IK, NABS, LAMB)
 C
-C     LAMB1 (I4) : (E) Indice de l'intervalle CKD
+C     LAMB1 (I4) : (I) Index of the CKD interval
 C			   
-C     IK  (I4) : (E) Indice de l'exponentielle pour l'absorption du gaz considéré
+C     IK  (I4) : (I) Index of the exponential for the absorption of the gas considered
 C
-C     PRS (double) : (E) Pression moyenne de la couche (mbar) pour laquelle ki est à calculer 
+C     PRS (double) : (I) Mean pressure of the layer (mbar) for which ki is computed
 C
-C     TMP (double) : (E) Température moyenne de la couche (K) pour laquelle ki est à calculer
+C     TMP (double) : (I) Mean temperature of the layer (K) for which ki is computed
 C
-C     CONC_H2O (double) : (E) Concentration H2O moyenne (ppmv) de la couche (K) pour laquelle ki est à calculer
+C     CONC_H2O (double) : (I) Mean H2O concentration (ppmv) of the layer for which ki is computed
 C
-C     TAB_PRES (double): (E) Tableau des valeurs de pression associés aux valeurs des coefficients ki(P,T) 
-C                            de CTE_CKD_NP_MAX éléments.
-C     NB_PRES (integer): (E) Nombre de valeurs de pression effectives.
+C     TAB_PRES (double): (I) Array of the pressure values associated with the coefficients ki(P,T)
+C                            of CTE_CKD_NP_MAX elements.
+C     NB_PRES (integer): (I) Number of actual pressure values.
 C
-C     TAB_TEMP (double): (E) Tableau des valeurs de température associés aux valeurs des coefficients ki(P,T) 
-C                            de CTE_CKD_NT_MAX éléments.
-C     NB_TEMP (integer): (E) Nombre de valeurs de température effectives.
+C     TAB_TEMP (double): (I) Array of the temperature values associated with the coefficients ki(P,T)
+C                            of CTE_CKD_NT_MAX elements.
+C     NB_TEMP (integer): (I) Number of actual temperature values.
 C
-C     TAB_CONC_H2O (double): (E) Tableau des valeurs de concentration en H2O associées aux valeurs des coefficients ki(P,T,C) 
-C                                de la vapeur d'eau, à CTE_CKD_NC_MAX éléments. (en ppmv)
-C     NB_CONC_H2O (integer): (E) Nombre de valeurs de concentrations effectives.
+C     TAB_CONC_H2O (double): (I) Array of the H2O concentration values associated with the coefficients ki(P,T,C)
+C                                of water vapour, of CTE_CKD_NC_MAX elements (in ppmv)
+C     NB_CONC_H2O (integer): (I) Number of actual concentration values.
 C
-C     KDIS_KI(double) : (E) Tableau des coefficients ki des exponentilles de la décomposition, contenant
+C     KDIS_KI(double) : (I) Array of the coefficients ki of the exponentials of the decomposition, containing
 C                           (CTE_CKD_NT_MAX * CTE_CKD_NP_MAX * CTE_CKD_NAI_MAX * CTE_NBABS * CTE_CKD_NWVL_MAX)
-C                           éléments couvrant les longueurs d'onde, espèces, ordres i de la décomposition en
-C                           exponentielles, pressions et températures
+C                           elements covering wavelengths, species, orders i of the decomposition in
+C                           exponentials, pressures and temperatures
 C
-C     KDIS_KI_H2O(double) : (E) Tableau des coefficients ki des exponentilles de la décomposition de la vapeur d'eau, 
-C                               contenant (CTE_CKD_NT_MAX * CTE_CKD_NP_MAX * CTE_CKD_NC_MAX * CTE_CKD_NAI_MAX *  CTE_CKD_NWVL_MAX)
-C                               éléments couvrant les longueurs d'onde, ordres i de la décomposition en exponentielles,
-C                               concentrations en H2O, pressions et températures
+C     KDIS_KI_H2O(double) : (I) Array of the coefficients ki of the exponentials of the water vapour decomposition,
+C                               containing (CTE_CKD_NT_MAX * CTE_CKD_NP_MAX * CTE_CKD_NC_MAX * CTE_CKD_NAI_MAX *  CTE_CKD_NWVL_MAX)
+C                               elements covering wavelengths, orders i of the decomposition in exponentials,
+C                               H2O concentrations, pressures and temperatures
 C
 C  
-C   Sortie:
-C      XK (double) : (S) Valeur de ki(PRS,TMP) interpolée à la pression PRS et à la température TMP
-C                        à partir des valeurs tabulées ki(P,T).
+C   Output:
+C      XK (double) : (O) Value of ki(PRS,TMP) interpolated at the pressure PRS and temperature TMP
+C                        from the tabulated values ki(P,T).
 C
-C      IER (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+C      IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C
-C Variable d'environnement
+C Environment variable
 C ------------------------
-C   SOS_ABS_ROOT : qui définit l'arborescence d'accès au répertoire principal du code SOS_ABS
-C   Cette variable d'environnement permet de localiser les fichiers sous $SOS_ABS_ROOT/fic 
+C   SOS_ABS_ROOT : defines the access path to the main directory of the SOS_ABS code
+C   This environment variable is used to locate the files under $SOS_ABS_ROOT/fic
 C
-C Common utilisé:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Dépassement des bornes en température ou pression
-C     Erreur d'interpolation Splint
-C     Coefficient d'absorption négatif
+C     Temperature or pressure out of bounds
+C     Splint interpolation error
+C     Negative absorption coefficient
 C
 C==============================================================================
       SUBROUTINE COEFF_ABS_CKD(NABS, LAMB, IK, PRS, TMP, CONC_H2O,
@@ -175,110 +175,110 @@ C==============================================================================
 c
       IMPLICIT NONE
             
-      INTEGER*2 NABS    ! (E) Indice du corps absorbant
-      INTEGER*4 LAMB	   ! (E) Indice de bande de la table KDIS_KI des coef CKD 
-      INTEGER*4 IK	   ! (E) indice d'exponentielle
+      INTEGER*2 NABS    ! (I) Index of the absorber
+      INTEGER*4 LAMB	   ! (I) Band index of the table KDIS_KI of the CKD coef
+      INTEGER*4 IK	   ! (I) exponential index
       
-      DOUBLE PRECISION  PRS ! (E) Pression moyenne de la couche (mbar)
-      DOUBLE PRECISION  TMP ! (E) Température moyenne de la couche (K)
-      DOUBLE PRECISION  CONC_H2O ! (E) Concentration H2O moyenne d'une couche du profil (ppmv)
+      DOUBLE PRECISION  PRS ! (I) Mean pressure of the layer (mbar)
+      DOUBLE PRECISION  TMP ! (I) Mean temperature of the layer (K)
+      DOUBLE PRECISION  CONC_H2O ! (I) Mean H2O concentration of a layer of the profile (ppmv)
       DOUBLE PRECISION  XK
 
       DOUBLE PRECISION  KDIS_KI(CTE_CKD_NT_MAX, CTE_CKD_NP_MAX, 
      &                          CTE_CKD_NAI_MAX, CTE_NBABS,  
      &                          CTE_CKD_NWVL_MAX)
-                        ! (E) Valeur des coefficients ki
-                        !     par longueur d'onde, espèce, 
-                        !     ordre i de la décomposition en exponentielles,
-                        !     pression et température
+                        ! (I) Values of the coefficients ki
+                        !     per wavelength, species,
+                        !     order i of the decomposition in exponentials,
+                        !     pressure and temperature
 
       DOUBLE PRECISION  KDIS_KI_H2O(CTE_CKD_NT_MAX, CTE_CKD_NP_MAX, 
      &                              CTE_CKD_NC_MAX, CTE_CKD_NAI_MAX, 
      &                              CTE_CKD_NWVL_MAX )
-                        ! (E) Valeur des coefficients ki
-                        !     par longueur d'onde,  
-                        !     ordre i de la décomposition en exponentielles,
-                        !     concentration, pression et température
+                        ! (I) Values of the coefficients ki
+                        !     per wavelength,
+                        !     order i of the decomposition in exponentials,
+                        !     concentration, pressure and temperature
 
-      DOUBLE PRECISION  XKI(CTE_CKD_NT_MAX)     ! Valeurs KDIS_KI(T) après interpolation linéaire sur les valeurs ki
-                                                ! des pressions tabulées encadrant la pression de la couche
-                                                ! (pour espèce NABS fixée, ordre de la décomposition en exponentielles IK fixé
-                                                !  et longueur d'onde LAMB fixée)
+      DOUBLE PRECISION  XKI(CTE_CKD_NT_MAX)     ! Values KDIS_KI(T) after linear interpolation on the ki values
+                                                ! of the tabulated pressures around the layer pressure
+                                                ! (for a fixed species NABS, a fixed order IK of the decomposition in exponentials
+                                                !  and a fixed wavelength LAMB)
 
       DOUBLE PRECISION  XKI_H2O(CTE_CKD_NT_MAX, CTE_CKD_NP_MAX) 
-                                                ! Valeurs KDIS_KI(T,P) après interpolation linéaire sur les valeurs ki
-                                                ! des concentrations H2O tabulées encadrant la concentraion de la couche
-                                                ! (pour espèce H2O, ordre de la décomposition en exponentielles IK fixé
-                                                !  et longueur d'onde LAMB fixée)
+                                                ! Values KDIS_KI(T,P) after linear interpolation on the ki values
+                                                ! of the tabulated H2O concentrations around the layer concentration
+                                                ! (for the species H2O, a fixed order IK of the decomposition in exponentials
+                                                !  and a fixed wavelength LAMB)
                         
-      INTEGER NB_TEMP, NB_PRES  ! (E) Nombre de valeurs de température et pression dans le fichier CKD
-      DOUBLE PRECISION TAB_TEMP(CTE_CKD_NT_MAX) ! (E) Tableau des valeurs de température lues
-      DOUBLE PRECISION TAB_PRES(CTE_CKD_NP_MAX) ! (E) Tableau des valeurs de pression lues            
+      INTEGER NB_TEMP, NB_PRES  ! (I) Number of temperature and pressure values in the CKD file
+      DOUBLE PRECISION TAB_TEMP(CTE_CKD_NT_MAX) ! (I) Array of the temperature values read
+      DOUBLE PRECISION TAB_PRES(CTE_CKD_NP_MAX) ! (I) Array of the pressure values read
 
-      INTEGER NB_CONC_H2O  ! (E) Nombre de valeurs de concentrations H2O dans le fichier CKD H2O
-      DOUBLE PRECISION TAB_CONC_H2O(CTE_CKD_NC_MAX) ! (E) Tableau des valeurs de concentrations H2O lues
+      INTEGER NB_CONC_H2O  ! (I) Number of H2O concentration values in the H2O CKD file
+      DOUBLE PRECISION TAB_CONC_H2O(CTE_CKD_NC_MAX) ! (I) Array of the H2O concentration values read
 
-      DOUBLE PRECISION X1, X2, Y1, Y2 ! Couples de valeurs pour interpolation linéaire 
+      DOUBLE PRECISION X1, X2, Y1, Y2 ! Pairs of values for linear interpolation
       
-      INTEGER*4 IT_INF, IP_INF, IC_INF    ! Indice inférieur de l'encadrement des valeurs de pression, température
-                                          ! et concentration H2O par les données des tables des fichiers CKD
+      INTEGER*4 IT_INF, IP_INF, IC_INF    ! Lower index of the bounds of the pressure, temperature
+                                          ! and H2O concentration values in the tables of the CKD files
 
-      INTEGER*4 IT,IP   ! Indices de température et pression
+      INTEGER*4 IT,IP   ! Temperature and pressure indices
                                               
-      INTEGER*4 IER     ! (S) Code d'erreur =0 si pas d'erreur, =-1 sinon    
+      INTEGER*4 IER     ! (O) Error code =0 if no error, =-1 otherwise
       
 
 C------------------------------------------------------
-C* Code d'erreur
+C* Error code
       IER=0
       
-C     Gestion des cas extrêmes de température: 
-C     Suppose que TAB_TEMP classe les températures par ordre croissant
-      IF(TAB_TEMP(NB_TEMP).LT.TAB_TEMP(1)) GOTO 900   ! cas d'erreur 
+C     Management of the extreme temperature cases:
+C     Assumes that TAB_TEMP sorts the temperatures in increasing order
+      IF(TAB_TEMP(NB_TEMP).LT.TAB_TEMP(1)) GOTO 900   ! error case
       IF(TMP.GT.TAB_TEMP(NB_TEMP)) TMP = TAB_TEMP(NB_TEMP)
       IF(TMP.LT.TAB_TEMP(1)) TMP = TAB_TEMP(1)
 
-C     Gestion des cas extrêmes de pression: 
-C     Suppose que TAB_PRES classe les pressions par ordre croissant  
-C     ==> NOUVEAU PAR RAPPORT A LA ROUTINE INITIALE    
-      IF(TAB_PRES(NB_PRES).LT.TAB_PRES(1)) GOTO 910   ! cas d'erreur 
+C     Management of the extreme pressure cases:
+C     Assumes that TAB_PRES sorts the pressures in increasing order
+C     ==> NEW WITH RESPECT TO THE INITIAL ROUTINE
+      IF(TAB_PRES(NB_PRES).LT.TAB_PRES(1)) GOTO 910   ! error case
       IF(PRS.LE.TAB_PRES(1))THEN
          XK=0.
          GOTO 9999
       ENDIF
       IF(PRS.GT.TAB_PRES(NB_PRES)) PRS = TAB_PRES(NB_PRES)
 
-C     Gestion des cas extrêmes de concentration en vapeur d'eau: 
-C     Suppose que TAB_CONC_H2O classe les concentrations par ordre croissant
-      IF(TAB_CONC_H2O(NB_CONC_H2O).LT.TAB_CONC_H2O(1)) GOTO 915   ! cas d'erreur 
+C     Management of the extreme water vapour concentration cases:
+C     Assumes that TAB_CONC_H2O sorts the concentrations in increasing order
+      IF(TAB_CONC_H2O(NB_CONC_H2O).LT.TAB_CONC_H2O(1)) GOTO 915   ! error case
       IF(CONC_H2O.GT.TAB_CONC_H2O(NB_CONC_H2O)) THEN
          CONC_H2O = TAB_CONC_H2O(NB_CONC_H2O)
       ENDIF
       IF(CONC_H2O.LT.TAB_CONC_H2O(1)) CONC_H2O = TAB_CONC_H2O(1)
 
 
-C     Recherche des indices des tables encadrant la valeur P      
+C     Search for the table indices around the value P
       IP_INF = 1
       DO WHILE((TAB_PRES(IP_INF).LE.PRS).AND.(IP_INF.LT.NB_PRES))
          IP_INF = IP_INF + 1
       ENDDO
       IP_INF = IP_INF - 1
-      IF (IP_INF.EQ.NB_PRES) GOTO 920   ! cas d'erreur 
+      IF (IP_INF.EQ.NB_PRES) GOTO 920   ! error case
 
-C     Estimation de la valeur XK (coefficient CKD interpolé pour les conditions P,T,Concentration) 
+C     Estimation of the value XK (CKD coefficient interpolated for the conditions P,T,Concentration)
 	
-      IF (NABS.EQ.1) THEN     ! Cas spécifique du H2O 
+      IF (NABS.EQ.1) THEN     ! Specific case of H2O
 
-         !Recherche des indices des tables encadrant la valeur de concentration H2O      
+         !Search for the table indices around the H2O concentration value
          IC_INF = 1
          DO WHILE((TAB_CONC_H2O(IC_INF).LE.CONC_H2O)
      &             .AND.(IC_INF.LT.NB_CONC_H2O))
             IC_INF = IC_INF + 1
          ENDDO
          IC_INF = IC_INF - 1
-         IF (IC_INF.EQ.NB_CONC_H2O) GOTO 916   ! cas d'erreur 
+         IF (IC_INF.EQ.NB_CONC_H2O) GOTO 916   ! error case
 
-         !Interpolation linéaire sur la concentration H2O    
+         !Linear interpolation on the H2O concentration
          X1 = TAB_CONC_H2O(IC_INF)
          X2 = TAB_CONC_H2O(IC_INF+1) 
          DO IP=1,NB_PRES
@@ -289,7 +289,7 @@ C     Estimation de la valeur XK (coefficient CKD interpolé pour les conditions
             ENDDO 
          ENDDO   
 
-         !Interpolation linéaire sur la pression      
+         !Linear interpolation on pressure
          X1 = TAB_PRES(IP_INF)
          X2 = TAB_PRES(IP_INF+1) 
          DO IT=1,NB_TEMP
@@ -298,9 +298,9 @@ C     Estimation de la valeur XK (coefficient CKD interpolé pour les conditions
             CALL SOS_INTERPOL(Y1,Y2,X1,X2,PRS,XKI(IT))
          ENDDO 
              
-      ELSE   ! Cas gaz hors H2O 
+      ELSE   ! Case of the gases other than H2O
 
-         !Interpolation linéaire sur la pression      
+         !Linear interpolation on pressure
          X1 = TAB_PRES(IP_INF)
          X2 = TAB_PRES(IP_INF+1) 
          DO IT=1,NB_TEMP
@@ -309,14 +309,14 @@ C     Estimation de la valeur XK (coefficient CKD interpolé pour les conditions
             CALL SOS_INTERPOL(Y1,Y2,X1,X2,PRS,XKI(IT))
          ENDDO     
 
-      ENDIF ! Fin du bloc : cas gaz hors H2O   
+      ENDIF ! End of block: case of the gases other than H2O
           
-      !Interpolation spline sur la température ==> coef XK = ki recherché     
+      !Spline interpolation on temperature ==> coef XK = searched ki
       CALL SOS_INTERPO_SPLINT(NB_TEMP,TAB_TEMP,XKI,1,TMP,XK,IER)
-      IF (IER.NE.0) GOTO 922   ! cas d'erreur 
+      IF (IER.NE.0) GOTO 922   ! error case
 
-      !Test sur cohérence physique de la valeur XK trouvée : on doit avoir ki(P,T) >= 0  
-      !Sinon on refait l'interpolation sur T par interpolateur linéaire
+      !Physical consistency test of the value XK found: ki(P,T) >= 0 is required
+      !Otherwise the interpolation on T is redone with a linear interpolator
       IF (XK.LT.0.) THEN
 
          IT_INF = 1
@@ -324,22 +324,22 @@ C     Estimation de la valeur XK (coefficient CKD interpolé pour les conditions
             IT_INF = IT_INF + 1
          ENDDO
          IT_INF = IT_INF - 1
-         IF (IT_INF.EQ.NB_TEMP) GOTO 921   ! cas d'erreur 
+         IF (IT_INF.EQ.NB_TEMP) GOTO 921   ! error case
 
          CALL SOS_INTERPOL(XKI(IT_INF),XKI(IT_INF+1),
      &                     TAB_TEMP(IT_INF),TAB_TEMP(IT_INF+1),TMP,XK)
 
-         IF (XK.LT.0.) GOTO 923 ! Cas d'erreur
-      ENDIF ! Fin traitements si XK > 0.
+         IF (XK.LT.0.) GOTO 923 ! Error case
+      ENDIF ! End of processing if XK > 0.
 
      
 
-C* Fin nominale 
+C* Nominal end
 C----------------------------------------------      
       GOTO 9999
       
 
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
 
   900 WRITE(6,*) '  COEFF_ABS_CKD : ERROR_900 : '
@@ -399,83 +399,83 @@ C
 C==============================================================================
 C PROCEDURE: READ_CKD_COEFF      
 C ==========
-C      Lecture du nombre d'exponentielles de la décomposition CKD de chaque absorbant
-C      pour la gamme de longueurs d'onde couverte.
+C      Reading of the number of exponentials of the CKD decomposition of each absorber
+C      for the wavelength range covered.
 C      
-C      Les coefficients Ki et Ai sont lus pour chaque exponentielle.
+C      The coefficients Ki and Ai are read for each exponential.
 C
-C      Les fichiers de données CKD sont stockés sous l'espace fic/
+C      The CKD data files are stored under fic/
 C
-C      Pour une longueur d'onde donnée:
-C          Si le nb d'exponentielles est 0 : il n'y a pas d'absorption 
-C          Si le nb d'exponentielles est 1 : on a la donnée d'un continuum uniquement
-C          Si le nb d'exponentielles > 1 : on a les données d'une raie d'absorption, 
-C                                          éventuellement couplées à un continuum
-C               On lit les valeurs ai et ki(P,T).
+C      For a given wavelength:
+C          If the nb of exponentials is 0: there is no absorption
+C          If the nb of exponentials is 1: only a continuum is given
+C          If the nb of exponentials > 1: the data of an absorption line are given,
+C                                          possibly coupled with a continuum
+C               The values ai and ki(P,T) are read.
 C      
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
 C  
-C   Entrées:
+C   Inputs:
 C   -------
-C     NABS  (I2) : (E) Indice de tableau identifiant le corps absorbant.
-C     JABS  (I2) : (E) Indice précisant si le gaz est à traiter (1 pour le traiter, 0 sinon)
-C                      S'il n'est pas à traiter, on pose:
-C                         - le nb d'exponentiel = 1, 
-C                         - la valeur de la fonction de répartition ai =1
-C                         - les coefficients ki(P,T) = 0
-C                      S'il est à traiter, on lit ces coefficients.
+C     NABS  (I2) : (I) Array index identifying the absorber.
+C     JABS  (I2) : (I) Index specifying whether the gas is to be processed (1 to process it, 0 otherwise)
+C                      If it is not to be processed:
+C                         - the nb of exponentials = 1,
+C                         - the value of the distribution function ai =1
+C                         - the coefficients ki(P,T) = 0
+C                      If it is to be processed, these coefficients are read.
 C
-C     NU (double) : (E) Nombre d'onde (cm-1) de la simulation.
+C     NU (double) : (I) Wavenumber (cm-1) of the simulation.
 C
-C     NUSTEP (double) : (E) Précise la résolution spectrale en cm-1 
-C                          des fichiers de coefficients CKD à lire.
+C     NUSTEP (double) : (I) Spectral resolution in cm-1
+C                          of the CKD coefficient files to read.
 C  
-C   Sorties:
+C   Outputs:
 C   -------
-C     NEXP (I4) :   (S)  Tableau de  (CTE_NBABS * CTE_CKD_NWVL_MAX) éléments contenant pour chaque absorbant
-C		           et chaque intervalle spectral le nombre d'exponentielles de la méthode CKD/
+C     NEXP (I4) :   (O)  Array of (CTE_NBABS * CTE_CKD_NWVL_MAX) elements containing, for each absorber
+C		           and each spectral interval, the number of exponentials of the CKD method/
 C
-C     NUMAX, NUMIN (double) : (S) Nombre d'onde max et min (cm-1) de la couverture spectrale du fichier CKD.
+C     NUMAX, NUMIN (double) : (O) Max and min wavenumber (cm-1) of the spectral coverage of the CKD file.
 C
-C     KDIS_AI (double) : (S) Tableau de (CTE_CKD_NAI_MAX * CTE_NBABS * CTE_CKD_NWVL_MAX) éléments contenant 
-C			        pour chaque longueur d'onde, chaque espèce et chaque exponentielle de la décomposition, 
-C			        la valeur du coefficient ai de pondération de l'exponentielle.
+C     KDIS_AI (double) : (O) Array of (CTE_CKD_NAI_MAX * CTE_NBABS * CTE_CKD_NWVL_MAX) elements containing,
+C			        for each wavelength, each species and each exponential of the decomposition,
+C			        the value of the weighting coefficient ai of the exponential.
 C
-C     KDIS_KI(double) : (S) Tableau des coefficients ki des exponentilles de la décomposition, contenant
+C     KDIS_KI(double) : (O) Array of the coefficients ki of the exponentials of the decomposition, containing
 C                           (CTE_CKD_NT_MAX * CTE_CKD_NP_MAX * CTE_CKD_NAI_MAX * CTE_NBABS * CTE_CKD_NWVL_MAX)
-C                           éléments couvrant les longueurs d'onde, espèces, ordres i de la décomposition en     
+C                           elements covering wavelengths, species, orders i of the decomposition in
 C
-C     KDIS_KI_H2O(double) : (S) Tableau des coefficients ki des exponentilles de la décomposition de la vapeur d'eau, 
-C                               contenant (CTE_CKD_NT_MAX * CTE_CKD_NP_MAX * CTE_CKD_NC_MAX * CTE_CKD_NAI_MAX *  CTE_CKD_NWVL_MAX)
-C                               éléments couvrant les longueurs d'onde, ordres i de la décomposition en exponentielles,
-C                               concentrations en H2O, pressions et températures
+C     KDIS_KI_H2O(double) : (O) Array of the coefficients ki of the exponentials of the water vapour decomposition,
+C                               containing (CTE_CKD_NT_MAX * CTE_CKD_NP_MAX * CTE_CKD_NC_MAX * CTE_CKD_NAI_MAX *  CTE_CKD_NWVL_MAX)
+C                               elements covering wavelengths, orders i of the decomposition in exponentials,
+C                               H2O concentrations, pressures and temperatures
 C
-C     TAB_PRES (double): (S) Tableau des valeurs de pression associés aux valeurs des coefficients ki(P,T) 
-C                            de CTE_CKD_NP_MAX éléments.
-C     NB_PRES (integer): (S) Nombre de valeurs de pression effectives 
+C     TAB_PRES (double): (O) Array of the pressure values associated with the coefficients ki(P,T)
+C                            of CTE_CKD_NP_MAX elements.
+C     NB_PRES (integer): (O) Number of actual pressure values
 C
-C     TAB_TEMP (double): (S) Tableau des valeurs de température associés aux valeurs des coefficients ki(P,T) 
-C                            de CTE_CKD_NT_MAX éléments.
-C     NB_TEMP (integer): (S) Nombre de valeurs de température effectives 
+C     TAB_TEMP (double): (O) Array of the temperature values associated with the coefficients ki(P,T)
+C                            of CTE_CKD_NT_MAX elements.
+C     NB_TEMP (integer): (O) Number of actual temperature values
 C
-C     TAB_CONC_H2O (double): (S) Tableau des valeurs de concentration en H2O associées aux valeurs des coefficients ki(P,T,C) 
-C                                de la vapeur d'eau, à CTE_CKD_NC_MAX éléments.
+C     TAB_CONC_H2O (double): (O) Array of the H2O concentration values associated with the coefficients ki(P,T,C)
+C                                of water vapour, of CTE_CKD_NC_MAX elements.
 C
-C     NB_CONC_H2O (integer): (S) Nombre de valeurs de concentrations effectives 
+C     NB_CONC_H2O (integer): (O) Number of actual concentration values
 C
-C     IER (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+C     IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Pas spectral des fichiers supérieur à 100.
-C     Numéro d'espèce gazeuse en dehors des bornes.
-C     Incohérence de contenu des fichiers sur le pas spectral et les bornes spectrales min et max.
+C     Spectral step of the files larger than 100.
+C     Gas species number out of bounds.
+C     Inconsistency of the file contents on the spectral step and the min and max spectral bounds.
 C
 C==============================================================================
       SUBROUTINE READ_CKD_COEFF (NABS,JABS,NU,NUSTEP,
@@ -488,99 +488,99 @@ c
 
       IMPLICIT NONE
 
-C* Définition des paramètres 
+C* Definition of parameters
 
-      INTEGER*2 NABS    ! (E) Indice du corps absorbant
-      INTEGER*2 JABS    ! (E) Statut du corps absorbant (1 pour traité, 0 sinon)
+      INTEGER*2 NABS    ! (I) Index of the absorber
+      INTEGER*2 JABS    ! (I) Status of the absorber (1 if processed, 0 otherwise)
 
 
-      DOUBLE PRECISION NU  ! (E) Nombre d'onde (cm-1)      
+      DOUBLE PRECISION NU  ! (I) Wavenumber (cm-1)
       
       DOUBLE PRECISION NUSTEP     
-                        ! (E) Pas en cm-1 des fichiers de coefficients CKD
+                        ! (I) Step in cm-1 of the CKD coefficient files
          
       INTEGER*4  NEXP(CTE_NBABS,CTE_CKD_NWVL_MAX)   
-                        ! (S) Nb d'exponentiels du développement CKD
-                        !     par longueur d'onde et espèce
+                        ! (O) Nb of exponentials of the CKD expansion
+                        !     per wavelength and species
                         
       DOUBLE PRECISION  KDIS_AI(CTE_CKD_NAI_MAX, CTE_NBABS,  
      &                          CTE_CKD_NWVL_MAX) 
-                        ! (S) Valeur des coefficients ai
-                        !     par longueur d'onde, espèce 
-                        !     et ordre i de la décomposition en exponentielles
+                        ! (O) Values of the coefficients ai
+                        !     per wavelength, species
+                        !     and order i of the decomposition in exponentials
                                           
       DOUBLE PRECISION  KDIS_KI(CTE_CKD_NT_MAX, CTE_CKD_NP_MAX, 
      &                          CTE_CKD_NAI_MAX, CTE_NBABS,  
      &                          CTE_CKD_NWVL_MAX)
-                        ! (S) Valeur des coefficients ki
-                        !     par longueur d'onde, espèce, 
-                        !     ordre i de la décomposition en exponentielles,
-                        !     pression et température
+                        ! (O) Values of the coefficients ki
+                        !     per wavelength, species,
+                        !     order i of the decomposition in exponentials,
+                        !     pressure and temperature
 
       DOUBLE PRECISION  KDIS_KI_H2O(CTE_CKD_NT_MAX, CTE_CKD_NP_MAX, 
      &                              CTE_CKD_NC_MAX, CTE_CKD_NAI_MAX, 
      &                              CTE_CKD_NWVL_MAX )
-                        ! (S) Valeur des coefficients ki
-                        !     par longueur d'onde,  
-                        !     ordre i de la décomposition en exponentielles,
-                        !     concentration, pression et température
+                        ! (O) Values of the coefficients ki
+                        !     per wavelength,
+                        !     order i of the decomposition in exponentials,
+                        !     concentration, pressure and temperature
       
-      DOUBLE PRECISION NUMAX       ! (S) Nombre d'onde max (cm-1) couvert par le fichier CKD
-      DOUBLE PRECISION NUMIN       ! (S) Nombre d'onde min couvert par le fichier CKD
-      DOUBLE PRECISION RESOLUTION  ! Resolution spectrale (cm-1)                  
+      DOUBLE PRECISION NUMAX       ! (O) Max wavenumber (cm-1) covered by the CKD file
+      DOUBLE PRECISION NUMIN       ! (O) Min wavenumber covered by the CKD file
+      DOUBLE PRECISION RESOLUTION  ! Spectral resolution (cm-1)
 
-      INTEGER*4 NUMAX_FILE  ! Borne max en nombre d'onde (cm-1) du fichier à lire
-      INTEGER*4 NUMIN_FILE  ! Borne min en nombre d'onde (cm-1) du fichier à lire
+      INTEGER*4 NUMAX_FILE  ! Max wavenumber bound (cm-1) of the file to read
+      INTEGER*4 NUMIN_FILE  ! Min wavenumber bound (cm-1) of the file to read
 
-      CHARACTER*CTE_LENDIR DIRE	    ! Longueur des noms de répertoires
-      CHARACTER*CTE_LENFIC1 FICDATA ! Nom de fichier sans arborescence
+      CHARACTER*CTE_LENDIR DIRE	    ! Length of the directory names
+      CHARACTER*CTE_LENFIC1 FICDATA ! File name without directory tree
             
-      INTEGER*4 IFIN       		! nb caractères significatifs d'une chaine      
-      INTEGER*4 STRLEN       	! nb caractères d'une chaine                
+      INTEGER*4 IFIN       		! nb of significant characters of a string
+      INTEGER*4 STRLEN       	! nb of characters of a string
       
-      CHARACTER*50 STR_ESPECE	! Chaines de caracteres du type de gaz
+      CHARACTER*50 STR_ESPECE	! Character strings of the gas type
       
-      INTEGER*4 IER     ! code d'erreur =0 si pas d'erreur, =-1 sinon  
+      INTEGER*4 IER     ! error code =0 if no error, =-1 otherwise
      
-      INTEGER IWA, IP, IT, IC ! Indice de tableaux sur longueur d'onde, pression, température et concentation H2O
-      INTEGER LIG             !Indice de ligne pour lecture de fichier
+      INTEGER IWA, IP, IT, IC ! Array index on wavelength, pressure, temperature and H2O concentration
+      INTEGER LIG             !Line index for file reading
       INTEGER I
       
-      CHARACTER*LENLINE LIGNE_TEXTE     !Ligne de caractères pour décodage de paramètres
+      CHARACTER*LENLINE LIGNE_TEXTE     !Character line for decoding parameters
   
-      INTEGER NB_TEMP, NB_PRES  ! (S) Nombre de valeurs de température et pression dans le fichier CKD
-      DOUBLE PRECISION TAB_TEMP(CTE_CKD_NT_MAX) ! (S) Tableau des valeurs de température lues
-      DOUBLE PRECISION TAB_PRES(CTE_CKD_NP_MAX) ! (S) Tableau des valeurs de pression lues
+      INTEGER NB_TEMP, NB_PRES  ! (O) Number of temperature and pressure values in the CKD file
+      DOUBLE PRECISION TAB_TEMP(CTE_CKD_NT_MAX) ! (O) Array of the temperature values read
+      DOUBLE PRECISION TAB_PRES(CTE_CKD_NP_MAX) ! (O) Array of the pressure values read
 
-      INTEGER NB_CONC_H2O  ! (S) Nombre de valeurs de concentrations H2O dans le fichier CKD H2O
-      DOUBLE PRECISION TAB_CONC_H2O(CTE_CKD_NC_MAX) ! (S) Tableau des valeurs de concentrations H2O lues
+      INTEGER NB_CONC_H2O  ! (O) Number of H2O concentration values in the H2O CKD file
+      DOUBLE PRECISION TAB_CONC_H2O(CTE_CKD_NC_MAX) ! (O) Array of the H2O concentration values read
         
-      DOUBLE PRECISION WAMIN_INTER, WAMOY_INTER, WAMAX_INTER  ! Longueurs d'onde min, moy et max (microns) de l'intervalle spectral lu
-      DOUBLE PRECISION NUMIN_INTER, NUMAX_INTER               ! Nombres d'onde min et max (cm-1) de l'intervalle spectral lu
-      INTEGER NMAXAI_INTER             ! Nombre d'exponentielles pour l'intervalle spectral lu  
-      INTEGER NAI                      ! Ordre de la décomposition en exponentielles pour l'intervalle spectral lu  
+      DOUBLE PRECISION WAMIN_INTER, WAMOY_INTER, WAMAX_INTER  ! Min, mean and max wavelengths (microns) of the spectral interval read
+      DOUBLE PRECISION NUMIN_INTER, NUMAX_INTER               ! Min and max wavenumbers (cm-1) of the spectral interval read
+      INTEGER NMAXAI_INTER             ! Number of exponentials for the spectral interval read
+      INTEGER NAI                      ! Order of the decomposition in exponentials for the spectral interval read
 
-      INTEGER NB_WA  ! Nombre de longueurs d'onde dans le fichier CKD      
-      INTEGER NAI_LU, NIC_LU, NIP_LU !Valeurs lus dans fichiers CKD (indice exponentielle, concentration H2O, pression)
-      INTEGER NB_LIG_HEADER ! Nombre de lignes du header de fichier CKD
+      INTEGER NB_WA  ! Number of wavelengths in the CKD file
+      INTEGER NAI_LU, NIC_LU, NIP_LU !Values read in the CKD files (exponential index, H2O concentration, pressure)
+      INTEGER NB_LIG_HEADER ! Number of header lines of the CKD file
       
-C* Initialisation 
+C* Initialisation
 C------------------------------------------------------
 
-C* Code d'erreur
+C* Error code
       IER=0
       
-      IF((NUSTEP.NE.1).AND.(NUSTEP.NE.5).AND.(NUSTEP.NE.10)) GOTO 905 !Cas d'erreur
+      IF((NUSTEP.NE.1).AND.(NUSTEP.NE.5).AND.(NUSTEP.NE.10)) GOTO 905 !Error case
 
-C* Contrôle indice d'espèce de gaz
+C* Check of the gas species index
       IF ((NABS.LT.1).OR.(NABS.GT.8)) GOTO 900
 
-C* Teste si l'espèce traitée fait partie des gaz sélectionnés pour la simulation       
+C* Test whether the processed species belongs to the gases selected for the simulation
       IF(JABS.EQ.0) THEN
-         !Cas où l'espèce n'est pas à traiter : ajustement des paramètres pour poids nul
+         !Case where the species is not to be processed: parameters adjusted for a null weight
          !-----------------------------------
 
-         IF (NABS.EQ.1) THEN  !Cas spécifique H2O
+         IF (NABS.EQ.1) THEN  !Specific case of H2O
             DO IWA=1,CTE_CKD_NWVL_MAX
                NEXP(NABS,IWA)=1
                KDIS_AI(1,NABS,IWA) = 1.0
@@ -593,7 +593,7 @@ C* Teste si l'espèce traitée fait partie des gaz sélectionnés pour la simula
                ENDDO
              ENDDO   
 
-         ELSE  !Cas autres gaz que H2O
+         ELSE  !Case of the gases other than H2O
             DO IWA=1,CTE_CKD_NWVL_MAX
                NEXP(NABS,IWA)=1
                KDIS_AI(1,NABS,IWA) = 1.0
@@ -603,15 +603,15 @@ C* Teste si l'espèce traitée fait partie des gaz sélectionnés pour la simula
                   ENDDO
                ENDDO
             ENDDO   
-         ENDIF !Fin test si NABS=1
+         ENDIF !End of test NABS=1
     
         
-      ELSE ! Fin du bloc à Marqueur FIN_1
-         !Cas général où l'espèce est à traiter : lecture des coefficients CKD
+      ELSE ! End of the block with marker FIN_1
+         !General case where the species is to be processed: reading of the CKD coefficients
          !-------------------------------------
          
          
-C  Récupération du nom du répertoire de localisation des données
+C  Retrieval of the name of the data directory
 
          CALL GETENV('SOS_ABS_ROOT',DIRE)
          IFIN=INDEX(DIRE,' ')
@@ -627,10 +627,10 @@ C  Récupération du nom du répertoire de localisation des données
 
          WRITE(DIRE(IFIN+1:IFIN+11),'(A11)') "/COEFF_CKD/"
 
-         IF(NUSTEP.LT.10) THEN !Codage sur un caractère 
+         IF(NUSTEP.LT.10) THEN !Coded on one character
             WRITE(DIRE(IFIN+12:IFIN+12),'(I1)') int(NUSTEP)
             IFIN = IFIN + 12
-         ELSE !Codage sur deux caractères
+         ELSE !Coded on two characters
             WRITE(DIRE(IFIN+12:IFIN+13),'(I2)') int(NUSTEP)
             IFIN = IFIN + 13  
          ENDIF
@@ -639,7 +639,7 @@ C  Récupération du nom du répertoire de localisation des données
          IFIN = IFIN + 5
 
 
-C  Nom du fichier à lire de la forme 'coef_H2O_11500_9250_10cmm1' ou 'coef_H2O_16000_13750_5cmm1'
+C  Name of the file to read, as 'coef_H2O_11500_9250_10cmm1' or 'coef_H2O_16000_13750_5cmm1'
          IF(NABS.EQ.1) STR_ESPECE='coef_H2O_'
          IF(NABS.EQ.2) STR_ESPECE='coef_CO2_'
          IF(NABS.EQ.3) STR_ESPECE='coef_O3_'
@@ -653,17 +653,17 @@ C  Nom du fichier à lire de la forme 'coef_H2O_11500_9250_10cmm1' ou 'coef_H2O_
          IF((NABS.EQ.3).OR.(NABS.EQ.5).OR.(NABS.EQ.7)) STRLEN=8        
          FICDATA(1:STRLEN)=STR_ESPECE(1:STRLEN)
 
-         !Détermination des bornes spectrales du fichier à lire
+         !Determination of the spectral bounds of the file to read
          NUMIN_FILE = CTE_CKD_NUMAX - CTE_CKD_NB_NU_PER_FILE*NUSTEP
          DO WHILE (NUMIN_FILE.GT.NU)  
             NUMIN_FILE = NUMIN_FILE - CTE_CKD_NB_NU_PER_FILE*NUSTEP
          ENDDO
          NUMAX_FILE = NUMIN_FILE + CTE_CKD_NB_NU_PER_FILE*NUSTEP
 
-         IF (NUMAX_FILE.GE.10000) THEN  !Inf à 100000 supposé
+         IF (NUMAX_FILE.GE.10000) THEN  !Assumed below 100000
              WRITE(FICDATA(STRLEN+1:STRLEN+5),'(I5)') int(NUMAX_FILE)
              STRLEN = STRLEN+5
-         ELSE !Sup à 1000 supposé
+         ELSE !Assumed above 1000
              WRITE(FICDATA(STRLEN+1:STRLEN+4),'(I4)') int(NUMAX_FILE)
              STRLEN = STRLEN+4
          ENDIF
@@ -671,10 +671,10 @@ C  Nom du fichier à lire de la forme 'coef_H2O_11500_9250_10cmm1' ou 'coef_H2O_
          WRITE(FICDATA(STRLEN+1:STRLEN+1),'(A1)') "_"
          STRLEN = STRLEN+1
 
-         IF (NUMIN_FILE.GE.10000) THEN  !Inf à 100000 supposé
+         IF (NUMIN_FILE.GE.10000) THEN  !Assumed below 100000
              WRITE(FICDATA(STRLEN+1:STRLEN+5),'(I5)') int(NUMIN_FILE)
              STRLEN = STRLEN+5
-         ELSE !Sup à 1000 supposé
+         ELSE !Assumed above 1000
              WRITE(FICDATA(STRLEN+1:STRLEN+4),'(I4)') int(NUMIN_FILE)
              STRLEN = STRLEN+4
          ENDIF
@@ -682,10 +682,10 @@ C  Nom du fichier à lire de la forme 'coef_H2O_11500_9250_10cmm1' ou 'coef_H2O_
          WRITE(FICDATA(STRLEN+1:STRLEN+1),'(A1)') "_"
          STRLEN = STRLEN+1
 
-         IF(NUSTEP.LT.10) THEN !Codage sur un caractère
+         IF(NUSTEP.LT.10) THEN !Coded on one character
             WRITE(FICDATA(STRLEN+1:STRLEN+1),'(I1)') int(NUSTEP)
             STRLEN = STRLEN + 1
-         ELSE !Codage sur deux caractères
+         ELSE !Coded on two characters
             WRITE(FICDATA(STRLEN+1:STRLEN+2),'(I2)') int(NUSTEP)
             STRLEN = STRLEN + 2  
          ENDIF
@@ -694,11 +694,11 @@ C  Nom du fichier à lire de la forme 'coef_H2O_11500_9250_10cmm1' ou 'coef_H2O_
          STRLEN=STRLEN+4       
 
 C
-C  Lecture des coefficients  
+C  Reading of the coefficients
          OPEN(1,FILE=DIRE(1:IFIN)//FICDATA(1:STRLEN), 
      &        STATUS='OLD', ERR = 910)
 
-         !Lecture header
+         !Header reading
          IF (NABS.EQ.1) THEN
             NB_LIG_HEADER=21
          ELSE
@@ -708,7 +708,7 @@ C  Lecture des coefficients
             READ(1,'(a)',ERR=911) LIGNE_TEXTE
          ENDDO
 
-         !Lecture infos sur domaine spectral         
+         !Reading of the information on the spectral domain
          READ(1,*,ERR=911) NUMAX, NUMIN, RESOLUTION
          IF (RESOLUTION.NE.NUSTEP) GOTO 9120
          IF (NUMAX.NE.NUMAX_FILE)  GOTO 9121
@@ -717,30 +717,30 @@ C  Lecture des coefficients
          NB_WA = int((NUMAX-NUMIN)/RESOLUTION)
          IF(NB_WA.GT.CTE_CKD_NWVL_MAX) GOTO 9123
 
-         !Lecture infos sur échantillonnage en températures           
+         !Reading of the information on the temperature sampling
          READ(1,*,ERR=913) NB_TEMP         
          READ(1,*,ERR=913) (TAB_TEMP(I), I=1,NB_TEMP )      
 
-         !Lecture infos sur échantillonnage en pressions  
+         !Reading of the information on the pressure sampling
          READ(1,*,ERR=914) NB_PRES         
          READ(1,*,ERR=914) (TAB_PRES(I), I=1,NB_PRES )
 
 
 
-         IF (NABS.EQ.1) THEN  !Cas spécifique H2O
+         IF (NABS.EQ.1) THEN  !Specific case of H2O
 
-            !Lecture infos sur échantillonnage en concentrations H2O
+            !Reading of the information on the H2O concentration sampling
             READ(1,*,ERR=914) NB_CONC_H2O     
             READ(1,*,ERR=914) (TAB_CONC_H2O(I), I=1,NB_CONC_H2O )
 
-            !Lecture infos des données ai et ki : cas H2O
+            !Reading of the information on the ai and ki data: H2O case
             DO IWA=1,NB_WA
                READ(1,*,ERR=915) WAMIN_INTER, WAMOY_INTER, WAMAX_INTER,
      &                           NUMIN_INTER, NUMAX_INTER, NMAXAI_INTER
 
-               IF (NMAXAI_INTER.EQ.0) THEN    !Cas sans absorption
-                  NEXP(NABS,IWA) = 1          !--> Revient à avoir une exponentielle avec
-                  KDIS_AI(1,NABS,IWA) = 1.0   !--> poids ai = 1 et valeur = 1 donc ki = 0 (transmission=1)
+               IF (NMAXAI_INTER.EQ.0) THEN    !Case without absorption
+                  NEXP(NABS,IWA) = 1          !--> Equivalent to one exponential with
+                  KDIS_AI(1,NABS,IWA) = 1.0   !--> weight ai = 1 and value = 1, hence ki = 0 (transmission=1)
                   
                   DO IC=1,NB_CONC_H2O 
                      DO IP=1,NB_PRES 
@@ -750,7 +750,7 @@ C  Lecture des coefficients
                      ENDDO
                   ENDDO
                
-               ELSE        !Cas avec absorption
+               ELSE        !Case with absorption
             
                   NEXP(NABS,IWA) = NMAXAI_INTER
                   READ(1,*,ERR=916) 
@@ -765,27 +765,27 @@ C  Lecture des coefficients
                      ENDDO
                   ENDDO                        
                                                 
-               ENDIF !Fin Cas sans/avec absorption
+               ENDIF !End of case without/with absorption
          
             ENDDO
 
-         ELSE   ! Cas gaz hors H2O (Fin du bloc à Marqueur FIN_2) : 
+         ELSE   ! Case of the gases other than H2O (end of the block with marker FIN_2):
         
-            !Lecture infos des données ai et ki 
+            !Reading of the information on the ai and ki data
             DO IWA=1,NB_WA
                READ(1,*,ERR=915) WAMIN_INTER, WAMOY_INTER, WAMAX_INTER,
      &                           NUMIN_INTER, NUMAX_INTER, NMAXAI_INTER
 
-               IF (NMAXAI_INTER.EQ.0) THEN    !Cas sans absorption
-                  NEXP(NABS,IWA) = 1          !--> Revient à avoir une exponentielle avec
-                  KDIS_AI(1,NABS,IWA) = 1.0   !--> poids ai = 1 et valeur = 1 donc ki = 0 (transmission=1)
+               IF (NMAXAI_INTER.EQ.0) THEN    !Case without absorption
+                  NEXP(NABS,IWA) = 1          !--> Equivalent to one exponential with
+                  KDIS_AI(1,NABS,IWA) = 1.0   !--> weight ai = 1 and value = 1, hence ki = 0 (transmission=1)
                   DO IP=1,NB_PRES
                      DO IT=1,NB_TEMP
                         KDIS_KI(IT, IP, 1, NABS, IWA) = 0.0
                      ENDDO
                   ENDDO
                
-               ELSE        !Cas avec absorption
+               ELSE        !Case with absorption
             
                   NEXP(NABS,IWA) = NMAXAI_INTER
                   READ(1,*,ERR=916) 
@@ -798,21 +798,21 @@ C  Lecture des coefficients
                      ENDDO
                   ENDDO                        
                                                 
-               ENDIF !Fin Cas sans/avec absorption
+               ENDIF !End of case without/with absorption
          
             ENDDO
 
-         ENDIF !Marqueur FIN_2 : Fin test si NABS=1
+         ENDIF !Marker FIN_2: end of test NABS=1
                    
  2       CLOSE(1)
-      ENDIF !Marqueur FIN_1 : Fin du test si l'espèce traitée fait partie des gaz sélectionnés
+      ENDIF !Marker FIN_1: end of the test whether the processed species belongs to the selected gases
       
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
 
   900 WRITE(6,*) '  SOS_SUB_TRS : ERROR_900: '
@@ -898,7 +898,7 @@ C----------------------------------------------
                            
 9999  RETURN
       END
-C* Fin de la routine READ_CKD_COEFF
+C* End of the routine READ_CKD_COEFF
 
 
      
@@ -908,8 +908,8 @@ c----------
       SUBROUTINE DATATM(RO,P,T,ALT,IATM,DENS,DONUSER,NLEVEL,PSURF)
 C
 C  *********************************************************************
-C  * SSPGM DE:LECTURE SUR 'CARTES' OU DISQUE DES PRESSIONS,TEMPERATURES*
-C  *                      ET CONCENTRATION                             *
+C  * SUBPROGRAM FOR READING FROM 'CARDS' OR DISK THE PRESSURES, TEMPERATURES*
+C  *                      AND CONCENTRATIONS                            *
 C  *********************************************************************
 C
       PARAMETER(NCORPS=CTE_NBABS,MAXCLY=50)
@@ -923,14 +923,14 @@ C
       
       INTEGER*2 IATM 
       
-      DOUBLE PRECISION PSURF  ! (E/S) Pression atmosphérique de surface (mbar)
+      DOUBLE PRECISION PSURF  ! (I/O) Atmospheric pressure at the surface (mbar)
 
-      DOUBLE PRECISION COEF	  ! Facteur multiplicatif du profil de pression
+      DOUBLE PRECISION COEF	  ! Multiplicative factor of the pressure profile
       
 C----------------------------------------------------------------------
       
       
-      IF(IATM.LE.0)THEN  !Données du profil utilisateur
+      IF(IATM.LE.0)THEN  !User profile data
 
         COEF = 1.0
         IF(PSURF.GT.0.) COEF = PSURF / DONUSER(1,2)
@@ -949,7 +949,7 @@ C----------------------------------------------------------------------
            DENS(J)=DONUSER(J,11)
         ENDDO
       ENDIF 
-      !Données de profils prédéfinis pour H2O CO2 O3 N2O CO CH4 O2
+      !Data of the predefined profiles for H2O CO2 O3 N2O CO CH4 O2
       IF(IATM.EQ.1)CALL TROPICA(P,T,ALT,ROH2O,ROCO2,ROO3,RON2O,ROCO,
      $                                ROCH4,ROO2,DENS)
       IF(IATM.EQ.2)CALL MIDLASU(P,T,ALT,ROH2O,ROCO2,ROO3,RON2O,ROCO,

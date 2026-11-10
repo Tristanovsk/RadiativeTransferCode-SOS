@@ -19,92 +19,102 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_PROC.F
-C* PROJET: Ordres successifs de diffusion
+C* FILE: SOS_PROC.F
+C* PROJECT: Successive orders of scattering
 C* ROLE: 
-C*      Cette procédure réalise le contrôle des paramètres de simulation.
-C*      Elle exécute successivement les différents modules du code:
-C*         - Définition des angles utilisées : appel de SOS_ANGLES
-C*         - Calcul des propriétés radiatives des aérosols : appel de SOS_AEROSOLS
-C*         - Estimation de l'AOT à la longueur d'onde de référence
-C*         - Calcul des propriétés radiatives de la surface : appel de SOS_SURFACE
-C*         - Préparation des données du profil d'absorption gazeuse : appel de SOS_PREPA_ABSPROFILE
-C*         - Préparation des données radiatives pour le calcul des OS : appel de SOS_PREPA_OS
+C*      This procedure checks the simulation parameters.
+C*      It runs successively the different modules of the code:
+C*         - Definition of the angles used: call of SOS_ANGLES
+C*         - Computation of the aerosol radiative properties: call of SOS_AEROSOLS
+C*         - Estimation of the AOT at the reference wavelength
+C*         - Computation of the surface radiative properties: call of SOS_SURFACE
+C*         - Preparation of the data of the gaseous absorption profile: call of SOS_PREPA_ABSPROFILE
+C*         - Preparation of the radiative data for the OS computation: call of SOS_PREPA_OS
 C*
-C*         Pour le mode CKD fin:
-C*              Pour chaque exponentielle de la décomposition CKD:
-C*              - Génération du profil en épaisseur optique d'absorption gazeuse pour une  exponentielle : 
-C*                appel de SOS_ABSPROFILE
-C*              - Génération du profil en épaisseur optique (diffusion + absorption) : appel de SOS_PROFILE
-C*              - Calcul du champ de luminance : appel de SOS
-C*              - Aggrégation des luminances (et transmissions) selon la décomposition CKD : appel de SOS_AGGREGATE
+C*         For the fine CKD mode:
+C*              For each exponential of the CKD decomposition:
+C*              - Generation of the gaseous absorption optical thickness profile for one exponential:
+C*                call of SOS_ABSPROFILE
+C*              - Generation of the optical thickness profile (scattering + absorption): call of SOS_PROFILE
+C*              - Computation of the radiance field: call of SOS
+C*              - Aggregation of the radiances (and transmissions) according to the CKD decomposition: call of SOS_AGGREGATE
 C*
-C*         Pour le mode CKD simplifié: Calcul de l'épaisseur optique d'absorption par CKD 
-C*              - Génération du profil en épaisseur optique d'absorption gazeuse : appel de SOS_ABSPROFILE
-C*              - Génération du profil en épaisseur optique (diffusion + absorption) : appel de SOS_PROFILE
-C*              - Calcul du champ de luminance : appel de SOS
+C*         For the simplified CKD mode: Computation of the absorption optical thickness by CKD
+C*              - Generation of the gaseous absorption optical thickness profile: call of SOS_ABSPROFILE
+C*              - Generation of the optical thickness profile (scattering + absorption): call of SOS_PROFILE
+C*              - Computation of the radiance field: call of SOS
 C*
-C*         Recomposition de la luminance à partir des résultats de la décomposition en série de Fourier selon l'azimut : 
-C*         appel de SOS_TRPHI_OPTION
+C*         Recomposition of the radiance from the results of the Fourier series decomposition in azimuth:
+C*         call of SOS_TRPHI_OPTION
 C*
-C*      Procédure pouvant être appelée depuis un programme Python (binding Python).
+C*      Procedure that can be called from a Python program (Python binding).
 C*
-C* AUTEURS: 
+C* AUTHORS:
 C*   CS GROUP France, X.Lenot, T.Erudel, B. Lafrance
 C*
 C* DATE: 23/11/2023
 C*
-C* MOD:VERSION:1.0: Création du fichier
+C* MOD:VERSION:1.0: File creation
 C*
 C* MOD:VERSION:1.1: 05/04/2023
-C*    - Introduction d'un controle de la somme des coefficients CKD AIK et normalisation pour obtenir strictement 1.
+C*    - Introduction of a check of the sum of the CKD coefficients AIK and normalisation to obtain exactly 1.
 C*   
 C*  MOD:VERSION:1.2: 19/04/2023
-C*    - Suppression de la variable IND_ANGOUT à l'appel de SOS_FIN_OS
-C*    - Ajout de la variable IND_ANGOUT_FIN aux paramètres de sortie de SOS_PROC
+C*    - Removal of the variable IND_ANGOUT in the call of SOS_FIN_OS
+C*    - Addition of the variable IND_ANGOUT_FIN to the output parameters of SOS_PROC
 C*   
 C*  MOD:VERSION:1.3: 10/08/2023
-C*    - Récupération du coeffficient de troncature de la fonction de phase aérosols en sortie de la routine SOS_AEROSOLS
-C*    - Ajout du coeffficient de troncature de la fonction de phase aérosols en paramètre de sortie 
-C*      (binding Python et routine vers programme principal Fortran)
+C*    - Retrieval of the truncation coefficient of the aerosol phase function as output of routine SOS_AEROSOLS
+C*    - Addition of the truncation coefficient of the aerosol phase function as output parameter
+C*      (Python binding and routine to the Fortran main program)
 C*
 C*  MOD:VERSION:1.4: 15/09/2023
-C*    - Correction des boucles sur indices pour l'initialisation à 1 de la table KDIS_AI(I,J,K)
-C*    - Suppression d'une virgule après la commande WRITE(...) en un endroit (sortie fichier log).
-C*      Impact nul sur les résultats de simulations, mais levant un warning à la compilation.
-C*    - Suppression de l'appel à la routine SOS_FIN_OS en faveur d'une appel direct de SOS_TRPHI_OPTION
+C*    - Correction of the index loops for the initialisation to 1 of the table KDIS_AI(I,J,K)
+C*    - Removal of a comma after the command WRITE(...) in one place (log file output).
+C*      No impact on the simulation results, but raised a warning at compilation.
+C*    - Removal of the call of routine SOS_FIN_OS in favour of a direct call of SOS_TRPHI_OPTION
 C*
 C*  MOD:VERSION:1.5: 14/11/2023
-C*    - Suppression des tests épaisseurs optiques moléculaires et aérosols > 0.0001 (O. à la place) pour vérifier les valeurs HR et HA fournies.
-C*    - Correcte dénomination de la formule de calcul de l'épaisseur optique moléculaire (CNES, Perbos, 1982) au lieu de Hansen & Travis
+C*    - Removal of the tests molecular and aerosol optical thicknesses > 0.0001 (0. instead) to check the given values HR and HA.
+C*    - Correct naming of the formula of the molecular optical thickness (CNES, Perbos, 1982) instead of Hansen & Travis
+C*
+C*  MOD:VERSION:1.6: 09/11/2026 (T. Harmel)
+C*    - Computation of the direct transmission AT_DIR of the solar beam
+C*      (TOA -> surface -> output level) given to SOS_TRPHI_OPTION for the
+C*      direct surface reflection terms (glitter, Fresnel, BRDF/BPDF).
+C*      With -SOS.AbsModeCKD 1, AT_DIR is the CKD-weighted sum of the
+C*      transmissions of each k-term, instead of the Beer law applied to
+C*      the aggregated optical thickness (exact only for an air mass of 1).
+C*    - Same CKD weighting for the direct transmissions used in the fluxes
+C*      (TDIR_VRAI, FLUX_DIFF_DOWN, FLUX_DOWN) and in the -SOS.Trans file.
 C*
 C----------------------------------------------------------------------------
-C Définition des constantes   
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisées :
-C    CTE_LENDIR : Longueur des noms de répertoires.
-C    CTE_LENFIC1 : Longueur des noms de fichiers sans arborescence.
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_LENCOM : Longueur max d'une ligne de commandes
-C    CTE_WAMIN: Longueur d'onde (en micron) minimum
-C    CTE_WAMAX: Longueur d'onde (en micron) maximum
-C    CTE_MDF : Facteur de dépolarisation moléculaire
-C    CTE_CKD_NWVL_MAX: Nombre max de nombres d'ondes pour le calcul de l'absorption
-C    CTE_CKD_NAI_MAX: Nombre max d'exponientielles par gaz absorbant (méthode CKD)
-C    CTE_CKD_NT_MAX   : Nombre maximal de températures des données CKD
-C    CTE_CKD_NP_MAX   : Nombre maximal de pressions des données CKD
-C    CTE_HT_STD_PSURF: Pression atmosphèrique standard
-C    CTE_NBABS: Nombre de gaz absorbants
-C    CTE_ABS_NBLEV : Nombre de couches dans le profil de gaz absorbants
-C    CTE_ABS_NBCOL : Nombre de colonnes des fichiers de profils des gaz d'absorption 
-C    CTE_NOT_DEFINED_VALUE_INT: valeur par défaut pour les entiers
-C    CTE_NOT_DEFINED_VALUE_DBLE: valeur par défaut pour les réels
-C    CTE_DEFAULT_FICGRANU: nom par défaut du fichier granulométrie 
-C    CTE_REMOVE_PREVIOUS_BIN : Option de suppression ou non d'un fichier résultat 
-C    CTE_OS_NBMU_MAX  : Nombre maximal d'angles de Gauss positifs pour les calculs de luminance
-C    CTE_OS_NB_MAX :    Valeur maximale pour l'ordre limite du développement en  polynomes de Legendre 
-C    CTE_TOA_ALT : Altitude du niveau TOA (km).
-C    CTE_DEFAULT_IGMAX : Nombre maximal d'ordres de diffusion par défaut
+C Constants used:
+C    CTE_LENDIR : Length of directory names.
+C     CTE_LENFIC1 : Length of file names without directory tree.
+C     CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_LENCOM : Max length of a command line
+C    CTE_WAMIN: Minimum wavelength (in microns)
+C    CTE_WAMAX: Maximum wavelength (in microns)
+C    CTE_MDF : Molecular depolarisation factor
+C    CTE_CKD_NWVL_MAX: Max number of wavenumbers for the absorption computation
+C    CTE_CKD_NAI_MAX: Max number of exponentials per absorbing gas (CKD method)
+C    CTE_CKD_NT_MAX   : Maximum number of temperatures of the CKD data
+C    CTE_CKD_NP_MAX   : Maximum number of pressures of the CKD data
+C    CTE_HT_STD_PSURF: Standard atmospheric pressure
+C    CTE_NBABS: Number of absorbing gases
+C    CTE_ABS_NBLEV : Number of layers in the profile of absorbing gases
+C    CTE_ABS_NBCOL : Number of columns of the absorbing gas profile files
+C    CTE_NOT_DEFINED_VALUE_INT: default value for integers
+C    CTE_NOT_DEFINED_VALUE_DBLE: default value for reals
+C    CTE_DEFAULT_FICGRANU: default name of the size distribution file
+C    CTE_REMOVE_PREVIOUS_BIN : Option to remove or not a result file
+C    CTE_OS_NBMU_MAX  : Maximum number of positive Gauss angles for the radiance computations
+C    CTE_OS_NB_MAX :    Maximum value of the limit order of the expansion in Legendre polynomials
+C    CTE_TOA_ALT : Altitude of the TOA level (km).
+C    CTE_DEFAULT_IGMAX : Default maximum number of scattering orders
 C
 C----------------------------------------------------------------------------
 #include "SOS.h"
@@ -117,149 +127,149 @@ C----------------------------------------------------------------------------
 
 
 C
-C Description des paramètres
+C Description of parameters
 C ---------------------------
 C
-C   Entrées:
+C   Inputs:
 C			   
-C     RESROOT (CHARACTER) : (E) Répertoire de travail et de sortie des résultats
-C				    (chemin complet)
+C     RESROOT (CHARACTER) : (I) Working and result output directory
+C                                               (complete path)
 C
-C     FICMAIN_LOG (CHARACTER) : (E) Nom du fichier Trace du programme principal.
-C                                   (nom fichier + extension) 
+C     FICMAIN_LOG (CHARACTER) : (I) Name of the trace file of the main program.
+C                                   (file name + extension)
 C
-C     WA_SIMU (DOUBLE) : (E) Longueur d'onde de simulation de la luminance en microns.
+C     WA_SIMU (DOUBLE) : (I) Wavelength of the radiance simulation in microns.
 C
-C     NBMU_GAUSS_LUM (I4) : (E) Nombre d'angles de Gauss pour les calculs de luminance.
+C            NBMU_GAUSS_LUM (I4) : (I) Number of Gauss angles for the radiance computations.
 C
-C     FICANGLES_USER_LUM (CHARACTER) : (E) nom complet du fichier des angles "utilisateurs" pour les calculs de luminances.
-C                 			        (répertoire + nom fichier + extension)
+C     FICANGLES_USER_LUM (CHARACTER) : (I) complete name of the "user" angles file for the radiance computations.
+C				  (directory + file name + extension)
 C
-C     TETAS (DOUBLE) : (E) Angle zenithal solaire en degrés (0 < tetas < 90).
-C      		      (angle complémentaire : mus= -cos(tetas))
+C 	     TETAS   (DOUBLE) : (I) Solar zenith angle in degrees (0 < tetas < 90).
+C      		      (complementary angle: mus= -cos(tetas))
 C
-C     FICANGLES_RES_LUM (CHARACTER) : (E) Fichier angles pour le calcul des luminances (dans RESROOT/SOS)
+C     FICANGLES_RES_LUM (CHARACTER) : (I) Angle file for the radiance computations (in RESROOT/SOS)
 C
-C     NBMU_GAUSS_MIE (I4) : (E) Nombre d'angles de Gauss pour les calculs de fonctions de phase
+C            NBMU_GAUSS_MIE (I4) : (I) Number of Gauss angles for the phase function computations
 C
-C     FICANGLES_USER_MIE (CHARACTER) : (E) Nom complet du fichier des angles "utilisateurs" pour les calculs de Mie.
-C                 			        (répertoire + nom fichier + extension)
+C     FICANGLES_USER_MIE (CHARACTER) : (I) Complete name of the "user" angles file for the Mie computations.
+C				  (directory + file name + extension)
 C
-C     FICANGLES_RES_MIE : (E) Fichier angles pour les calcul de Mie (dans RESROOT/SOS)
+C     FICANGLES_RES_MIE : (I) Angle file for the Mie computations (in RESROOT/SOS)
 C
-C     FICANGLOG (E) : Nom complet du fichier trace (repertoire + nom fichier + extension)
+C     FICANGLOG (I) : Complete name of the trace file (directory + file name + extension)
 
-C     WAREF_AOT (DOUBLE) : (E) Longueur d'onde de référence pour l'AOT.
+C     WAREF_AOT (DOUBLE) : (I) Reference wavelength for the AOT.
 C
-C     AOT_REF (DOUBLE) : (E) Epaisseur optique des aérosols à la longueur d'onde de référence (non tronquée).
+C     AOT_REF (DOUBLE) : (I) Aerosol optical thickness at the reference wavelength (not truncated).
 C
-C     ITRONC_AER (I4) : (E) Option de troncature de la fonction de phase des aérosols 
+C     ITRONC_AER (I4) : (I) Truncation option of the aerosol phase function
 C
-C     FICGRANU_LOG (CHARACTER) : (E) Nom du fichier TRACE des calculs d'IOP aérosols (dans RESROOT/LOG)
+C     FICGRANU_LOG (CHARACTER) : (I) Name of the TRACE file of the aerosol IOP computations (in RESROOT/LOG)
 C
-C     FICMIE_LOG (CHARACTER) : (E) Nom du fichier TRACE des calculs de Mie (dans RESROOT/LOG)
+C     FICMIE_LOG (CHARACTER) : (I) Name of the TRACE file of the Mie computations (in RESROOT/LOG)
 C
-C     DIR_MIE (CHARACTER) : (E) Répertoire de sortie des calculs de Mie
+C     DIR_MIE (CHARACTER) : (I) Output directory of the Mie computations
 C
-C     FICGRANU (CHARACTER) : (E) Nom du fichier résultats des calculs d'IOP aérosols (dans RESROOT/SOS)
+C     FICGRANU (CHARACTER) : (I) Name of the result file of the aerosol IOP computations (in RESROOT/SOS)
 C
-C     IMOD_AER (I2) : (E) Indice de type de granulometrie mono ou multi-modale
+C     IMOD_AER (I2) : (I) Index of the mono- or multi-modal size distribution type
 C			        0 : Mono-modal models.
 C			        1 : WMO models.
 C			        2 : Shettle & Fenn models.
 C		               3 : LND bi-modal models.
 C                            4 : Use of external phase functions
 C
-C     RN_WA, IN_WA, RN_WAREF, IN_WAREF (DOUBLE) : (E) Indice de réfraction des aérosols dans le cas mono-mode 
-C                    Partie réelle et partie imaginaire
-C                    Pour la longueur d'onde de simulation de la luminance et pour celle de référence de l'AOT
+C     RN_WA, IN_WA, RN_WAREF, IN_WAREF (DOUBLE) : (I) Refractive index of the aerosols in the mono-modal case
+C                    Real part and imaginary part
+C                    For the radiance simulation wavelength and for the AOT reference wavelength
 C
-C     IGRANU (I2) : (E) Indice de modèle mono-mode
+C     IGRANU (I2) : (I) Index of the mono-modal model
 C			        1 : LND
 C			        2 : Junge Law
 C
-C     LND_RADIUS_MMD_AER, LND_LNVAR_MMD_AER (DOUBLE) : (E) Rayon modal et variance de la loi LND d'un cas mono-modal.
+C     LND_RADIUS_MMD_AER, LND_LNVAR_MMD_AER (DOUBLE) : (I) Modal radius and variance of the LND law of a mono-modal case.
 C
-C     JD_SLOPE_MMD_AER(DOUBLE) : (E) Pente de la loi de Junge d'un cas mono-modal
+C     JD_SLOPE_MMD_AER(DOUBLE) : (I) Slope of the Junge law of a mono-modal case
 C
-C     JD_RMIN_MMD_AER, JD_RMAX_MMD_AER (DOUBLE) : (E) Rayon minimal et maximal de la loi de Junge.
+C     JD_RMIN_MMD_AER, JD_RMAX_MMD_AER (DOUBLE) : (I) Minimum and maximum radius of the Junge law.
 C
-C     IModele_WMO (I2) : (E) Type du modèle WMO
+C     IModele_WMO (I2) : (I) Type of the WMO model
 C      		        1 : Continental WMO model.
 C			        2 : Maritime WMO model.
 C			        3 : Urban WMO model.
-C		               4 : WMO model by user définition.
+C		               4 : WMO model by user definition.
 C
-C     C_WMO_DL, C_WMO_WS, C_WMO_OC, C_WMO_SO (DOUBLE) : (E) Valeurs utilisateur du mélange WMO de l'utilisateur
-C                 Proportion pour particules Dust-Like, Water Soluble, Oceanic et Soot 
+C     C_WMO_DL, C_WMO_WS, C_WMO_OC, C_WMO_SO (DOUBLE) : (I) User values of the user WMO mixture
+C                 Proportion of Dust-Like, Water Soluble, Oceanic and Soot particles
 C
-C     IModele_SF (I2) : (E) Type du modèle Shettle & Fenn
+C     IModele_SF (I2) : (I) Type of the Shettle & Fenn model
 C      		1 : Tropospheric S&F model.
 C			2 : Urban S&F model.
 C			3 : Maritime S&F model.
 C		       4 : Coastal S&F model.
 C
-C     RH (DOUBLE) : (E) Humidité relative (%) du modèle Shettle & Fenn
+C     RH (DOUBLE) : (I) Relative humidity (%) of the Shettle & Fenn model
 C
-C     MODE_PARAM_BILND (I2) : (E) Indice du choix de description d'un mélange de 2 LND.
+C     MODE_PARAM_BILND (I2) : (I) Index of the choice of description of a mixture of 2 LND.
 C      		1 : Use of user volumetric concentrations.'
 C      		2 : Use of user ratio AOT_coarse / AOT_total.'
 C     
-C     USER_CV_COARSE, USER_CV_FINE (DOUBLE) : (E) Valeur utilisateur de la concentration volumique 
-C                                                 de la "LND coarse" et "LND fine"
+C     USER_CV_COARSE, USER_CV_FINE (DOUBLE) : (I) User value of the volume concentration
+C                                                 of the "LND coarse" and "LND fine"
 C
-C     RTAUct_WAREF (DOUBLE) : (E) Rapport des épaisseurs optique AOT_coarse / AOT_total pour la longueur d'onde de référence
+C     RTAUct_WAREF (DOUBLE) : (I) Ratio of the optical thicknesses AOT_coarse / AOT_total at the reference wavelength
 C
-C     BMD_CM_MRWA, BMD_CM_MIWA, BMD_CM_MRWAREF, BMD_CM_MIWAREF (DOUBLE) : (E) 
-C                    Indice de réfraction pour le mode Coarse d'un modèle bimodal d'aérosols
-C                    Partie réelle et partie imaginaire
-C                    Pour la longueur d'onde de simulation de la luminance et pour celle de référence de l'AOT
+C     BMD_CM_MRWA, BMD_CM_MIWA, BMD_CM_MRWAREF, BMD_CM_MIWAREF (DOUBLE) : (I)
+C                    Refractive index of the Coarse mode of a bimodal aerosol model
+C                    Real part and imaginary part
+C                    For the radiance simulation wavelength and for the AOT reference wavelength
 C
-C     BMD_CM_RMODAL, BMD_CM_VAR (DOUBLE) : (E) Rayon modal et variance de la loi LND 
-C                                              pour le mode Coarse d'un modèle bimodal d'aérosols.
+C     BMD_CM_RMODAL, BMD_CM_VAR (DOUBLE) : (I) Modal radius and variance of the LND law
+C                                              for the Coarse mode of a bimodal aerosol model.
 
-C     BMD_FM_MRWA, BMD_FM_MIWA, BMD_FM_MRWAREF, BMD_FM_MIWAREF(DOUBLE) : (E) 
-C                    Indice de réfraction pour le mode Fine d'un modèle bimodal d'aérosols
-C                    Partie réelle et partie imaginaire
-C                    Pour la longueur d'onde de simulation de la luminance et pour celle de référence de l'AOT
+C     BMD_FM_MRWA, BMD_FM_MIWA, BMD_FM_MRWAREF, BMD_FM_MIWAREF(DOUBLE) : (I)
+C                    Refractive index of the Fine mode of a bimodal aerosol model
+C                    Real part and imaginary part
+C                    For the radiance simulation wavelength and for the AOT reference wavelength
 
-C     BMD_FM_RMODAL, BMD_FM_VAR (DOUBLE) : (E) Rayon modal et variance de la loi LND 
-C                                              pour le mode Fine d'un modèle bimodal d'aérosols.
+C     BMD_FM_RMODAL, BMD_FM_VAR (DOUBLE) : (I) Modal radius and variance of the LND law
+C                                              for the Fine mode of a bimodal aerosol model.
 C
-C     FICEXTDATA_AER (CHARACTER) : (E) Nom du fichier utilisateur donnant la fonction de phase aérosols
-C                                      et les coefficients de diffusion et d'extinction.
-C                 			    (chemin complet : répertoire + nom fichier )
+C     FICEXTDATA_AER (CHARACTER) : (I) Name of the user file giving the aerosol phase function
+C                                      and the scattering and extinction coefficients.
+C                 			    (complete path: directory + file name)
 C
-C     FICMIXTURE_AER (CHARACTER) : (E) Nom du fichier de définition d'un mélange de modèles d'aérosols par l'utilisateur
-C                 			    (chemin complet : répertoire + nom fichier )
+C     FICMIXTURE_AER (CHARACTER) : (I) Name of the file defining a mixture of aerosol models by the user
+C                 			    (complete path: directory + file name)
 C
-C     FICUSER_AER (CHARACTER) : (E) Nom du fichier aérosols fourni par l'utilisateur
-C                 			    (chemin complet : répertoire + nom fichier )
+C     FICUSER_AER (CHARACTER) : (I) Name of the aerosol file provided by the user
+C                 			    (complete path: directory + file name)
 C
-C     FICPROFIL_LOG (CHARACTER) : (E) Nom du fichier Trace des profils par ordre CKD (dans RESROOT/LOG)
+C     FICPROFIL_LOG (CHARACTER) : (I) Name of the trace file of the profiles per CKD order (in RESROOT/LOG)
 C
-C     TR (DOUBLE) : (E) Epaisseur optique moléculaire à la longueur de simulation de la luminance
+C     TR (DOUBLE) : (I) Molecular optical thickness at the radiance simulation wavelength
 C
-C     HR, HA (DOUBLE) : (E) Echelle de hauteur respectivement des molécules et des aérosols (km)
+C     HR, HA (DOUBLE) : (I) Scale height of the molecules and of the aerosols respectively (km)
 C
-C     IPROFIL (I2) : (E) Type du profil d'aérosols
+C     IPROFIL (I2) : (I) Type of the aerosol profile
 C      		1 : Aerosol profile described by an exponential decrease using a heigth scale
 C			2 : Homogeneous aerosol layer between two altitudes.
 C
-C     ZMIN, ZMAX (DOUBLE) : (E) Altitudes minimale et maximale de la couche molécules + aérosols (km)
-C                               dans le cas d'un mélange d'aérosols entre deux altitudes.
+C     ZMIN, ZMAX (DOUBLE) : (I) Minimum and maximum altitudes of the molecules + aerosols layer (km)
+C                               in the case of an aerosol mixture between two altitudes.
 C
-C     PSURF (DOUBLE) : (E) Pression de surface (mbar)
+C     PSURF (DOUBLE) : (I) Surface pressure (mbar)
 C
-C     H2O (DOUBLE) : (E) Contenu intégré en vapeur d'eau (g/cm2)
+C     H2O (DOUBLE) : (I) Integrated water vapour content (g/cm2)
 C
-C     O3 (DOUBLE) : (E) Contenu intégré en ozone (Dobson)
+C     O3 (DOUBLE) : (I) Integrated ozone content (Dobson)
 C
-C     CO2 (DOUBLE) : (E) Concentration du dioxyde de carbone en surface (ppmv)
+C     CO2 (DOUBLE) : (I) Carbon dioxide concentration at the surface (ppmv)
 C
-C     CH4 (DOUBLE) : (E) Concentration du méthane en surface (ppmv)
+C     CH4 (DOUBLE) : (I) Methane concentration at the surface (ppmv)
 C
-C     ABSPROFIL (I2) : (E) Type du profil en absorption
+C     ABSPROFIL (I2) : (I) Type of the absorption profile
 C			      0:User
 C			      1:TROPICAL
 C			      2:MLS
@@ -269,13 +279,13 @@ C			      5:SAW
 C			      6:USST62
 C			      7:No absorption
 C
-C     FICABSPROFIL (CHARACTER) : (E) Fichier profil en absorption fourni par utilisateur (cas profil utilisateur)
-C                 			    (chemin complet : répertoire + nom fichier )
+C     FICABSPROFIL (CHARACTER) : (I) Absorption profile file provided by the user (user profile case)
+C                 			    (complete path: directory + file name)
 C
-C     NUSTEP (DOUBLE) : (E) Pas du nombre d'onde (cm-1) dans le fichier de coeff CKD
-C                           Doit valoir 1, 5 ou 10 cm-1
+C     NUSTEP (DOUBLE) : (I) Wavenumber step (cm-1) in the CKD coeff file
+C                           Must be 1, 5 or 10 cm-1
 C
-C     ISURF (I2) : (E) Type de surface
+C     ISURF (I2) : (I) Surface type
 C      		0 : lambertian surface for an albedo RHO.
 C			1 : lambertian surface + glitter (roughness water).
 C			2 : lambertian surface + Fresnel's reflexion (plane water).
@@ -284,132 +294,132 @@ C			4 : lambertian surface + Roujean's BRDF + Rondeaux's BPDF.
 C			5 : lambertian surface + Roujean's BRDF + Breon's BPDF .
 C			6 : lambertian surface + Roujean's BRDF + Nadal's BPDF.
 C
-C     DIR_SURF (CHARACTER) : (E) Répertoire de stokage des fichiers de BRDF/BPDF des modèles de surface
-C                 		     (chemin complet du répertoire )
+C     DIR_SURF (CHARACTER) : (I) Storage directory of the BRDF/BPDF files of the surface models
+C                 		     (complete path of the directory)
 C
-C     FICSURF_LOG (CHARACTER) : (E) Nom du fichier Trace des calculs de BRDF/BPDF (dans RESROOT/LOG)
+C     FICSURF_LOG (CHARACTER) : (I) Name of the trace file of the BRDF/BPDF computations (in RESROOT/LOG)
 C
-C     SURF_IND (DOUBLE) : (E) Indice de réfraction de la surface / air.	
+C     SURF_IND (DOUBLE) : (I) Refractive index surface / air.
 C
-C     WIND (DOUBLE) : (E) Vitesse du vent en surface (m/s)
+C     WIND (DOUBLE) : (I) Wind speed at the surface (m/s)
 
-C     K0_ROUJEAN, K1_ROUJEAN, K2_ROUJEAN (DOUBLE) : (E) Paramètres du modèle de BRDF de Roujean
+C     K0_ROUJEAN, K1_ROUJEAN, K2_ROUJEAN (DOUBLE) : (I) Parameters of the Roujean BRDF model
 C
-C     ALPHA_NADAL,  BETA_NADAL (DOUBLE) : (E) Paramètres du modèle de BPDF de Nadal
+C     ALPHA_NADAL,  BETA_NADAL (DOUBLE) : (I) Parameters of the Nadal BPDF model
 C
-C     COEF_C_MAIGNAN (DOUBLE) : (E) Paramètre C*exp(-NDVI) du modèle de BPDF de Maignan
+C     COEF_C_MAIGNAN (DOUBLE) : (I) Parameter C*exp(-NDVI) of the Maignan BPDF model
 C
-C     RHO (DOUBLE) : (E) Albédo de surface
+C             RHO (DOUBLE) : (I) Surface albedo
 C
-C     FICSURF (CHARACTER) : (E) Nom d'un fichier de matrice de réflexion fourni par l'utilisateur
-C                 		    (chemin complet : répertoire + nom fichier )
+C     FICSURF (CHARACTER) : (I) Name of a reflection matrix file provided by the user
+C                 		    (complete path: directory + file name)
 C
-C     FICSOS_LOG (CHARACTER) : (E) Nom du fichier Trace des calculs de résolution de l'ETR par SOS_OS (dans RESROOT/LOG)
+C     FICSOS_LOG (CHARACTER) : (I) Name of the trace file of the RTE solving by SOS_OS (in RESROOT/LOG)
 C
-C     FICSOS_RES_BIN (CHARACTER) : (E) Nom du fichier résultat des calculs d'ordre successifs (dans RESROOT/SOS)
-C                                      pour un traitement unitaire (i.e une exponentielle CKD si calcul d'absorption gazeuse)
-C
-C
-C   Sorties:
-C
-C     FICTRANS  (CHARACTER) : (S) Nom du fichier optionnel de sortie des transmissions (dans RESROOT/SOS)
-C
-C     FICFLUX  (CHARACTER) : (S) Nom du fichier optionnel de sortie des flux up TOA et down BOA (dans RESROOT/SOS)
-C
-C     ZOUT (DOUBLE) : (E) Altitude du niveau de sortie du champ de luminance
-C			          -1 =>  Sortie standard: Luminance émergeante au TOA + descendante au niveau du sol.
-C			      z (km) =>  Luminance montante et descendante pour l'altitude z (0 <= z <= CTE_TOA_ALT).
-C
-C     IGMAX (I4) : (E) Ordre maximal d'interaction
-C
-C     IPOLAR (I4) : (E) Option de coupure de la polarisation.
-C                          0 : simulation sans polarisation.
-C			      1 : simulation normale avec polarisation.
-C
-C     ITRPHI (I4) : (E) Option de type de sortie : 
-C                          1 : Plan de visée pour une valeur d'azimut.
-C                          2 : Diagramme polaire en fonction de la direction d'azimut et de visée.
-C
-C     PHIOS (DOUBLE) : (E) Azimut relatif en degrés pour le cas d'une sortie dans un plan azimutal.
-C
-C     PAS_PHI (I4) : (E) Pas sur l'azimut en degrés (valeur entière) dans le cas d'un diagramme polaire.
-C
-C     IMODE_CKD_CALCUL (I4) : (E) Option de mode d'application de la décomposition CKD
-C          1 : Calcul le plus fin avec un calcul de luminance par ordre de la décomposition
-C              puis recomposition selon la pondération CKD.
-C          2 : Calcul pour une épaisseur optique d'absorption estimée par l'approche CKD
-C              --> Un unique calcul de luminance
-C
-C     TRACE (BOOLEAN) : (E) Vrai si génération d'un fichier Trace du programme principal
+C     FICSOS_RES_BIN (CHARACTER) : (I) Name of the result file of the successive orders computations (in RESROOT/SOS)
+C                                      for a unit processing (i.e. one CKD exponential if gaseous absorption is computed)
 C
 C
-C     IER (I4) : (S) Code de retour d'une erreur (1 si erreur, 0 sinon)
+C   Outputs:
 C
-C     LUM_NBMU (I4) : (S) Nombre d'angles effectifs pour les calculs de luminances   
+C     FICTRANS  (CHARACTER) : (O) Name of the optional output file of the transmissions (in RESROOT/SOS)
+C
+C     FICFLUX  (CHARACTER) : (O) Name of the optional output file of the fluxes up TOA and down BOA (in RESROOT/SOS)
+C
+C     ZOUT (DOUBLE) : (I) Altitude of the output level of the radiance field
+C			          -1 =>  Standard output: Radiance emerging at TOA + downward radiance at ground level.
+C			      z (km) =>  Upward and downward radiance for the altitude z (0 <= z <= CTE_TOA_ALT).
+C
+C     IGMAX (I4) : (I) Maximum order of interaction
+C
+C             IPOLAR (I4) : (I) Option to cut the polarisation.
+C                               0 : simulation without polarisation.
+C			           1 : normal simulation with polarisation.
+C
+C     ITRPHI (I4) : (I) Option of output type:
+C                          1 : Viewing plane for one azimuth value.
+C                          2 : Polar diagram versus the azimuth and viewing directions.
+C
+C     PHIOS (DOUBLE) : (I) Relative azimuth in degrees for the case of an output in one azimuth plane.
+C
+C     PAS_PHI (I4) : (I) Azimuth step in degrees (integer value) in the case of a polar diagram.
+C
+C     IMODE_CKD_CALCUL (I4) : (I) Option of the mode of application of the CKD decomposition
+C          1 : Finest computation with one radiance computation per order of the decomposition
+C              then recomposition with the CKD weighting.
+C          2 : Computation for an absorption optical thickness estimated by the CKD approach
+C              --> A single radiance computation
+C
+C     TRACE (BOOLEAN) : (I) True if a trace file of the main program is generated
+C
+C
+C     IER (I4) : (O) Error return code (1 if error, 0 otherwise)
+C
+C            LUM_NBMU (I4) : (O) Number of actual angles for the radiance computations
 C   
-C     IND_ANGOUT_FIN (DOUBLE) : (S) Indices des tableaux d'angles pour lesquels il doit y avoir  
-C                                   une sortie dans le fichier résultat des angles utilisateur
-C      			        (1 : pour une sortie requise)  
+C            IND_ANGOUT_FIN (DOUBLE) : (O) Indices of the angle arrays for which there must be
+C                                      an output in the result file of the user angles
+C      				    (1: output required)
 C
-C     PHI_FIN (DOUBLE) : (S) Table des valeurs d'azimuts relatifs du champ de sortie
+C     PHI_FIN (DOUBLE) : (O) Table of the relative azimuth values of the output field
 C  
-C     THETA_FIN (DOUBLE) : (S) Table des valeurs d'angles zénithaux de visée du champ de sortie
+C     THETA_FIN (DOUBLE) : (O) Table of the viewing zenith angle values of the output field
 C  
-C     SCA_UP_FIN, SCA_DOWN_FIN (DOUBLE) : (S) Tables des angles de diffusion pour les champs montant et descendant de sortie 
+C     SCA_UP_FIN, SCA_DOWN_FIN (DOUBLE) : (O) Tables of the scattering angles for the output upward and downward fields
 C
-C     I_UP_FIN, Q_UP_FIN, U_UP_FIN (DOUBLE) : (S) Tables des valeurs I,Q et U pour les champs montant de sortie 
+C     I_UP_FIN, Q_UP_FIN, U_UP_FIN (DOUBLE) : (O) Tables of the I, Q and U values for the output upward fields
 C  
-C     I_DOWN_FIN, Q_DOWN_FIN, U_DOWN_FINC (DOUBLE) : (S) Tables des valeurs I,Q et U pour les champs descendant de sortie   
+C     I_DOWN_FIN, Q_DOWN_FIN, U_DOWN_FINC (DOUBLE) : (O) Tables of the I, Q and U values for the output downward fields
 C   
-C     POL_ANG_UP_FIN, POL_ANG_DOWN_FIN (DOUBLE) : (S) Tables des angles de polarisation 
-C                                                     pour les champs montant et descendant de sortie 
+C     POL_ANG_UP_FIN, POL_ANG_DOWN_FIN (DOUBLE) : (O) Tables of the polarisation angles
+C                                                     for the output upward and downward fields
 C
-C     POL_RATE_UP_FIN, POL_RATE_DOWN_FIN (DOUBLE) : (S) Tables des taux de polarisation 
-C                                                       pour les champs montant et descendant de sortie 
+C     POL_RATE_UP_FIN, POL_RATE_DOWN_FIN (DOUBLE) : (O) Tables of the degrees of polarisation
+C                                                       for the output upward and downward fields
 C
-C     L_POL_UP_FIN, L_POL_DOWN_FIN (DOUBLE) : (S) Table des valeurs de luminance polarisée
-C                                                 pour les champs montant et descendant de sortie   
+C     L_POL_UP_FIN, L_POL_DOWN_FIN (DOUBLE) : (O) Table of the polarised radiance values
+C                                                 for the output upward and downward fields
 C     
-C     TDIR_VRAI (DOUBLE) : (S) Transmission directe pour la direction d'incidence solaire de l'atmosphère vraie
+C     TDIR_VRAI (DOUBLE) : (O) Direct transmission for the solar incidence direction of the true atmosphere
 C
-C     FLUX_DIFF_DOWN (DOUBLE) : (S) Flux diffus descendant éclairant la surface, normalisé par le flux solaire incident au TOA 
+C     FLUX_DIFF_DOWN (DOUBLE) : (O) Downward diffuse flux illuminating the surface, normalised by the incident solar flux at TOA
 C      
-C     FLUX_DOWN (DOUBLE) : (S) Flux total descendant au niveau de la surface, normalisé par le flux solaire incident au TOA 
+C     FLUX_DOWN (DOUBLE) : (O) Total downward flux at the surface level, normalised by the incident solar flux at TOA
 C     
-C     EPLUS (DOUBLE) : (S) Flux diffus émergeant au TOA, normalisé par le flux solaire incident au TOA  
+C     EPLUS (DOUBLE) : (O) Diffuse flux emerging at TOA, normalised by the incident solar flux at TOA
 C
 C 
-C Description des fichiers utilisés
+C Description of the files used
 C ---------------------------------
 C
-C     Génération du fichier Trace principal en format texte.
+C     Generation of the main trace file in text format.
 C
-C     Fichier FICTRANS : 
-C        --> Fournit la tranmission directe et diffuse du TOA au sol pour la direction d'incidence solaire.
-C            Fournit également la transmission diffuse montante de la surface au TOA pour les différents angles de visée.
+C     File FICTRANS:
+C        --> Gives the direct and diffuse transmission from TOA to the ground for the solar incidence direction.
+C            Also gives the upward diffuse transmission from the surface to TOA for the different viewing angles.
 C
-C     Fichier FICFLUX : 
-C        --> Fournit le flux direct et diffus descendant au niveau de la surface.
-C            Fournit aussi le flux diffus montant au TOA.
-C               NB: les valeurs de flux sont normalisées par l'éclairement solaire incident au TOA (Esun * cos SZA).
-C            Le profil atmosphérique est rappelé : 
-C                  Epaisseur optique moléculaire (MOT), 
-C                  Epaisseur optique des aérosols (AOT),  
-C                  Epaisseur optique d'absorption gazeuse (GOT).
+C     File FICFLUX:
+C        --> Gives the direct and diffuse downward flux at the surface level.
+C            Also gives the upward diffuse flux at TOA.
+C               NB: the flux values are normalised by the incident solar irradiance at TOA (Esun * cos SZA).
+C            The atmospheric profile is recalled:
+C                  Molecular optical thickness (MOT),
+C                  Aerosol optical thickness (AOT),
+C                  Gaseous absorption optical thickness (GOT).
 C
-C Common utilisé:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
 C
-C    Divers contrôle de cohérence du paramètrage
+C    Various consistency checks of the parameters
 C    
-C    Contrôle de retour en erreur d'une routine appelée:
+C    Check of the error return of a called routine:
 C          SOS_ANGLES, SOS_AEROSOLS, SOS_SURFACE
 C          SOS_PREPA_ABSPROFILE, SOS_PREPA_OS, SOS_ABSPROFILE, SOS_PROFILE
-C          SOS, SOS_AGGREGATE et SOS_TRPHI_OPTION
+C          SOS, SOS_AGGREGATE and SOS_TRPHI_OPTION
 C
 C--------------------------------------------------------------------------------------------------------------------
       SUBROUTINE SOS_PROC(RESROOT,
@@ -482,633 +492,633 @@ C-------------------------------------------------------------------------------
       
       IMPLICIT NONE
       
-C Constantes
+C Constants
 C -----------------            
       
-! Numéro identifiant du fichier Trace pour PROC.F
+! Identifier number of the trace file for PROC.F
       INTEGER*2 IDLOG	    
       PARAMETER(IDLOG=INCTE_IDLOG_MAIN)
 
-! Numéro identifiant du fichier Trace pour PROC.F
+! Identifier number of the trace file for PROC.F
       INTEGER*4 IDLOGPROF
       PARAMETER(IDLOGPROF=INCTE_IDLOG_PROFIL)
 
-! Numéro identifiant du fichier Trace pour PROC.F   
+! Identifier number of the trace file for PROC.F
       INTEGER*4 IDLOGOS
       PARAMETER(IDLOGOS=INCTE_IDLOG_OS)
     
-C Constantes AEROSOLS
+C AEROSOLS constants
 C -------------------
 
-!Nombre de modèles WMO ou Shettle & Fenn possibles.
+!Number of possible WMO or Shettle & Fenn models.
       INTEGER CTE_NB_Modeles
       PARAMETER (CTE_NB_Modeles=INCTE_NB_Modeles)
 
-C Constantes PROFIL
+C PROFIL constants
 C -----------------
 
-!Valeur max du paramètre profil 
+!Max value of the profile parameter
       INTEGER CTE_NB_PROFIL
       PARAMETER (CTE_NB_PROFIL=INCTE_NB_PROFIL)
 
 
      	            
-C* Définition des variables                         
+C* Definition of variables
 C*-----------------------------------------------------------------                                    
       
-C-- Variables liées à l'arborescence de travail
+C-- Variables related to the working directory tree
 
-C     Longueur de la chaine de caractères RESROOT
+C     Length of the character string RESROOT
       INTEGER*4  LDIR
 
-C     Longueur de la chaine de caractères DIR_SURF
+C     Length of the character string DIR_SURF
       INTEGER*4  LDIRSURF
 
-C     Longueur de la chaine de caractères DIR_SURF/GLITTER
+C     Length of the character string DIR_SURF/GLITTER
       INTEGER*4  LDIRGLIT
 
-C     Longueur de la chaine de caractères DIR_SURF/ROUJEAN
+C     Length of the character string DIR_SURF/ROUJEAN
       INTEGER*4  LDIRROUJ
 
-C     Longueur de la chaine de caractères DIR_SURF/RH
+C     Length of the character string DIR_SURF/RH
       INTEGER*4  LDIRRH
 
-C     Longueur de la chaine de caractères DIR_SURF/BREON
+C     Length of the character string DIR_SURF/BREON
       INTEGER*4  LDIRBREON
 
-C     Longueur de la chaine de caractères DIR_SURF/BREON
+C     Length of the character string DIR_SURF/NADAL
       INTEGER*4  LDIRNADAL
 
-C     Longueur de la chaine de caractères DIR_SURF/MAIGNAN
+C     Length of the character string DIR_SURF/MAIGNAN
       INTEGER*4  LDIRMAIGNAN
 
-C     Longueur de la chaine de caractères DIR_MIE
+C     Length of the character string DIR_MIE
       INTEGER*4  LDIRMIE
 
-C     Longueur de la chaine de caractères DIR_SOS
+C     Length of the character string DIR_SOS
       INTEGER*4  LDIRSOS
 
-C     Longueur de la chaine de caractères DIR_LOG
+C     Length of the character string DIR_LOG
       INTEGER*4  LDIRLOG
 
-C     Longueur de la chaine de caractères DIR_TMP
+C     Length of the character string DIR_TMP
       INTEGER*4  LDIRTMP
 
-C     Longueur de la chaine de caractères d'un nom de fichier
+C     Length of the character string of a file name
       INTEGER*4 LFIC
 
-C     Répertoire de sortie       
+C     Output directory
       CHARACTER*CTE_LENDIR RESROOT
 
-C     Répertoire de sortie des calculs de surface
+C     Output directory of the surface computations
       CHARACTER*CTE_LENDIR DIR_SURF
 
-C     Répertoire de sortie des calculs de glitter
+C     Output directory of the glitter computations
       CHARACTER*CTE_LENDIR DIR_GLIT
 
-C     Répertoire de sortie des calculs de la BRDF Roujean
+C     Output directory of the Roujean BRDF computations
       CHARACTER*CTE_LENDIR DIR_ROUJ
 
-C     Répertoire de sortie des calculs de la BRDF Rondeaux & Herman
+C     Output directory of the Rondeaux & Herman BRDF computations
       CHARACTER*CTE_LENDIR DIR_RH
 
-C     Répertoire de sortie des calculs de la BRDF Breon
+C     Output directory of the Breon BRDF computations
       CHARACTER*CTE_LENDIR DIR_BREON
 
-C     Répertoire de sortie des calculs de la BRDF Nadal
+C     Output directory of the Nadal BRDF computations
       CHARACTER*CTE_LENDIR DIR_NADAL
 
-C     Répertoire de sortie des calculs de la BRDF Maignan
+C     Output directory of the Maignan BRDF computations
       CHARACTER*CTE_LENDIR DIR_MAIGNAN
 
-C     Répertoire de sortie des calculs de Mie
+C     Output directory of the Mie computations
       CHARACTER*CTE_LENDIR DIR_MIE
 
-C     Répertoire de sortie des ordres successifs
+C     Output directory of the successive orders
       CHARACTER*CTE_LENDIR DIR_SOS
 
-C     Répertoire de sortie des fichiers traces
+C     Output directory of the trace files
       CHARACTER*CTE_LENDIR DIR_LOG
 
-C     Répertoire de sortie des fichiers temporaires
+C     Output directory of the temporary files
       CHARACTER*CTE_LENDIR DIR_TMP
 
 
-C-- Variables globales
+C-- Global variables
 
-C     Longueur d'onde de simulation des luminances (en microns)
+C     Wavelength of the radiance simulation (in microns)
       DOUBLE PRECISION WA_SIMU
 
-C     Longueur de la chaine de caractères COMMAND
+C     Length of the character string COMMAND
       INTEGER*4 LCOM   
     
-C     Nom du fichier trace principal 
+C     Name of the main trace file
       CHARACTER*CTE_LENFIC2 FICMAIN_LOG
 
-C     Chaine de commande pour appel système.
+C     Command string for system call.
       CHARACTER*CTE_LENCOM  COMMAND
 
-C     Indices de tableau
+C     Array indices
       INTEGER*4 I,J,K
 
-C     Code d'erreur =0 si pas d'erreur, =-1 sinon
+C     Error code =0 if no error, =-1 otherwise
       INTEGER*4 IER
 
-C     Vrai si écriture dans le fichier trace
+C     True if writing in the trace file
       LOGICAL TRACE
 
-C     Vrai si écriture dans le fichier trace du profil
+C     True if writing in the trace file of the profile
       LOGICAL TRACEPROF
 
-C     Vrai si écriture dans le fichier trace des OS
+C     True if writing in the trace file of the OS
       LOGICAL TRACEOS
 
-C     Vérifie l'existence d'un fichier
+C     Checks the existence of a file
       LOGICAL EX
 
                   
-C-- Variables liées à la définition des angles  
+C-- Variables related to the definition of the angles
 
-C     Angle zénithal solaire en degrés (0 < tetas < 90). 
-C     (angle complémentaire : mus= -cos(tetas))    		
+C     Solar zenith angle in degrees (0 < tetas < 90).
+C     (complementary angle: mus= -cos(tetas))
       DOUBLE PRECISION TETAS
 
-C     Nombre d'angles de Gauss utilisés pour les calculs de luminance   
+C     Number of Gauss angles used for the radiance computations
       INTEGER*4 NBMU_GAUSS_LUM
 
-C     Nombre d'angles de Gauss utilisés pour les calculs de Mie    
+C     Number of Gauss angles used for the Mie computations
       INTEGER*4 NBMU_GAUSS_MIE  
 
 
-      !Calculs de luminance :
-C     Chemin et nom du fichier des angles "utilisateurs"
+      !Radiance computations:
+C     Path and name of the "user" angles file
       CHARACTER*CTE_LENFIC2 FICANGLES_USER_LUM
 
-C     Chemin et nom du fichier des angles utilisés
+C     Path and name of the file of the angles used
       CHARACTER*CTE_LENFIC2 FICANGLES_RES_LUM
 
-      !Calculs de fonctions de phase :
-C     Chemin et nom du fichier des angles "utilisateurs"
+      !Phase function computations:
+C     Path and name of the "user" angles file
       CHARACTER*CTE_LENFIC2 FICANGLES_USER_MIE
 
-C     Chemin et nom du fichier des angles utilisés
+C     Path and name of the file of the angles used
       CHARACTER*CTE_LENFIC2 FICANGLES_RES_MIE
   
-C     Nom du fichier trace
+C     Name of the trace file
       CHARACTER*CTE_LENFIC2 FICANGLOG
  
       
-C---- Variables liées au modèle d'aérosols   
+C---- Variables related to the aerosol model
 
-C     Epaisseur optique des aérosols à la longueur d'onde de référence (non tronquée).
+C     Aerosol optical thickness at the reference wavelength (not truncated).
       DOUBLE PRECISION AOT_REF
 
-C     Longueur d'onde de référence
+C     Reference wavelength
       DOUBLE PRECISION WAREF_AOT
 
 
-      !Cas mono-mode aérosols : 
+      !Mono-modal aerosol case:
       !----------------------       
-C     Partie réelle de l'indice de réfraction 		      		
+C     Real part of the refractive index
       DOUBLE PRECISION RN_WA
 
-C     Partie imaginaire de l'indice de réfraction
+C     Imaginary part of the refractive index
       DOUBLE PRECISION IN_WA
 
-C     Partie réelle de l'indice de réfraction à la longueur d'onde de reference
+C     Real part of the refractive index at the reference wavelength
       DOUBLE PRECISION RN_WAREF
 
-C     Partie imaginaire de l'indice de réfraction à la longueur d'onde de référence    
+C     Imaginary part of the refractive index at the reference wavelength
       DOUBLE PRECISION IN_WAREF
 
-C     Rayon modal de la LND
+C     Modal radius of the LND
       DOUBLE PRECISION LND_RADIUS_MMD_AER
 	
-C     Variance de la LND
+C     Variance of the LND
       DOUBLE PRECISION LND_LNVAR_MMD_AER
 
-C     Pente de la loi de Junge.	
+C     Slope of the Junge law.
       DOUBLE PRECISION JD_SLOPE_MMD_AER
 
-C     Rayon minimal de la loi de Junge.
+C     Minimum radius of the Junge law.
       DOUBLE PRECISION JD_RMIN_MMD_AER
 
-C     Rayon maximal de la loi de Junge.
+C     Maximum radius of the Junge law.
       DOUBLE PRECISION JD_RMAX_MMD_AER
       
-C     Noms généraux des paramètres de granulométrie pour modèle mono-mode   
+C     General names of the size distribution parameters for a mono-modal model
       DOUBLE PRECISION VARGRANU1_MMD_AER
       DOUBLE PRECISION VARGRANU2_MMD_AER
       DOUBLE PRECISION VARGRANU3_MMD_AER
 
 
-      !Proportion volumique des constituants WMO
+      !Volume proportion of the WMO components
       !-----------------------------------------     
-C     Valeur utilisateur pour particule DL du modèle WMO
+C     User value for the DL particles of the WMO model
       DOUBLE PRECISION C_WMO_DL
 
-C     Valeur utilisateur pour particule WS du modèle WMO
+C     User value for the WS particles of the WMO model
       DOUBLE PRECISION C_WMO_WS
 
-C     Valeur utilisateur pour particule OC du modèle WMO
+C     User value for the OC particles of the WMO model
       DOUBLE PRECISION C_WMO_OC
 
-C     Valeur utilisateur pour particule SO du modèle WMO
+C     User value for the SO particles of the WMO model
       DOUBLE PRECISION C_WMO_SO
 
-C     Pourcentage d'humidité relative des modèles de Shettle & Fenn
+C     Percentage of relative humidity of the Shettle & Fenn models
       DOUBLE PRECISION RH
 
     
-      !Paramètres pour un modèle bimodal de LND
+      !Parameters for a bimodal LND model
       !-----------------------------------------    
-C     Valeur utilisateur de la concentration volumique de la "LND coarse"
+C     User value of the volume concentration of the "LND coarse"
       DOUBLE PRECISION USER_CV_COARSE
    
-C     Valeur utilisateur de la concentration volumique de la "LND fine"
+C     User value of the volume concentration of the "LND fine"
       DOUBLE PRECISION USER_CV_FINE
 
-C     Rapport des épaisseurs optique AOT_coarse / AOT_total pour la longueur d'onde de référence
+C     Ratio of the optical thicknesses AOT_coarse / AOT_total at the reference wavelength
       DOUBLE PRECISION RTAUct_WAREF
  
-C     Valeur lue pour RN_LND(1) : coarse mode
+C     Value read for RN_LND(1) : coarse mode
       DOUBLE PRECISION BMD_CM_MRWA
 
-C     Valeur lue pour IN_LND(1) : coarse mode
+C     Value read for IN_LND(1) : coarse mode
       DOUBLE PRECISION BMD_CM_MIWA
 
-C     Valeur lue pour RN_LND_WAREF(1) : coarse mode
+C     Value read for RN_LND_WAREF(1) : coarse mode
       DOUBLE PRECISION BMD_CM_MRWAREF
 
-C     Valeur lue pour RN_LND_WAREF(2) : fine mode 
+C     Value read for RN_LND_WAREF(2) : fine mode
       DOUBLE PRECISION BMD_CM_MIWAREF
 
-C     Valeur lue pour RMODAL_LND(1) : coarse mode
+C     Value read for RMODAL_LND(1) : coarse mode
       DOUBLE PRECISION BMD_CM_RMODAL
 
-C     Valeur lue pour VAR_LND(1) : coarse mode
+C     Value read for VAR_LND(1) : coarse mode
       DOUBLE PRECISION BMD_CM_VAR
 
-C     Valeur lue pour RN_LND(2) : fine mode  
+C     Value read for RN_LND(2) : fine mode
       DOUBLE PRECISION BMD_FM_MRWA
 
-C     Valeur lue pour IN_LND(2) : fine mode   					 
+C     Value read for IN_LND(2) : fine mode
       DOUBLE PRECISION BMD_FM_MIWA
 
-C     Valeur lue pour IN_LND_WAREF(1) : coarse mode
+C     Value read for IN_LND_WAREF(1) : coarse mode
       DOUBLE PRECISION BMD_FM_MRWAREF
 
-C     Valeur lue pour IN_LND_WAREF(2) : fine mode 
+C     Value read for IN_LND_WAREF(2) : fine mode
       DOUBLE PRECISION BMD_FM_MIWAREF 
    
-C     Valeur lue pour RMODAL_LND(2) : fine mode   
+C     Value read for RMODAL_LND(2) : fine mode
       DOUBLE PRECISION BMD_FM_RMODAL
 
-C     Valeur lue pour VAR_LND(2) : fine mode 
+C     Value read for VAR_LND(2) : fine mode
       DOUBLE PRECISION BMD_FM_VAR
 
-C     Option de troncature de la fonction de phase des aérosols (1 pour la réaliser)                            
+C     Truncation option of the aerosol phase function (1 to apply it)
       INTEGER*4 ITRONC_AER
 
-C     Option de troncature (=ITRONC_AER en entrée d'appel de SOS_AEROSOLS 
-C     mais peut basculer de 1 à 0 en sortie si la troncature est automatiquement annulée)
+C     Truncation option (=ITRONC_AER as input of the call of SOS_AEROSOLS
+C     but can switch from 1 to 0 as output if the truncation is automatically cancelled)
       INTEGER*4 ITRONC_AER_IN
 
-C     Granulometrie mono ou multi-modale
+C     Mono- or multi-modal size distribution
       INTEGER*2 IMOD_AER
 
-C     Numéro du modèle de granulométrie
+C     Number of the size distribution model
       INTEGER*4 IGRANU
 
-C     Type du modèle WMO
+C     Type of the WMO model
       INTEGER*2 IModele_WMO
 
-C     Type du modèle Shettle & Fenn
+C     Type of the Shettle & Fenn model
       INTEGER*2 IModele_SF
 
-C     Indice du choix de description du mélange de 2 LND
+C     Index of the choice of description of the mixture of 2 LND
       INTEGER*2 MODE_PARAM_BILND
 
-C     Nom du fichier TRACE des calculs de MIE       
+C     Name of the TRACE file of the MIE computations
       CHARACTER*CTE_LENFIC2 FICMIE_LOG
 
-C     Nom du fichier TRACE des calculs de propriétés aérosols GRANU 
+C     Name of the TRACE file of the GRANU aerosol property computations
       CHARACTER*CTE_LENFIC2 FICGRANU_LOG
 
-C     Nom du fichier résultat GRANU 
+C     Name of the GRANU result file
       CHARACTER*CTE_LENFIC2 FICGRANU
 
-C     Chemin et nom du fichier utilisateur donnant la fonction de phase 
-C     et les coefficients de diffusion et d'extinction
+C     Path and name of the user file giving the phase function
+C     and the scattering and extinction coefficients
       CHARACTER*CTE_LENFIC2 FICEXTDATA_AER
 
-C     Chemin et nom du fichier aérosols dénommé par l'utilisateur
+C     Path and name of the aerosol file named by the user
       CHARACTER*CTE_LENFIC2 FICUSER_AER
 
-C     Chemin et nom du fichier de définition d'un mélange de modèles d'aérosols par l'utilisateur  
+C     Path and name of the file defining a mixture of aerosol models by the user
       CHARACTER*CTE_LENFIC2 FICMIXTURE_AER  
 	
  
 			
-C --- Variables liées à la définition du profil atmosphérique    
+C --- Variables related to the definition of the atmospheric profile
 
-C     Epaisseur optique rayleigh
+C     Rayleigh optical thickness
       DOUBLE PRECISION TR
 
-C     Echelle de hauteur du profil moléculaire (km)
+C     Scale height of the molecular profile (km)
       DOUBLE PRECISION HR
 
-C     Echelle de hauteur du profil d'aérosols (km)
+C     Scale height of the aerosol profile (km)
       DOUBLE PRECISION HA
 
-C     Altitudes minimale et maximale de la couche molécules + aérosols (km)
+C     Minimum and maximum altitudes of the molecules + aerosols layer (km)
       DOUBLE PRECISION ZMIN
       DOUBLE PRECISION ZMAX
   
-C     Pression atmosphérique de surface (mbar)
+C     Atmospheric pressure at the surface (mbar)
       DOUBLE PRECISION PSURF
 
-C     Contenu intégré en vapeur d'eau (g/cm2)
+C     Integrated water vapour content (g/cm2)
       DOUBLE PRECISION H2O  
 
-C     Contenu intégré en ozone (Dobson)
+C     Integrated ozone content (Dobson)
       DOUBLE PRECISION O3
 
-C     Concentration du dioxyde de carbone en surface (ppmv)
+C     Carbon dioxide concentration at the surface (ppmv)
       DOUBLE PRECISION CO2
 
-C     Concentration du méthane en surface (ppmv)
+C     Methane concentration at the surface (ppmv)
       DOUBLE PRECISION CH4
 
-C     Transmission directe pour la direction d'incidence solaire de l'atmosphère équivalente 
+C     Direct transmission for the solar incidence direction of the equivalent atmosphere
       DOUBLE PRECISION TDIR_TRONC
 
-C     Transmission directe pour la direction d'incidence solaire de l'atmosphere vraie
+C     Direct transmission for the solar incidence direction of the true atmosphere
       DOUBLE PRECISION TDIR_VRAI
 
 C     Altitude (km)
       DOUBLE PRECISION ZALT
 
-C     Epaisseur optique moléculaire, aérosols et d'absorption gazeuse à ZALT
+C     Molecular, aerosol and gaseous absorption optical thickness at ZALT
       DOUBLE PRECISION TR_ZALT
       DOUBLE PRECISION TA_ZALT
       DOUBLE PRECISION TG_ZALT
 
-C     Type du profil aérosol
+C     Type of the aerosol profile
       INTEGER*2 IPROFIL
 
-C     Type du profil en absorption
+C     Type of the absorption profile
       INTEGER*2 ABSPROFIL
 
-C     Nombre de couches atmosphériques
+C     Number of atmospheric layers
       INTEGER*4 NT
 
-C     Fichier profil en absorption fourni par utilisateur     
+C     Absorption profile file provided by the user
       CHARACTER*CTE_LENFIC2 FICABSPROFIL
 
-C     Nom du fichier résultat PROFIL temporaire pour un ordre de décomposition CKD
+C     Name of the temporary PROFIL result file for one order of the CKD decomposition
       CHARACTER*CTE_LENFIC2 FICPROFIL_TMP
 
-C     Chemin et nom du fichier Trace des profils par ordre CKD
+C     Path and name of the trace file of the profiles per CKD order
       CHARACTER*CTE_LENFIC2 FICPROFIL_LOG
 
  
-C --- Variables liées à la définition du choix des données de coefficients CKD
-C     Pas du nombre d'onde (cm-1) dans le fichier de coeff CKD
+C --- Variables related to the choice of the CKD coefficient data
+C     Wavenumber step (cm-1) in the CKD coeff file
       DOUBLE PRECISION  NUSTEP
 
             
-C --- Variables liées à la définition du modèle de surface 
+C --- Variables related to the definition of the surface model
 
-C     Type de surface
+C     Surface type
       INTEGER*2 ISURF 
 
-C     Albédo de surface
+C     Surface albedo
       DOUBLE PRECISION RHO
 
-C     Vitesse du vent (m/s
+C     Wind speed (m/s)
       DOUBLE PRECISION WIND 
 
-C     Indice de réfraction du dioptre air/surface
+C     Refractive index of the air/surface interface
       DOUBLE PRECISION SURF_IND
 
-C     Paramètres du modèle de Roujean	   
+C     Parameters of the Roujean model
       DOUBLE PRECISION K0_ROUJEAN, K1_ROUJEAN, K2_ROUJEAN
 
-C     Paramètres du modèle de  Nadal 
+C     Parameters of the Nadal model
       DOUBLE PRECISION ALPHA_NADAL, BETA_NADAL
 
-C     Paramètre C*exp(-NDVI) du modèle de Maignan
+C     Parameter C*exp(-NDVI) of the Maignan model
       DOUBLE PRECISION COEF_C_MAIGNAN
 
-C     Nom du fichier trace SURFACE
+C     Name of the SURFACE trace file
       CHARACTER*CTE_LENFIC2 FICSURF_LOG
 
-C     Nom d'un fichier contenant une matrice de réflexion existante
+C     Name of a file containing an existing reflection matrix
       CHARACTER*CTE_LENFIC2 FICSURF
 
   
-C --- Variables liées aux calculs SOS
+C --- Variables related to the SOS computations
 
-C     Type de sortie : -1 =>  Sortie standard: Luminance émergeante au TOA + descendante au niveau du sol.
-C                       z =>  Luminance montante et descendante pour l'altitude z (0 <= z <= CTE_TOA_ALT).  
+C     Output type: -1 =>  Standard output: Radiance emerging at TOA + downward radiance at ground level.
+C                       z =>  Upward and downward radiance for the altitude z (0 <= z <= CTE_TOA_ALT).
       DOUBLE PRECISION ZOUT
  
-C     Ordre maximal de diffusion		
+C     Maximum order of scattering
       INTEGER*4 IGMAX
 
-C     Option de simulation sans polarisation : 0 : calculs sans polarisation
-C                                              1 : calculs normaux avec polarisation
+C     Option for simulation without polarisation: 0 : computations without polarisation
+C                                              1 : normal computations with polarisation
       INTEGER*4 IPOLAR
 
-C     Option de mode d'application de la décomposition CKD
-C          1 : Calcul le plus fin avec un calcul de luminance par ordre de la décomposition
-C              puis recomposition selon la pondération CKD.
-C          2 : Calcul pour une épaisseur optique d'absorption estimée par l'approche CKD
-C              --> Un unique calcul de luminance
+C     Option of the mode of application of the CKD decomposition
+C          1 : Finest computation with one radiance computation per order of the decomposition
+C              then recomposition with the CKD weighting.
+C          2 : Computation for an absorption optical thickness estimated by the CKD approach
+C              --> A single radiance computation
       INTEGER*4 IMODE_CKD_CALCUL
 
-C     Indice de type de sortie : 1 =>  Plan de visée pour une valeur d'azimut.
-C                                2 =>  Diagramme polaire en fonction de la direction d'azimut et de visée.
+C     Index of output type: 1 =>  Viewing plane for one azimuth value.
+C                                2 =>  Polar diagram versus the azimuth and viewing directions.
       INTEGER*4 ITRPHI        
 
-C     Pas sur l'azimut en degrés (pour ITRPHI=2)			
+C     Azimuth step in degrees (for ITRPHI=2)
       INTEGER*4 PAS_PHI
 
-C     Azimut relatif en degrés (pour ITRPHI=1)     			
+C     Relative azimuth in degrees (for ITRPHI=1)
       DOUBLE PRECISION PHIOS
 
-C     Facteur de dépolarisation moléculaire 
+C     Molecular depolarisation factor
       DOUBLE PRECISION RON
 
-C     Chemin et nom du fichier Trace des calculs de SOS_OS    
+C     Path and name of the trace file of the SOS_OS computations
       CHARACTER*CTE_LENFIC2 FICSOS_LOG
 
-C     Nom du fichier optionnel de sortie des transmissions
+C     Name of the optional output file of the transmissions
       CHARACTER*CTE_LENFIC2 FICTRANS
 
-C     Nom du fichier optionnel de sortie des flux up TOA et down BOA
+C     Name of the optional output file of the fluxes up TOA and down BOA
       CHARACTER*CTE_LENFIC2 FICFLUX
 
-C     Nom du fichier résultat des OS (pour un traitement unitaire)
+C     Name of the OS result file (for a unit processing)
       CHARACTER*CTE_LENFIC2 FICSOS_RES_BIN
 
-C     Nom du fichier temporaire resultat des OS (calcul aggrégé)
+C     Name of the temporary OS result file (aggregated computation)
       CHARACTER*CTE_LENFIC2 FICOS_AGG_TMP
 
 
 
-C --- Variables internes
+C --- Internal variables
 
-C -   Pour les aérosols
+C -   For the aerosols
 
-C     Longueur d'onde de calcul des paramètres aérosols (WA_SIMU ou WAREF)
+C     Wavelength of computation of the aerosol parameters (WA_SIMU or WAREF)
       DOUBLE PRECISION WA
 
-C     Section efficace d'extinction des aérosols pour la longueur d'onde calculée (simu ou ref)
+C     Aerosol extinction cross section for the computed wavelength (simu or ref)
       DOUBLE PRECISION KMAT1
 
-C     Section efficace d'extinction des aérosols pour la longueur d'onde de référence de l'ep. opt. aérosols				     
+C     Aerosol extinction cross section for the reference wavelength of the aerosol opt. thickness
       DOUBLE PRECISION KMAT1_WAREF
 	
-C     Epaisseur optique des aérosols pour la longueur d'onde de simulation			     
+C     Aerosol optical thickness at the simulation wavelength
       DOUBLE PRECISION TA
 
-C     Albédo de simple diffusion des aérosols pour la longueur d'onde de simulation				     
+C     Aerosol single scattering albedo at the simulation wavelength
       DOUBLE PRECISION PIZAER
 
-C     Coefficient de troncature de la fonction de phase des aérosols				     
+C     Truncation coefficient of the aerosol phase function
       DOUBLE PRECISION COEF_TRONCA
 
 
-C -   Pour les surfaces
+C -   For the surfaces
 
-C     Répertoire résultats des calculs de BRDF/BPDF de surface
+C     Result directory of the surface BRDF/BPDF computations
       CHARACTER*CTE_LENDIR  SURF_OUTDIR
       
-C -   Pour les profils
+C -   For the profiles
 
-C     Nombre d'onde (cm-1)
+C     Wavenumber (cm-1)
       DOUBLE PRECISION NU
 
-C     Profil en absorption
+C     Absorption profile
       DOUBLE PRECISION ABS_USERPROFIL(CTE_ABS_NBLEV,CTE_ABS_NBCOL)
 
-C     Altitudes des niveaux du profil d'absorption (ordre décroissant)
+C     Altitudes of the levels of the absorption profile (decreasing order)
       DOUBLE PRECISION ALTABS(1:CTE_ABS_NBLEV)
 
-C     Profil d'épaisseur optique d'absorption gazeuse
+C     Profile of gaseous absorption optical thickness
       DOUBLE PRECISION TAUABS(1:CTE_ABS_NBLEV)
 
-C     Profil de transmission verticale (masse d'air fictive de 1)        
+C     Profile of vertical transmission (fictitious air mass of 1)
       DOUBLE PRECISION TRSCKD(1:CTE_ABS_NBLEV)
 
-C     Nombre de particules/cm2 par espèce gazeuse (H2O CO2 O3 N2O CO CH4 O2 NO2) et par couche du profil atmosphérique
+C     Number of particles/cm2 per gas species (H2O CO2 O3 N2O CO CH4 O2 NO2) and per layer of the atmospheric profile
       DOUBLE PRECISION RO(CTE_NBABS,CTE_ABS_NBLEV)
  
-C     Tableau identifiant les gaz absorbant pris en compte (H2O CO2 O3 N2O CO CH4 O2 NO2)   
-C     Inclue les gaz avec uniquement une absorption par continuum (NO2).
+C     Array identifying the absorbing gases taken into account (H2O CO2 O3 N2O CO CH4 O2 NO2)
+C     Includes the gases with continuum absorption only (NO2).
       INTEGER*2 IABS(1:CTE_NBABS)
 
-C     Indice des tableaux CKD (dépend de NU)
+C     Index of the CKD arrays (depends on NU)
       INTEGER*4 LAMB1
 
-C -   Coefficients CKD
+C	- CKD coefficients
 
-C     Nombre d'exponentielles par longueur d'onde et espèce       
+C     Number of exponentials per wavelength and species
       INTEGER*4  NEXP(CTE_NBABS,CTE_CKD_NWVL_MAX)
 
-C     Valeur des coefficients ai par longueur d'onde, espèce et ordre i de la décomposition en exponentielles     
+C     Values of the coefficients ai per wavelength, species and order i of the decomposition in exponentials
       DOUBLE PRECISION  KDIS_AI(CTE_CKD_NAI_MAX, CTE_NBABS,  
      &                          CTE_CKD_NWVL_MAX) 
      
-C     Valeur des coefficients ki par longueur d'onde, espèce, ordre i de la décomposition en exponentielles, 
-C     pression et température                                    
+C     Values of the coefficients ki per wavelength, species, order i of the decomposition in exponentials,
+C     pressure and temperature
       DOUBLE PRECISION  KDIS_KI(CTE_CKD_NT_MAX, CTE_CKD_NP_MAX, 
      &                          CTE_CKD_NAI_MAX, CTE_NBABS,  
      &                          CTE_CKD_NWVL_MAX )
  
-C     Valeur des coefficients ki de la vapeur d'eau par longueur d'onde,  ordre i de la décomposition en exponentielles,
-C     concentration, pression et température
+C     Values of the coefficients ki of water vapour per wavelength, order i of the decomposition in exponentials,
+C     concentration, pressure and temperature
       DOUBLE PRECISION  KDIS_KI_H2O(CTE_CKD_NT_MAX, CTE_CKD_NP_MAX, 
      &                              CTE_CKD_NC_MAX, CTE_CKD_NAI_MAX, 
      &                              CTE_CKD_NWVL_MAX )
 
    
-C     Nombre de valeurs de température, pression dans les fichiers CKD   
+C     Number of temperature and pressure values in the CKD files
       INTEGER NB_TEMP, NB_PRES
 
-C     Tableau des valeurs de température lues
+C     Array of the temperature values read
       DOUBLE PRECISION TAB_TEMP(CTE_CKD_NT_MAX)
 
-C     Tableau des valeurs de pression lues 
+C     Array of the pressure values read
       DOUBLE PRECISION TAB_PRES(CTE_CKD_NP_MAX)
 
-C     Nombre de valeurs de concentrations H2O dans le fichier CKD H2O  
+C     Number of H2O concentration values in the H2O CKD file
       INTEGER NB_CONC_H2O 
 
-C     Tableau des valeurs de concentrations H2O lues dans le fichier CKD H2O (ppmv) 
+C     Array of the H2O concentration values read in the H2O CKD file (ppmv)
       DOUBLE PRECISION TAB_CONC_H2O(CTE_CKD_NC_MAX) 
 
-C     Indice d'exponentielles      
+C     Exponential index
       INTEGER*4 IK1,IK2,IK3,IK4,IK5,IK6,IK7,IK8
 
-C     Coefficient de pondération des luminances
+C     Weighting coefficient of the radiances
       DOUBLE PRECISION  AIK
 
-C     Sommation des coefficients de pondération des luminances
+C     Sum of the weighting coefficients of the radiances
       DOUBLE PRECISION sumAIK
    
-C -   Pour les OS
+C -   For the OS
 
-C     Ordre des développements des fonctions de phase en Polynomes de Legendre. 
+C     Order of the expansions of the phase functions in Legendre polynomials.
       INTEGER*4 OS_NB
 
-C     Albédo de simple diffusion 
+C     Single scattering albedo
       DOUBLE PRECISION PIZ
 
-C     Albédo de simple diffusion après troncature
+C     Single scattering albedo after truncation
       DOUBLE PRECISION PIZTR
 
-C     Coefficient de troncature de la fonction de phase aérosols
+C     Truncation coefficient of the aerosol phase function
       DOUBLE PRECISION COEFTRONCA
 
-C     Nombre d'angles effectifs des simulations
+C     Number of actual angles of the simulations
       INTEGER*4 LUM_NBMU
 
-C     Cosinus des angles de Gauss (et utilisateur)
+C     Cosines of the Gauss (and user) angles
       DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
 
-C     Poids des angles de Gauss (et utilisateur)
+C     Weights of the Gauss (and user) angles
       DOUBLE PRECISION GA(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
 				
-C     Paramètres alpha(k), beta(k), gamma(k) et zeta(k) de la matrice de phase aérosols
+C     Parameters alpha(k), beta(k), gamma(k) and zeta(k) of the aerosol phase matrix
       DOUBLE PRECISION AER_ALPHA(0:CTE_OS_NB_MAX)
       DOUBLE PRECISION AER_BETA(0:CTE_OS_NB_MAX)
       DOUBLE PRECISION AER_GAMMA(0:CTE_OS_NB_MAX)
       DOUBLE PRECISION AER_ZETA(0:CTE_OS_NB_MAX)
 
-C     Flux diffus éclairant le sol et émergeant au TOA, normalisé par le flux solaire incident au TOA
+C     Diffuse flux illuminating the ground and emerging at TOA, normalised by the incident solar flux at TOA
       DOUBLE PRECISION EMOINS
       DOUBLE PRECISION EPLUS
 
-C     Transmission diffuse pour la direction d'incidence solaire de l'atmosphère équivalente
+C     Diffuse transmission for the solar incidence direction of the equivalent atmosphere
       DOUBLE PRECISION TDIFMUS
 
-C     Transmission diffuse pour les angles de Gauss de l'atmosphère équivalente				
+C     Diffuse transmission for the Gauss angles of the equivalent atmosphere
       DOUBLE PRECISION TDIFMUG(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
 
-C     Epaisseur optique totale au sol (tronquée)
+C     Total optical thickness at ground (truncated)
       DOUBLE PRECISION TTOT_TRONC
 
-C     Epaisseur optique totale au sol (non tronquée).
+C     Total optical thickness at ground (not truncated).
       DOUBLE PRECISION TTOT_VRAI
 
-C     Epaisseur optique (tronquée) au niveau de sortie des résultats pour le champ montant 
+C     Optical thickness (truncated) at the output level of the results for the upward field
       DOUBLE PRECISION TAUOUT
 
-C     Variables précédentes de flux et épaisseurs optiques calculées 
-C     pour un octuor ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8 de décomposition CKD)
+C     Previous variables of fluxes and optical thicknesses computed
+C     for an octet ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8 of the CKD decomposition)
       DOUBLE PRECISION EMOINS_TMP
       DOUBLE PRECISION EPLUS_TMP
       DOUBLE PRECISION TDIFMUS_TMP		
@@ -1117,73 +1127,85 @@ C     pour un octuor ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8 de décomposition CKD)
       DOUBLE PRECISION TTOT_VRAI_TMP
       DOUBLE PRECISION TAUOUT_TMP
 
-C     Numéro de mu de Gauss pour l'angle zénithal solaire
-C     angle complémentaire : mus = -rmu(N0)
-C     N0 > 0 => pour en tenir compte			
+C     Direct transmission of the solar beam TOA -> surface -> output level
+C     along the direction J (used for the direct surface reflection)
+      DOUBLE PRECISION AT_DIR(CTE_OS_NBMU_MAX)
+C     .TRUE. if AT_DIR has been accumulated over the CKD terms
+      LOGICAL ATDIR_CKD
+C     Direct transmission TOA -> surface for the truncated (TRONC) and the
+C     true (VRAI) atmosphere: index 0 for the solar zenith angle TETAS,
+C     index J for the direction RMU(J)
+      DOUBLE PRECISION TDIR_TRONC_MU(0:CTE_OS_NBMU_MAX)
+      DOUBLE PRECISION TDIR_VRAI_MU(0:CTE_OS_NBMU_MAX)
+      DOUBLE PRECISION XMUS
+
+C     Number of the Gauss mu for the solar zenith angle
+C     complementary angle: mus = -rmu(N0)
+C     N0 > 0 => to take it into account
       INTEGER*4 N0
    
-C     Indice précisant si les simulations introduisent la réflexion de Fresnel sur mer plate :
-C         1 => pour un calcul de la réflexion de Fresnel.
-C         Sinon => pas de prise en compte.    
+C     Index specifying whether the simulations include the Fresnel reflection on a flat sea:
+C         1 => for a computation of the Fresnel reflection.
+C         Otherwise => not taken into account.
       INTEGER*4 IFRESNEL
 
-C     Indice précisant si les simulations utilisent un modèle de réflexion BRDF ou BPDF :
-C         1 => pour calcul de BRDF ou BPDF (il faut utiliser N0 > 0).
-C         Sinon => pas de simulation de BRDF ou BPDF. 	
+C     Index specifying whether the simulations use a BRDF or BPDF reflection model:
+C         1 => for BRDF or BPDF computation (N0 > 0 must be used).
+C         Otherwise => no BRDF or BPDF simulation.
       INTEGER*4 IMAT_SURF
 
-C     Indice précisant si les simulations introduisent le Glitter :
-C         1 => pour calcul du Glitter (il faut alors utiliser N0 > 0).
-C         Sinon => pas de simulation du Glitter.  
+C     Index specifying whether the simulations include the Glitter:
+C         1 => for Glitter computation (N0 > 0 must then be used).
+C         Otherwise => no Glitter simulation.
       INTEGER*4 IGLI
           
-C     Indice précisant si les simulations utilisent le modèle de réflexion de Roujean :
-C         1 => pour calcul de BRDF Roujean (il faut utiliser N0 > 0).
-C         Sinon => pas de simulation de BRDF Roujean. 
+C     Index specifying whether the simulations use the Roujean reflection model:
+C         1 => for Roujean BRDF computation (N0 > 0 must be used).
+C         Otherwise => no Roujean BRDF simulation.
       INTEGER*4 IROUJEAN
 
-C     Indice précisant si les simulations utilisent le modèle de réflexion de Rondeaux - Herman :
-C         1 => pour calcul de BPDF RH (il faut utiliser N0 > 0).
-C         Sinon => pas de simulation de BPDF RH. 			 
+C     Index specifying whether the simulations use the Rondeaux - Herman reflection model:
+C         1 => for RH BPDF computation (N0 > 0 must be used).
+C         Otherwise => no RH BPDF simulation.
       INTEGER*4 IRONDEAUX
 			 
-C     Indice précisant si les simulations utilisent le modèle de réflexion de Breon :
-C         1 => pour calcul de BPDF Breon (il faut utiliser N0 > 0).
-C         Sinon => pas de simulation de BPDF Breon. 			
+C     Index specifying whether the simulations use the Breon reflection model:
+C         1 => for Breon BPDF computation (N0 > 0 must be used).
+C         Otherwise => no Breon BPDF simulation.
       INTEGER*4 IBREON
 
-C     Indice précisant si les simulations utilisent le modèle de réflexion de Nadal :
-C         1 => pour calcul de BPDF Nadal (il faut utiliser N0 > 0).
-C         Sinon => pas de simulation de BPDF Nadal. 
+C     Index specifying whether the simulations use the Nadal reflection model:
+C         1 => for Nadal BPDF computation (N0 > 0 must be used).
+C         Otherwise => no Nadal BPDF simulation.
       INTEGER*4 INADAL
 
-C     Indice précisant si les simulations utilisent le modèle de réflexion de Maignan :
-C         1 => pour calcul de BPDF Nadal (il faut utiliser N0 > 0).
-C         Sinon => pas de simulation de BPDF Maignan. 
+C     Index specifying whether the simulations use the Maignan reflection model:
+C         1 => for Maignan BPDF computation (N0 > 0 must be used).
+C         Otherwise => no Maignan BPDF simulation.
       INTEGER*4 IMAIGNAN
 
-C     Indices des tableaux d'angles pour lesquels il doit y avoir une sortie dans le fichier résultat des angles utilisateur 
-C     ==> 1 : pour une sortie requise
-C     Indices à partir de 0 pour passage à Python.
+C     Indices of the angle arrays for which there must be an output in the result file of the user angles
+C     ==> 1: output required
+C                                      Indices starting from 0 for Python.
       INTEGER*4 IND_ANGOUT_FIN(0:CTE_OS_NBMU_MAX)  
 				
-C     Longueur de la chaine de caractères FICSOS_RES_BIN
+C     Length of the character string FICSOS_RES_BIN
       INTEGER*4 LFICOS
 
-C     Nom du fichier temporaire résultat des OS		 
+C     Name of the temporary OS result file
       CHARACTER*CTE_LENFIC2 FICOS_TMP
 	
-C     Table des valeurs d'azimuts relatifs du champ de sortie
+C     Table of the relative azimuth values of the output field
       DOUBLE PRECISION PHI_FIN(0:360)
 
-C     Table des valeurs d'angles zénithaux de visée du champ de sortie
+C     Table of the viewing zenith angle values of the output field
       DOUBLE PRECISION THETA_FIN(0:CTE_OS_NBMU_MAX)
 
-C     Tables des angles de diffusion pour les champs montant et descendant de sortie 
+C     Tables of the scattering angles for the output upward and downward fields
       DOUBLE PRECISION SCA_UP_FIN(0:360,0:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION SCA_DOWN_FIN(0:360,0:CTE_OS_NBMU_MAX)     
 
-C     Tables des valeurs I,Q et U pour les champs montant et descendant de sortie    
+C     Tables of the I, Q and U values for the output upward and downward fields
       DOUBLE PRECISION I_UP_FIN(0:360,0:CTE_OS_NBMU_MAX)        
       DOUBLE PRECISION Q_UP_FIN(0:360,0:CTE_OS_NBMU_MAX)       
       DOUBLE PRECISION U_UP_FIN(0:360,0:CTE_OS_NBMU_MAX) 
@@ -1191,28 +1213,28 @@ C     Tables des valeurs I,Q et U pour les champs montant et descendant de sorti
       DOUBLE PRECISION Q_DOWN_FIN(0:360,0:CTE_OS_NBMU_MAX)      
       DOUBLE PRECISION U_DOWN_FIN(0:360,0:CTE_OS_NBMU_MAX) 
 
-C     Tables des angles de polarisation pour les champs montant et descendant de sortie    
+C     Tables of the polarisation angles for the output upward and downward fields
       DOUBLE PRECISION POL_ANG_UP_FIN(0:360,0:CTE_OS_NBMU_MAX)       
       DOUBLE PRECISION POL_ANG_DOWN_FIN(0:360,0:CTE_OS_NBMU_MAX)  
 
-C     Tables des taux de polarisation pour les champs montant et descendant de sortie      
+C     Tables of the degrees of polarisation for the output upward and downward fields
       DOUBLE PRECISION POL_RATE_UP_FIN(0:360,0:CTE_OS_NBMU_MAX)  
       DOUBLE PRECISION POL_RATE_DOWN_FIN(0:360,0:CTE_OS_NBMU_MAX)  
 
-C     Table des valeurs de luminance polarisée pour les champs montant et descendant de sortie         
+C     Table of the polarised radiance values for the output upward and downward fields
       DOUBLE PRECISION L_POL_UP_FIN(0:360,0:CTE_OS_NBMU_MAX)       
       DOUBLE PRECISION L_POL_DOWN_FIN(0:360,0:CTE_OS_NBMU_MAX)
 
-C     Flux diffus descendant au niveau de la surface      
+C     Downward diffuse flux at the surface level
       DOUBLE PRECISION FLUX_DIFF_DOWN
 
-C     Flux total descendant au niveau de la surface           
+C     Total downward flux at the surface level
       DOUBLE PRECISION FLUX_DOWN
   
 
     
 C =====================================================================
-C --- Définition des variables I/O pour usage du binding Python
+C --- Definition of the I/O variables for the Python binding
 C =====================================================================
 
 Cf2py intent(in) resroot, ficmain_log,wa_simu, nbmu_gauss_lum, ficangles_user_lum, tetas
@@ -1239,36 +1261,36 @@ Cf2py intent(out) coef_tronca
                         
       
 C =========================================
-C --- Initialisations 
+C --- Initialisations
 C =========================================
 
-C --- Initialisation de l'indicateur d'erreur de traitement
+C --- Initialisation of the processing error flag
 C----------------------------------------------------------
       IER=0
  
-C     Répertoire de sortie
+C     Output directory
       DIR_ROUJ="NO_ROUJEAN_DIR"
 
-C     Répertoire de sortie
+C     Output directory
       SURF_OUTDIR="NO_OUTPUT_DIR"
 
 
-C     Profil absorption en fonction de l'altitude
+C     Absorption profile versus altitude
       DO I=1,CTE_ABS_NBLEV
          ALTABS(I)=CTE_NOT_DEFINED_VALUE_DBLE
          TAUABS(I)=CTE_NOT_DEFINED_VALUE_DBLE
       ENDDO
  
-C     Nombre de coefficients pour chaque gaz absorbant et longueur d'onde
-C     Par défaut, on le fixe à 1 => cas sans absorption ou continuum seul
+C     Number of coefficients for each absorbing gas and wavelength
+C     Set to 1 by default => case without absorption or continuum only
       DO J=1,CTE_CKD_NWVL_MAX
          DO I=1,CTE_NBABS
             NEXP(I,J)=1
          ENDDO
       ENDDO
 
-C     Poids de chaque exponentielle pour chaque gaz absorbant et longueur d'onde
-C     Par défaut, on le fixe à 1 => cas sans absorption ou continuum seul
+C     Weight of each exponential for each absorbing gas and wavelength
+C     Set to 1 by default => case without absorption or continuum only
       DO K=1,CTE_CKD_NWVL_MAX	
          DO J=1,CTE_NBABS
             DO I=1,CTE_CKD_NAI_MAX
@@ -1277,23 +1299,23 @@ C     Par défaut, on le fixe à 1 => cas sans absorption ou continuum seul
          ENDDO
       ENDDO
 
-C     Somme des coefficients AIK par défaut
+C     Default sum of the coefficients AIK
       sumAIK=1.D+00
 
-C     Indice correspondant au nombre d'onde / 10
+C     Index corresponding to the wavenumber / 10
       LAMB1=1
             
-C --- Initialisation des valeurs par défaut des paramètres SOS
+C --- Initialisation of the default values of the SOS parameters
 
-C     Facteur de dépolarisation moléculaire.
+C     Molecular depolarisation factor.
       RON=CTE_MDF
 
-C     Init des épaisseurs optiques pour aggrégation
+C     Init of the optical thicknesses for the aggregation
       TTOT_VRAI=0.
       TTOT_TRONC=0.
       TAUOUT=0.
       
-C     Init des transmissions diffuses     
+C     Init of the diffuse transmissions
       TDIFMUS=0.
       DO I=-CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX
          TDIFMUG(I)=0.
@@ -1303,29 +1325,29 @@ C     Init des transmissions diffuses
 
 
 C =========================================================
-C --- Définition de l'arborescence de travail
+C --- Definition of the working directory tree
 C =========================================================           				
 
-C ---- Controle de la définition de l'espace de travail (obligatoire)  
+C ---- Check of the definition of the working space (mandatory)
       IF (RESROOT.EQ."UNDEFINED_REPERTORY") GOTO 1000
    
       LDIR = INDEX(RESROOT,' ') - 1
       IF((LDIR.LE.0).OR.(LDIR.GT.CTE_LENDIR)) GOTO 1100
 
-C ---- Controle de la définition du répertoire de résultats MIE 
-C     (obligatoire si AOT non nulle et si on n'utilise pas un fichier de 
-C      données externes : fonctions de phase ou directement les coefficients Greek)
+C ---- Check of the definition of the MIE result directory
+C     (mandatory if AOT is not null and if no external data file is used:
+C      phase functions or directly the Greek coefficients)
 
-C     Définition de l'ep opt aérosols à la longueur d'onde de référence : obligatoire  
+C     Definition of the aerosol opt. thickness at the reference wavelength: mandatory
       IF (AOT_REF.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2301  	
 
       IF (AOT_REF.GT.0.D+00) THEN
 		
-C        Définition du type de modèle d'aérosols : obligatoire  
+C        Definition of the type of aerosol model: mandatory
          IF ((IMOD_AER.EQ.CTE_NOT_DEFINED_VALUE_INT)
      &        .AND.(FICUSER_AER.EQ."NO_USER_AEROSOLS" )) GOTO 2304
 
-C        Définition de la longueur d'onde de référence pour l'ep opt aérosols : obligatoire  
+C        Definition of the reference wavelength for the aerosol opt. thickness: mandatory
          IF (WAREF_AOT.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2302  
 
          IF ((IMOD_AER.NE.4.)
@@ -1333,7 +1355,7 @@ C        Définition de la longueur d'onde de référence pour l'ep opt aérosol
 
             IF (DIR_MIE.EQ."UNDEFINED_REPERTORY") GOTO 1001
 
-            !Création de l'arborescence de résultats aérosols
+            !Creation of the aerosol result directory tree
             LDIRMIE = INDEX(DIR_MIE,' ') - 1
             IF((LDIRMIE.LE.0).OR.(LDIRMIE.GT.CTE_LENDIR)) GOTO 1101
             COMMAND='mkdir -p '//DIR_MIE(1:LDIRMIE)
@@ -1345,85 +1367,85 @@ C        Définition de la longueur d'onde de référence pour l'ep opt aérosol
       ENDIF
 
 
-C ---- Définition de l'arborescence de résultats de surface
+C ---- Definition of the surface result directory tree
       IF((ISURF.NE.0).AND.(ISURF.NE.2)) THEN
 
-         !Controle de la définition du répertoire de résultats DIR_SURF (requis si BRDF ou BPDF calculée)
+         !Check of the definition of the result directory DIR_SURF (required if a BRDF or BPDF is computed)
          IF (DIR_SURF.EQ."UNDEFINED_REPERTORY")  GOTO 1002
 
          LDIRSURF = INDEX(DIR_SURF,' ') - 1
          IF((LDIRSURF.LE.0).OR.(LDIRSURF.GT.CTE_LENDIR)) GOTO 1102
          
-         !Définition des répertoires 
-         !--Répertoire GLITTER
+         !Definition of the directories
+         !--GLITTER directory
          LDIRGLIT= LDIRSURF + 8  	
          IF(LDIRGLIT.GT.CTE_LENDIR) GOTO 1103
          DIR_GLIT(1:LDIRGLIT) = DIR_SURF(1:LDIRSURF)//'/'//'GLITTER'
       
-         !--Répertoire ROUJEAN
+         !--ROUJEAN directory
          LDIRROUJ= LDIRSURF + 8  	
          IF(LDIRROUJ.GT.CTE_LENDIR) GOTO 1104
          DIR_ROUJ(1:LDIRROUJ) = DIR_SURF(1:LDIRSURF)//'/'//'ROUJEAN'      	
       
-         !--Répertoire Rondeaux & Herman
+         !--Rondeaux & Herman directory
          LDIRRH= LDIRSURF + 3  	
          IF(LDIRRH.GT.CTE_LENDIR) GOTO 1105
          DIR_RH(1:LDIRRH) = DIR_SURF(1:LDIRSURF)//'/'//'RH'     
 
-         !--Répertoire BREON
+         !--BREON directory
          LDIRBREON= LDIRSURF + 6  	
          IF(LDIRBREON.GT.CTE_LENDIR) GOTO 1106
          DIR_BREON(1:LDIRBREON) = DIR_SURF(1:LDIRSURF)//'/'//'BREON'     
   
-         !--Répertoire NADAL
+         !--NADAL directory
          LDIRNADAL= LDIRSURF + 6  	
          IF(LDIRNADAL.GT.CTE_LENDIR) GOTO 1107
          DIR_NADAL(1:LDIRNADAL) = DIR_SURF(1:LDIRSURF)//'/'//'NADAL'     
 
-         !--Répertoire MAIGNAN
+         !--MAIGNAN directory
          LDIRMAIGNAN= LDIRSURF + 8  	
          IF(LDIRMAIGNAN.GT.CTE_LENDIR) GOTO 11071
          DIR_MAIGNAN(1:LDIRMAIGNAN) 
      &   = DIR_SURF(1:LDIRSURF)//'/'//'MAIGNAN'
 
-         !Création de l'arborescence de résultats de surface
-         !--Répertoire SURFACE
+         !Creation of the surface result directory tree
+         !--SURFACE directory
          COMMAND='mkdir -p '//DIR_SURF(1:LDIRSURF)
          LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1203
          CALL SYSTEM(COMMAND)
 
-         !--Répertoire GLITTER
+         !--GLITTER directory
          COMMAND='mkdir -p '//DIR_GLIT(1:LDIRGLIT)
          LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1204
          CALL SYSTEM(COMMAND)
      
-         !--Répertoire ROUJEAN
+         !--ROUJEAN directory
          COMMAND='mkdir -p '//DIR_ROUJ(1:LDIRROUJ)
          LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1205
          CALL SYSTEM(COMMAND)
      
-         !--Répertoire Rondeaux & Herman
+         !--Rondeaux & Herman directory
          COMMAND='mkdir -p '//DIR_RH(1:LDIRRH)
          LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1206
          CALL SYSTEM(COMMAND)
 
-         !--Répertoire BREON
+         !--BREON directory
          COMMAND='mkdir -p '//DIR_BREON(1:LDIRBREON)
          LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1207
          CALL SYSTEM(COMMAND)
   
-         !--Répertoire NADAL
+         !--NADAL directory
          COMMAND='mkdir -p '//DIR_NADAL(1:LDIRNADAL)
          LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1208
          CALL SYSTEM(COMMAND)
 
-         !--Répertoire MAIGNAN
+         !--MAIGNAN directory
          COMMAND='mkdir -p '//DIR_MAIGNAN(1:LDIRMAIGNAN)
          LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 12081
@@ -1431,20 +1453,20 @@ C ---- Définition de l'arborescence de résultats de surface
 
       ENDIF
 		
-C ---- Définition de l'arborescence de résultats SOS
+C ---- Definition of the SOS result directory tree
 
       LDIRSOS= LDIR + 4  	
       IF(LDIRSOS.GT.CTE_LENDIR) GOTO 1108
       DIR_SOS(1:LDIRSOS) = RESROOT(1:LDIR)//'/'//'SOS'	
 
-C ---- Définition du répertoire de log
+C ---- Definition of the log directory
 
       LDIRLOG= LDIR + 4  	
       IF(LDIRLOG.GT.CTE_LENDIR) GOTO 1109
       DIR_LOG(1:LDIRLOG) = RESROOT(1:LDIR)//'/'//'LOG'	
 
 
-C ---- Définition du répertoire temporaire des traitements
+C ---- Definition of the temporary processing directory
 
       LDIRTMP= LDIR + 4  	
       IF(LDIRTMP.GT.CTE_LENDIR) GOTO 1110
@@ -1453,38 +1475,38 @@ C ---- Définition du répertoire temporaire des traitements
 
 
 C =========================================================
-C --- Définition des fichiers temporaires par ordre CKD
+C --- Definition of the temporary files per CKD order
 C =========================================================           				
 
-C     Fichier temporaire de profil
+C     Temporary profile file
       FICPROFIL_TMP = DIR_TMP(1:LDIRTMP)//'/'//"PROFIL_TMP"  
 
-C     Fichier temporaire de résultats des OS (1 simulation)
+C     Temporary file of OS results (1 simulation)
       FICOS_TMP = DIR_TMP(1:LDIRTMP)//'/'//"FICOS_TMP"  
 
-C     Fichier temporaire de résultats des OS (simulations aggrégées)
+C     Temporary file of OS results (aggregated simulations)
       FICOS_AGG_TMP = DIR_TMP(1:LDIRTMP)//'/'//"FICOS_AGG_TMP.bin"
 
 
 C =========================================================
-C --- Création de l'arborescence de travail
+C --- Creation of the working directory tree
 C =========================================================           				
 
-C ---- Espace de travail
+C ---- Working space
 
       COMMAND='mkdir -p '//RESROOT(1:LDIR)
       LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
       IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1201
       CALL SYSTEM(COMMAND)
 	
-C ---- Création de l'arborescence de résultats SOS
+C ---- Creation of the SOS result directory tree
 
       COMMAND='mkdir -p '//DIR_SOS(1:LDIRSOS)
       LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
       IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1209
       CALL SYSTEM(COMMAND)
 
-C ---- Création du répertoire de log
+C ---- Creation of the log directory
 
       COMMAND='mkdir -p '//DIR_LOG(1:LDIRLOG)
       LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
@@ -1492,7 +1514,7 @@ C ---- Création du répertoire de log
       CALL SYSTEM(COMMAND)
 
 
-C ---- Création du répertoire des fichiers temporaires
+C ---- Creation of the directory of the temporary files
 
       COMMAND='mkdir -p '//DIR_TMP(1:LDIRTMP)
       LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') + 9
@@ -1501,17 +1523,17 @@ C ---- Création du répertoire des fichiers temporaires
 
       
 C =========================================================
-C --- Ouverture du fichier Trace
+C --- Opening of the trace file
 C =========================================================        
 
-C     ---- Définition du fichier Trace principal
+C     ---- Definition of the main trace file
       IF (TRACE) THEN
 
          LFIC = INDEX(FICMAIN_LOG,' ') - 1
          IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 1301
          FICMAIN_LOG = DIR_LOG(1:LDIRLOG)//'/'//FICMAIN_LOG(1:LFIC)
        
-C ---- Création du fichier
+C ---- Creation of the file
          OPEN (IDLOG,FILE=FICMAIN_LOG,ERR=1302)
 
          WRITE (IDLOG,*,ERR=1303) "WORKING FOLDER DEFINITION"
@@ -1527,15 +1549,15 @@ C ---- Création du fichier
          WRITE (IDLOG,*,ERR=1303) 
      &        "SOS result folder :", DIR_SOS(1:LDIRSOS)     
          WRITE (IDLOG,*,ERR=1303) " "
-      ENDIF  ! Fin Trace 
+      ENDIF  ! End of Trace
   
 	    
 C =========================================================
-C --- Tests d'existence et de cohérence des paramètres
+C --- Existence and consistency tests of the parameters
 C =========================================================     
 
 C --------------------------------------------------------------        
-C --- Controle des paramètres de simulation
+C --- Check of the simulation parameters
 C --------------------------------------------------------------  
 C 
       IF (TRACE) THEN
@@ -1544,7 +1566,7 @@ C
      &         "--> Starting the check of user parameters \n"
       ENDIF
 
-C --- Controle de la définition de la longueur d'onde de simulation
+C --- Check of the definition of the simulation wavelength
 	     
       IF (WA_SIMU.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2100           
       IF ((WA_SIMU.LT.CTE_WAMIN).OR.(WA_SIMU.GT.CTE_WAMAX))  GOTO 2101
@@ -1556,7 +1578,7 @@ C --- Controle de la définition de la longueur d'onde de simulation
      &         "Simulation parameters ***************"
          WRITE (IDLOG,*,ERR=1303) " "
           
-C        Longueur d'onde de simulation
+C        Simulation wavelength
 	  WRITE (IDLOG,*,ERR=1303) 
      &         "Simulation wavelength (microns): ",WA_SIMU
 	  WRITE (IDLOG,*,ERR=1303) " "
@@ -1564,17 +1586,17 @@ C        Longueur d'onde de simulation
       ENDIF 
       
 C --------------------------------------------------------------        
-C --- Controle du passage des arguments de définition des angles
+C --- Check of the arguments defining the angles
 C --------------------------------------------------------------  
 C  
-C ---- Test d'existence et de validité des paramètres obligatoires
+C ---- Existence and validity test of the mandatory parameters
 
-C     Angle solaire : obligatoire           
+C     Solar angle: mandatory
       IF (TETAS.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2200
       IF ((TETAS.LT.0.D-00).OR.(TETAS.GE.90.D-00)) GOTO 2201
          
 	              
-C ---- Affichage des paramètres utilisés dans le fichier de trace
+C ---- Display of the parameters used in the trace file
 	     
       IF (TRACE) THEN
 
@@ -1584,27 +1606,27 @@ C ---- Affichage des paramètres utilisés dans le fichier de trace
          WRITE (IDLOG,*,ERR=1303) " "	  
 	  WRITE (IDLOG,*,ERR=1303) "***** Mandatory Parameters "
 	  
-C        Angle solaire
+C        Solar angle
 	  WRITE (IDLOG,*,ERR=1303) "Solar Zenith Angle: ",TETAS
           
-C        Fichier résultat pour les luminances       
+C        Result file for the radiances
 	  WRITE (IDLOG,*,ERR=1303) "User's filename ",
      &         "for the radiance angles définition :"
          WRITE (IDLOG,*,ERR=1303) FICANGLES_RES_LUM
                
-C        Fichier résultat pour les fonctions de phase
+C        Result file for the phase functions
 	  WRITE (IDLOG,*,ERR=1303) "User's filename ",
      &         "for the Mie angles définition :"
          WRITE (IDLOG,*,ERR=1303) FICANGLES_RES_MIE
 	  	   
-C        Fichier de log pour le calcul des angles
+C        Log file for the angle computation
 	  WRITE (IDLOG,*,ERR=1303) "User's log file: "
          WRITE (IDLOG,*,ERR=1303) FICANGLES_RES_MIE
                
 	  WRITE (IDLOG,*,ERR=1303) " "
 	  WRITE (IDLOG,*,ERR=1303) "***** Optional Parameters "
 
-C        Nombre d'angles de Gauss pour les simulations de luminances
+C        Number of Gauss angles for the radiance simulations
 	  IF (NBMU_GAUSS_LUM.NE.CTE_NOT_DEFINED_VALUE_INT) THEN 
 	     WRITE (IDLOG,*,ERR=1303) "Nb Gauss Angles for ",
      &            "luminance calculation (user value):",NBMU_GAUSS_LUM
@@ -1613,7 +1635,7 @@ C        Nombre d'angles de Gauss pour les simulations de luminances
      &            "luminance calculation (default value)"
 	  ENDIF
 	 
-C        Nombre d'angles de Gauss pour les calculs de mie
+C        Number of Gauss angles for the Mie computations
 	  IF (NBMU_GAUSS_MIE.NE.CTE_NOT_DEFINED_VALUE_INT) THEN 
 	     WRITE (IDLOG,*,ERR=1303) "Nb Gauss Angles for ",
      &            "Mie calculation (user value):",NBMU_GAUSS_MIE
@@ -1622,14 +1644,14 @@ C        Nombre d'angles de Gauss pour les calculs de mie
      &            "Mie calculation (default value)"
 	  ENDIF
           
-C        Fichier des angles utilisateurs pour les calculs de luminance
+C        User angle file for the radiance computations
 	  IF (FICANGLES_USER_LUM.NE.'NO_USER_ANGLES') THEN 
 	     WRITE (IDLOG,*,ERR=1303) "User's file of specific angles",
      &            " for luminance calculations (user value):",
      &            FICANGLES_USER_LUM
 	  ENDIF		 
 		 	 
-C	  Fichier des angles utilisateurs pour les calculs de Mie
+C	  User angle file for the Mie computations
 	  IF (FICANGLES_USER_MIE.NE.'NO_USER_ANGLES') THEN 
 	     WRITE (IDLOG,*,ERR=1303) "User's file of specific angles",
      &            " for MIE calculations (user value):",
@@ -1638,44 +1660,44 @@ C	  Fichier des angles utilisateurs pour les calculs de Mie
           
 	  WRITE (IDLOG,*,ERR=1303) " "
           
-      ENDIF       ! Fin Trace
+      ENDIF       ! End of Trace
 
       
 C --------------------------------------------------------------  
-C --- Controle du passage des arguments de modèle d'aérosols
+C --- Check of the arguments of the aerosol model
 C --------------------------------------------------------------  
 C
-C ---- Test d'existence et de validité des paramètres obligatoires
+C ---- Existence and validity test of the mandatory parameters
    	
-C     Cas AOT_REF > 0 :
+C     Case AOT_REF > 0 :
       IF (( AOT_REF.GT.0.D+00).AND.
      & ( FICUSER_AER.EQ."NO_USER_AEROSOLS" )) THEN
       
-C        Controle de la définition des paramètres aérosols
-C        Modèle aérosol
+C        Check of the definition of the aerosol parameters
+C        Aerosol model
 	  IF ((IMOD_AER.LT.0).OR.(IMOD_AER.GT.5)) GOTO 2305
 
-C        Option de suppression de la troncature
+C        Option to remove the truncation
          IF ((ITRONC_AER.LT.0).OR.(ITRONC_AER.GT.1)) GOTO 23141
 	 
 C        ----------------------------------------------------
-C        Cas d'un modèle d'aérosols mono-modal : IMOD_AER = 0  
+C        Case of a mono-modal aerosol model: IMOD_AER = 0
 C        ----------------------------------------------------
 	  IF (IMOD_AER.EQ.0) THEN 
 
-C            Parties réelles et imaginaires de l'indice de réfraction
+C            Real and imaginary parts of the refractive index
 	     IF ((RN_WA.EQ.CTE_NOT_DEFINED_VALUE_DBLE).OR.
      &          (IN_WA.EQ.CTE_NOT_DEFINED_VALUE_DBLE)) GOTO 2309
 
-C           Validite de la partie imaginaire
+C           Validity of the imaginary part
 	     IF (IN_WA.GT.0.D+00) GOTO 2310
 
-C           Validite du type de granulométrie
+C           Validity of the size distribution type
             IF (IGRANU.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2311
 
 	     IF ((IGRANU.LT.1).OR.(IGRANU.GT.2)) GOTO 2312	 
 
-	     ! Contrôle de la récupération des paramètres du modèle de LND
+	     ! Check of the retrieval of the parameters of the LND model
 	     IF (IGRANU.EQ.1) THEN
 	         IF (LND_RADIUS_MMD_AER.EQ.
      &              CTE_NOT_DEFINED_VALUE_DBLE) GOTO 23131
@@ -1687,7 +1709,7 @@ C           Validite du type de granulométrie
 	         VARGRANU3_MMD_AER = CTE_NOT_DEFINED_VALUE_DBLE
 	     ENDIF     
 
-	     ! Contrôle de la récupération des paramètres obligatoires du modèle de Junge
+	     ! Check of the retrieval of the mandatory parameters of the Junge model
 	     IF (IGRANU.EQ.2) THEN
 	         IF (JD_SLOPE_MMD_AER.EQ.
      &              CTE_NOT_DEFINED_VALUE_DBLE) GOTO 23132
@@ -1699,9 +1721,9 @@ C           Validite du type de granulométrie
 	         VARGRANU3_MMD_AER = JD_RMAX_MMD_AER
 	     ENDIF	    
 
-C	     Cas où la longueur d'onde de référence est différente de celle de simu
-C	     ==> Controle de la récupération de la valeur de l'indice de réfraction
-C	         pour la longueur d'onde de référence.
+C	     Case where the reference wavelength differs from the simulation one
+C	     ==> Check of the retrieval of the value of the refractive index
+C	         for the reference wavelength.
 	      IF (WA_SIMU.NE.WAREF_AOT) THEN
 	         IF((RN_WAREF.EQ.CTE_NOT_DEFINED_VALUE_DBLE).OR.
      &	            (IN_WAREF.EQ.CTE_NOT_DEFINED_VALUE_DBLE)) GOTO 2314
@@ -1713,61 +1735,61 @@ C	         pour la longueur d'onde de référence.
          ENDIF
 	 
 C         ----------------------------------------------------
-C         Cas d'un modèle d'aérosols WMO : IMOD_AER = 1  
+C         Case of a WMO aerosol model: IMOD_AER = 1
 C         ----------------------------------------------------	 
  	  
-	  IF (IMOD_AER.EQ.1) THEN 	!Cas WMO	
+	  IF (IMOD_AER.EQ.1) THEN 	!WMO case
 
-	     ! Controle la validité du paramètre IModele
+	     ! Check of the validity of the parameter IModele
 	     ! -----------------------------------------	
 	     IF (IModele_WMO.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2315	
 
-	     ! Controle de la récupération du choix de modèle WMO   
+	     ! Check of the retrieval of the choice of WMO model
 	     IF ((IModele_WMO.LT.1).OR.(IModele_WMO.GT.CTE_NB_Modeles))
      &         GOTO 2316	
 
-	     ! Si modèle libre de l'utilisateur, controle de la récupération 
-	     ! des proportions des 4 composants
+	     ! If free user model, check of the retrieval
+	     ! of the proportions of the 4 components
 	     IF (IModele_WMO.EQ.4) THEN     
 	         IF ((C_WMO_DL.EQ.CTE_NOT_DEFINED_VALUE_DBLE).OR.
      &		      (C_WMO_WS.EQ.CTE_NOT_DEFINED_VALUE_DBLE).OR.
      &		      (C_WMO_OC.EQ.CTE_NOT_DEFINED_VALUE_DBLE).OR.
      &		      (C_WMO_SO.EQ.CTE_NOT_DEFINED_VALUE_DBLE)) GOTO 2317
-	     ENDIF !Cas modèle utilisateur WMO
+	     ENDIF !Case of a user WMO model
 	  
-	  ENDIF !Fin cas IMOD_AER = 1 (WMO)  
+	  ENDIF !End of case IMOD_AER = 1 (WMO)
 	  
 C        ----------------------------------------------------
-C        Cas d'un modèle d'aérosols S&F : IMOD_AER = 2  
+C        Case of an S&F aerosol model: IMOD_AER = 2
 C        ----------------------------------------------------
         
-	  IF (IMOD_AER.EQ.2) THEN !     cas S&F
+	  IF (IMOD_AER.EQ.2) THEN !     S&F case
          
-	     ! Controle de la récupération du choix de modèle S&F 
+	     ! Check of the retrieval of the choice of S&F model
 	     IF (IModele_SF.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2318
 	     
-	     ! Controle de la récupération de la valeur de l'humidité relative
+	     ! Check of the retrieval of the value of the relative humidity
 	     IF (RH.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2319
 
-            !   Controle de la validite des parametres IMODELE et RH
+            !   Check of the validity of the parameters IMODELE and RH
             IF ((IModele_SF.LT.1).OR.(IModele_SF.GT.CTE_NB_Modeles))
-     &         GOTO 2320        !Erreur choix modèle
-            IF ((RH.LT.0.D-00).OR.(RH.GT.99.D-00)) GOTO 2321 !Erreur sur % humidité
+     &         GOTO 2320        !Error on the model choice
+            IF ((RH.LT.0.D-00).OR.(RH.GT.99.D-00)) GOTO 2321 !Error on the % humidity
 
 	  ENDIF
-         !Fin cas IMOD_AER = 2 (S&F)         
+         !End of case IMOD_AER = 2 (S&F)
 
 C        ----------------------------------------------------
-C        Cas d'un modèle d'aérosols bimode LND : IMOD_AER = 3  
+C        Case of a bimodal LND aerosol model: IMOD_AER = 3
 C        ----------------------------------------------------	  
-         !Cas bi LND
+         !Bi-LND case
 	  IF (IMOD_AER.EQ.3) THEN
 
-             !Controle de la récupération des paramètres specifiques au calcul bimodal LND
+             !Check of the retrieval of the parameters specific to the bimodal LND computation
              IF (MODE_PARAM_BILND.EQ.
      &           CTE_NOT_DEFINED_VALUE_INT)  GOTO 2322
 
-             !controle de la validite du paramètre MODE_PARAM_BILND
+             !check of the validity of the parameter MODE_PARAM_BILND
              IF ((MODE_PARAM_BILND.LT.1).OR.(MODE_PARAM_BILND.GT.2)) 
      &         GOTO 2323
   
@@ -1775,9 +1797,9 @@ C        ----------------------------------------------------
 
 
 	     
-             !Récupération de l'information de la description du mélange
-	      !    Cas 1 : Utilisation des concentrations volumiques de l'utilisateur
-             !    --> Controle que les paramètres utilisateurs sont renseignés pour l'option
+             !Retrieval of the information on the description of the mixture
+	      !    Case 1: Use of the user volume concentrations
+             !    --> Check that the user parameters are given for the option
              IF (MODE_PARAM_BILND.EQ.1) THEN          
 	         IF (USER_CV_COARSE.EQ.
      &              CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2324
@@ -1785,14 +1807,14 @@ C        ----------------------------------------------------
      &              CTE_NOT_DEFINED_VALUE_DBLE)   GOTO 2325  
              ENDIF
     
-            !    Cas 2 : Utilisation du rapport AOT_coarse / AOT_totale
-            !    --> Controle que les paramètres sont tous renseignes pour l'option
+            !    Case 2: Use of the ratio AOT_coarse / AOT_total
+            !    --> Check that all the parameters are given for the option
             IF (MODE_PARAM_BILND.EQ.2) THEN 
 	         IF (RTAUct_WAREF.EQ.
      &              CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2326
             ENDIF
    
-            !Récupération de l'information d'indice et granulométrie des 2 LND
+            !Retrieval of the refractive index and size distribution information of the 2 LND
             !-----------------------------------------------------------------         	 
             IF (BMD_CM_MRWA.EQ.CTE_NOT_DEFINED_VALUE_DBLE)   GOTO 2327
             IF (BMD_CM_MIWA.EQ.CTE_NOT_DEFINED_VALUE_DBLE)   GOTO 2327 
@@ -1803,7 +1825,7 @@ C        ----------------------------------------------------
             IF (BMD_FM_RMODAL.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2328
             IF (BMD_FM_VAR.EQ.CTE_NOT_DEFINED_VALUE_DBLE)    GOTO 2328            
      
-            !Récupération de l'information d'indice des 2 LND pour WAREF 
+            !Retrieval of the refractive index information of the 2 LND for WAREF
             !-----------------------------------------------------------------     
             IF (MODE_PARAM_BILND.EQ.2) THEN 
 	     
@@ -1817,71 +1839,71 @@ C        ----------------------------------------------------
 	           IF (BMD_FM_MIWAREF.EQ.
      &                CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2329   
 
-	        ELSE !Si waref=wa ==> On impose de récupérer l'info d'indice pour wa 
-		      !                et on l'affecte à waref
+	        ELSE !If waref=wa ==> The refractive index information for wa is required
+		      !                and assigned to waref
 		    BMD_CM_MRWAREF = BMD_CM_MRWA
 		    BMD_CM_MIWAREF = BMD_CM_MIWA
 		    BMD_FM_MRWAREF = BMD_FM_MRWA
 		    BMD_FM_MIWAREF = BMD_FM_MIWA  
 
-	        ENDIF ! Fin test si Wa != WaRef
+	        ENDIF ! End of test if Wa != WaRef
 	        
-            ENDIF !Fin cas description du mélange bi LND par rapport d'AOT  
+            ENDIF !End of case of a bi-LND mixture described by an AOT ratio
 	           
 	  ENDIF
 
 
 C         ----------------------------------------------------
-C         Cas d'un modèle d'aérosols fourni par l'utilisateur : IMOD_AER = 4  
+C         Case of an aerosol model provided by the user: IMOD_AER = 4
 C         ----------------------------------------------------	  
-	  IF (IMOD_AER.EQ.4) THEN 	!Cas fonctions externes
+	  IF (IMOD_AER.EQ.4) THEN 	!Case of external functions
 
-             ! Controle de la récupération du nom du fichier de données externes
+             ! Check of the retrieval of the name of the external data file
 	     IF (FICEXTDATA_AER.EQ.
      &          "NO_USER_AEROSOLS_PHAZE_FCT") GOTO 2330
 
-	     ! Controle que la longueur d'onde de référence pour les aérosols et
-	     ! identique à celle de simulation du champs de luminance 
+	     ! Check that the reference wavelength for the aerosols is
+	     ! the same as the simulation wavelength of the radiance field
 	     IF (WA_SIMU.NE.WAREF_AOT) GOTO 2331
 
-	  ENDIF !Fin cas IMOD_AER = 4 (fonctions phases externes)
+	  ENDIF !End of case IMOD_AER = 4 (external phase functions)
 
 	  
 C         ---------------------------------------------------------------
-C         Cas d'un mélange de modèles d'aérosols défini par l'utilisateur: IMOD_AER = 5  
+C         Case of a mixture of aerosol models defined by the user: IMOD_AER = 5
 C         ---------------------------------------------------------------	 
  	  
-	  IF (IMOD_AER.EQ.5) THEN 	!Cas mélange de modèles par l'utilisateur	
+	  IF (IMOD_AER.EQ.5) THEN 	!Case of a mixture of models by the user
 	  
-	     ! Controle de la récupération du nom du fichier de définition du mélange
+	     ! Check of the retrieval of the name of the mixture definition file
 	     IF (FICMIXTURE_AER.EQ."NO_USER_AEROSOLS_MIXTURE") GOTO 2340
   
-	  ENDIF !Fin cas IMOD_AER = 5 (Mélange utilisateur)  
+	  ENDIF !End of case IMOD_AER = 5 (user mixture)
 
 	  	  	  	  	             
-      ENDIF ! FIN cas test sur AOT > 0 et pas de fichier aérosols utilisateur
+      ENDIF ! END of case test on AOT > 0 and no user aerosol file
 
 
 
        
-C     Cas AOT_REF > 0 et DEF_FICUSER_AER = 1 
-C     => Utilisation du fichier utilisateur :
-C     Cas d'erreur : le fichier résultats ne doit pas être défini
-C                    les longueurs d'onde de simu et de référence doivent être identiques
+C     Case AOT_REF > 0 and DEF_FICUSER_AER = 1
+C     => Use of the user file:
+C     Error case: the result file must not be defined
+C                    the simulation and reference wavelengths must be the same
 
       IF (( AOT_REF.GT.0.D+00)
      &      .AND.(FICUSER_AER.NE."NO_USER_AEROSOLS" )) THEN
           
-	  ! Controle que la longueur d'onde de référence pour les aérosols est
-	  ! identique à celle de simulation du champs de luminance 
+	  ! Check that the reference wavelength for the aerosols is
+	  ! the same as the simulation wavelength of the radiance field
          IF (WA_SIMU.NE.WAREF_AOT) GOTO 2350
 
-	  ! Controle de la non définition par l'utilisateur du fichier résultat des calculs d'IOP
+	  ! Check that the result file of the IOP computations is not defined by the user
 	   IF (FICGRANU.NE.CTE_DEFAULT_FICGRANU) GOTO 2351
 	  
       ENDIF
       
-C ---- Affichage des paramètres utilisés dans le fichier de trace
+C ---- Display of the parameters used in the trace file
 
       IF (TRACE) THEN
 
@@ -1892,41 +1914,41 @@ C ---- Affichage des paramètres utilisés dans le fichier de trace
 	  
          WRITE (IDLOG,*,ERR=1303) "***** Mandatory Parameters "
 	  
-C        AOT de référence
+C        Reference AOT
          WRITE (IDLOG,*,ERR=1303) 
      &         "AOT for the reference wavelength:",AOT_REF
 
-C	  Cas AOT > 0
+C	  Case AOT > 0
          IF (( AOT_REF.GT.0.D+00)
      &         .AND.(FICUSER_AER.EQ."NO_USER_AEROSOLS")) THEN
 
-C           Longueur d'onde de référence	
+C           Reference wavelength
             WRITE (IDLOG,*,ERR=1303) 
      &            "Reference Wavelength (microns): ",WAREF_AOT
       
-C           Type de model d'aérosols
+C           Type of aerosol model
             WRITE (IDLOG,*,ERR=1303) "Aerosol Model Type: ",IMOD_AER
 
 
-C	     Cas modèle mono-mode	
+C	     Case of a mono-modal model
             IF (IMOD_AER.EQ.0) THEN
 
                 WRITE (IDLOG,*,ERR=1303)
      &               "Mono-modal aerosol Model"
 		   
-C         	  Partie réelle de l'indice de réfraction à WA_SIMU
+C         	  Real part of the refractive index at WA_SIMU
                 WRITE (IDLOG,*,ERR=1303)
      &               "Real part of the refractive index: ",RN_WA
      
-C         	  Partie imaginaire de l'indice de réfraction à WA_SIMU
+C         	  Imaginary part of the refractive index at WA_SIMU
                 WRITE (IDLOG,*,ERR=1303)
      &               "Imaginary part of the refractive index: ",IN_WA
      
-C		  Type de granulométrie
+C		  Size distribution type
                 WRITE (IDLOG,*,ERR=1303)
      &               "Particle size distribution model: ",IGRANU
 
-C		  Paramètres de granulométrie
+C		  Size distribution parameters
                 IF (IGRANU.EQ.1) THEN
                    WRITE (IDLOG,*,ERR=1303) "LND parameters: "
                    WRITE (IDLOG,*,ERR=1303) 
@@ -1945,85 +1967,85 @@ C		  Paramètres de granulométrie
 
 	     	  IF (WA_SIMU.NE.WAREF_AOT) THEN
 	     
-C                  Partie réelle de l'indice de réfraction à WA_REF
+C                  Real part of the refractive index at WA_REF
                    WRITE (IDLOG,*,ERR=1303)
      &                    "Real part of the refractive index",
      &                    " (ref wvl): ",RN_WAREF
      
-C         	     Partie imaginaire de l'indice de réfraction à WA_SIMU
+C         	     Imaginary part of the refractive index at WA_SIMU
                    WRITE (IDLOG,*,ERR=1303)
      &                    "Imaginary part of the refractive index ",
      &                    "(ref wvl): ",IN_WAREF
                 ENDIF
                   
-            ENDIF ! Fin IMOD_AER.EQ.0
+            ENDIF ! End IMOD_AER.EQ.0
 		
 		
-C	     Cas modèle WMO		
+C	     Case of a WMO model
             IF (IMOD_AER.EQ.1) THEN
 
 	  	  WRITE (IDLOG,*,ERR=1303) "WMO aerosol Model"
 		
-C         	  Modèle WMO
+C         	  WMO model
                 WRITE (IDLOG,*,ERR=1303)
      &                 "WMO Model type: ",IModele_WMO
                   
 	     	  IF (IModele_WMO.EQ.4) THEN
 	     
-C         	     Pourcentage volumique des particules DL du modèle WMO
+C         	     Volume percentage of the DL particles of the WMO model
                    WRITE (IDLOG,*,ERR=1303)
      &                    "DL particules ratio",C_WMO_DL
      
-C         	     Pourcentage volumique des particules WS du modèle WMO
+C         	     Volume percentage of the WS particles of the WMO model
                    WRITE (IDLOG,*,ERR=1303)
      &                    "WS particules ratio",C_WMO_WS
 
-C         	     Pourcentage volumique des particules SO du modèle WMO
+C         	     Volume percentage of the SO particles of the WMO model
                    WRITE (IDLOG,*,ERR=1303)
      &                    "SO particules ratio",C_WMO_SO
 
-C         	     Pourcentage volumique des particules OC du modèle WMO
+C         	     Volume percentage of the OC particles of the WMO model
                    WRITE (IDLOG,*,ERR=1303)
      &                    "OC particules ratio",C_WMO_OC
 
 		  ENDIF
      
-            ENDIF            ! Fin IMOD_AER.EQ.1
+            ENDIF            ! End IMOD_AER.EQ.1
 
-C	     Cas modèle SF		
+C	     Case of an SF model
             IF (IMOD_AER.EQ.2) THEN
 
 	  	  WRITE (IDLOG,*,ERR=1303) "S&F aerosol Model"
 					
-C               Modèle S&F
+C               S&F model
                 WRITE (IDLOG,*,ERR=1303)
      &                 "S&F Model type: ",IModele_SF
           
-C         	  Humidite relative
+C         	  Relative humidity
                 WRITE (IDLOG,*,ERR=1303)
      &                 "Relative Humidity: ",RH
 
-            ENDIF  ! Fin IMOD_AER.EQ.2
+            ENDIF  ! End IMOD_AER.EQ.2
 		
 
-C	     Cas model bi-modal
+C	     Case of a bimodal model
 
             IF (IMOD_AER.EQ.3) THEN
 
 	  	  WRITE (IDLOG,*,ERR=1303)"Bi-modal aerosol Model"
 		
-C         	  Mode de calcul bimodal
+C         	  Bimodal computation mode
                 WRITE (IDLOG,*,ERR=1303)
      &                 "Calculation mode: ",MODE_PARAM_BILND
           
 		  IF (MODE_PARAM_BILND.EQ.1) THEN        
 
-C	            concentration volumique LND coarse
+C	            volume concentration of the LND coarse
 	  	     WRITE (IDLOG,*,ERR=1303)
      &                 "User's volumic concentration of LND coarse: ",
      &                    USER_CV_COARSE
 
-C		     concentration volumique LND fine
+C		     volume concentration of the LND fine
 	  	     WRITE (IDLOG,*,ERR=1303)
      &                    "User's volumic concentration of LND fine: ",
      &                    USER_CV_FINE
@@ -2032,84 +2054,84 @@ C		     concentration volumique LND fine
 
 		  IF (MODE_PARAM_BILND.EQ.2) THEN        
 
-C		     Rapport AOT coarse / AOT totale
+C		     Ratio AOT coarse / AOT total
 	  	     WRITE (IDLOG,*,ERR=1303)
      &                    "User's ratio (coarse AOT / total AOT) : ",
      &                    RTAUct_WAREF
  			  
             	  ENDIF
 
-C         	  Partie réelle de l'indice de réfraction du mode Coarse
+C         	  Real part of the refractive index of the Coarse mode
                 WRITE (IDLOG,*,ERR=1303)
      &                 "Real part of the refractive index ",
      &                 "of Coarse model: ",BMD_CM_MRWA
      
-C         	  Partie imaginaire de l'indice de réfraction du mode Coarse
+C         	  Imaginary part of the refractive index of the Coarse mode
                 WRITE (IDLOG,*,ERR=1303)
      &                 "Imaginary part of the refractive index ",
      &                 "of Coarse model: ",BMD_CM_MIWA
 
-C         	  Rayon modal du mode Coarse
+C         	  Modal radius of the Coarse mode
                 WRITE (IDLOG,*,ERR=1303)
      &          "Coarse modal radius of Coarse model: ",BMD_CM_RMODAL
      
-C         	  Variance de LND pour le mode Coarse
+C         	  LND variance for the Coarse mode
                 WRITE (IDLOG,*,ERR=1303)
      &          "variance LND of the Coarse Mode ",BMD_CM_VAR
 
-C         	  Partie réelle de l'indice de réfraction du mode Fine
+C         	  Real part of the refractive index of the Fine mode
                  WRITE (IDLOG,*,ERR=1303)
      &                 "Real part of the refractive index",
      &                 " of Fine model: ",BMD_FM_MRWA
      
-C         	  Partie imaginaire de l'indice de réfraction du mode Fine
+C         	  Imaginary part of the refractive index of the Fine mode
                 WRITE (IDLOG,*,ERR=1303)
      &                 "Imaginary part of the refractive index ",
      &                 "of Fine model: ",BMD_FM_MIWA
 
-C         	  Rayon modal du mode Fine
+C         	  Modal radius of the Fine mode
                 WRITE (IDLOG,*,ERR=1303)
      &          "Coarse modal radius of Fine model: ",BMD_FM_RMODAL
      
-C         	  Variance de LND pour le mode Fine
+C         	  LND variance for the Fine mode
                 WRITE (IDLOG,*,ERR=1303)
      &          "variance LND of the Fine Mode ",BMD_FM_VAR
      
                 IF (WA_SIMU.NE.WAREF_AOT) THEN
 
-C                  Partie réelle de l'indice de réfraction du mode Coarse
+C                  Real part of the refractive index of the Coarse mode
                    WRITE (IDLOG,*,ERR=1303)
      &		     "Real part of the refractive index",
      &		     "of Coarse model (ref wvl): ",BMD_CM_MRWAREF
      
-C         	     Partie imaginaire de l'indice de réfraction du mode Coarse
+C         	     Imaginary part of the refractive index of the Coarse mode
                    WRITE (IDLOG,*,ERR=1303)
      &		     "Imaginary part of the refractive index ",
      &		     "of Coarse model (ref wvl): ",BMD_CM_MIWAREF
 
 
-C         	     Partie réelle de l'indice de réfraction du mode Fine
+C         	     Real part of the refractive index of the Fine mode
                    WRITE (IDLOG,*,ERR=1303)
      &		     "Real part of the refractive index",
      &		     "of Fine model (ref wvl): ",BMD_FM_MRWAREF
      
-C         	     Partie imaginaire de l'indice de réfraction du mode Fine
+C         	     Imaginary part of the refractive index of the Fine mode
                    WRITE (IDLOG,*,ERR=1303)
      &		     "Imaginary part of the refractive index ",
      &		     "of Fine model (ref wvl): ",BMD_FM_MIWAREF
 
 		  ENDIF
 			
-	     ENDIF  ! Fin IMOD_AER.EQ.3
+	     ENDIF  ! End IMOD_AER.EQ.3
 	 
 
-C	     Cas données utilisateur		
+C	     Case of user data
 	     IF (IMOD_AER.EQ.4) THEN
 
 	  	  WRITE (IDLOG,*,ERR=1303)
      &		  "User gives aerosol radiave properties"
 					
-C         	  Fichier utilisateur
+C         	  User file
                 WRITE (IDLOG,*,ERR=1303)
      &		  "User's filename: ",FICEXTDATA_AER
      
@@ -2117,23 +2139,23 @@ C         	  Fichier utilisateur
 
 
 
-C	     Cas modèle de mélange défini par l'utilisateur	
+C	     Case of a mixture model defined by the user
 	     IF (IMOD_AER.EQ.5) THEN
 
 	  	  WRITE (IDLOG,*,ERR=1303)
      &		  "User defines the mixture of aerosol models"
 					
-C         	  Fichier utilisateur
+C         	  User file
                 WRITE (IDLOG,*,ERR=1303)
      &		  "User's filename : ",FICMIXTURE_AER
      
 	     ENDIF   
 
 		
-	  ENDIF ! fin test AOT > 0 et DEF_FICUSER_AER = 0
+	  ENDIF ! end of test AOT > 0 and DEF_FICUSER_AER = 0
 	 
 
-C	  Cas d'un fichier aérosol fourni par l'utilisateur
+C	  Case of an aerosol file provided by the user
 	  IF (( AOT_REF.GT.0.D+00)
      &       .AND.(FICUSER_AER.NE.'NO_USER_AEROSOLS')) THEN
 
@@ -2144,7 +2166,7 @@ C	  Cas d'un fichier aérosol fourni par l'utilisateur
 	  
 	  ELSE	  
 
-C         Fichier de résultats 	
+C         Result file
 
 	     WRITE (IDLOG,*,ERR=1303) " "	  
             WRITE (IDLOG,*,ERR=1303) "***** Optional Parameters "
@@ -2157,47 +2179,47 @@ C         Fichier de résultats
      &       	  "result file (default value):", FICGRANU  
 	     ENDIF		  	 
  
-   	  ENDIF  ! fin test utilisation fichier utilisateur
+   	  ENDIF  ! end of test on the use of a user file
 
 	  WRITE (IDLOG,*,ERR=1303) " "	  
 	  WRITE (IDLOG,*,ERR=1303) "***** Optional Parameters "	  
 	  WRITE (IDLOG,*,ERR=1303) "Phase function troncature option:",
      &       	    ITRONC_AER
-      ENDIF  ! fin écriture trace
+      ENDIF  ! end of trace writing
           
 
       
 C ------------------------------------------------------------------        
-C --- Controle du passage des arguments pour les calculs de surface
+C --- Check of the arguments for the surface computations
 C ------------------------------------------------------------------  
 C  
-C ---- Test d'existence et de validité des paramètres obligatoires
+C ---- Existence and validity test of the mandatory parameters
 
-C     Argument RHO (albédo de surface) obligatoire, controle de sa valeur         
+C     Argument RHO (surface albedo) mandatory, check of its value
       IF (RHO.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2401        
       IF (RHO.LT.0.D-00) GOTO 2402
  
-C     Argument ISURF (type de surface) obligatoire, controle de sa valeur  
+C     Argument ISURF (surface type) mandatory, check of its value
       IF (ISURF.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2403
      
-C     Argument ISURF obligatoire, controle de sa valeur
+C     Argument ISURF mandatory, check of its value
       IF((ISURF.NE.0).AND.(ISURF.NE.1).AND.(ISURF.NE.2)
      &     .AND.(ISURF.NE.3).AND.(ISURF.NE.4).AND.(ISURF.NE.5)
      &     .AND.(ISURF.NE.6).AND.(ISURF.NE.7)) GOTO 2404
             
-C     Argument SURF_IND requis si ISURF = 1, 2, 4, 5, 6 ou 7      
+C     Argument SURF_IND required if ISURF = 1, 2, 4, 5, 6 or 7
       IF ( (SURF_IND.EQ.CTE_NOT_DEFINED_VALUE_DBLE)
      &     .AND.((ISURF.EQ.1).OR.(ISURF.EQ.2)
      &     .OR.(ISURF.EQ.4).OR.(ISURF.EQ.5).OR.(ISURF.EQ.6)
      &     .OR.(ISURF.EQ.7)) ) GOTO 2405  
 
-C     Cas du GLITTER => Argument WIND obligatoire              
+C     GLITTER case => Argument WIND mandatory
       IF (ISURF.EQ.1) THEN
          IF (WIND.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2406
          IF (WIND.LT.0.D-00) GOTO 24061
       ENDIF	            
       
-C     Cas du modèle BRDF de Roujean => paramètres K0, K1 et K2 obligatoires
+C     Case of the Roujean BRDF model => parameters K0, K1 and K2 mandatory
       IF (ISURF.GE.3) THEN
          IF ( (K0_ROUJEAN.EQ.CTE_NOT_DEFINED_VALUE_DBLE)
      &        .OR.(K1_ROUJEAN.EQ.CTE_NOT_DEFINED_VALUE_DBLE)
@@ -2206,10 +2228,10 @@ C     Cas du modèle BRDF de Roujean => paramètres K0, K1 et K2 obligatoires
          ENDIF 	 
       ENDIF	                     
 
-C     Cas BPDF de NADAL => paramètres ALPHA_NADAL et BETA_NADAL doivent être définis    
+C     Case of the NADAL BPDF => parameters ALPHA_NADAL and BETA_NADAL must be defined
       IF (ISURF.EQ.6) THEN
 
-         !Suppression de la possibilité d'utiliser le modèle Nadal (non applicable au formalisme SOS)
+         !Removal of the possibility to use the Nadal model (not applicable to the SOS formalism)
          IF (TRACE) THEN
             WRITE (IDLOG,*,ERR=1303) " "
             WRITE (IDLOG,*,ERR=1303) "WARNING:"
@@ -2227,20 +2249,20 @@ C     Cas BPDF de NADAL => paramètres ALPHA_NADAL et BETA_NADAL doivent être d
          IF ((ALPHA_NADAL.EQ.CTE_NOT_DEFINED_VALUE_DBLE)
      &   .OR.(BETA_NADAL.EQ.CTE_NOT_DEFINED_VALUE_DBLE)) GOTO 2408
 
-C        Validité des coefficients ALPHA_NADAL et BETA_NADAL		
+C        Validity of the coefficients ALPHA_NADAL and BETA_NADAL
          IF((ALPHA_NADAL.LT.0.).OR.(ALPHA_NADAL.GE.10.)) GOTO 2409
 	  IF((BETA_NADAL.LT.0.).OR.(BETA_NADAL.GE.100.)) GOTO 2410
 	 
       ENDIF 
 
 
-C     Cas du modèle de BPDF de Maignan => Argument COEF_C_MAIGNAN obligatoire              
+C     Case of the Maignan BPDF model => Argument COEF_C_MAIGNAN mandatory
       IF (ISURF.EQ.7) THEN
          IF (COEF_C_MAIGNAN.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2411        
       ENDIF
 
 
-C ---- Affichage des paramètres utilisés dans le fichier de trace
+C ---- Display of the parameters used in the trace file
 
       IF (TRACE) THEN
 
@@ -2249,18 +2271,18 @@ C ---- Affichage des paramètres utilisés dans le fichier de trace
      &       "Surface parameters ***************"
          WRITE (IDLOG,*,ERR=1303) " "
 
-C        Albédo de surface
+C        Surface albedo
 	  WRITE (IDLOG,*,ERR=1303) "Surface Albedo: ",RHO
 
-C        Modèle de surface
+C        Surface model
 	  WRITE (IDLOG,*,ERR=1303) "Surface Type: ",ISURF
 	  
-C	  Indice de réfraction
+C	  Refractive index
          IF (SURF_IND.NE.CTE_NOT_DEFINED_VALUE_DBLE) THEN
 	      WRITE (IDLOG,*,ERR=1303) "Refractive Index ",SURF_IND
 	  ENDIF
 	  
-C	  Cas GLITTER
+C	  GLITTER case
       	  IF (ISURF.EQ.1) THEN
 	      WRITE (IDLOG,*,ERR=1303) "GLITTER case"
 	      WRITE (IDLOG,*,ERR=1303) "Wind: ",WIND
@@ -2271,7 +2293,7 @@ C	  Cas GLITTER
      &       "Fresnel's reflexion on flat water"
       	  ENDIF
   
-C	  Cas BRDF de Roujean
+C	  Case of the Roujean BRDF
       	  IF (ISURF.GE.3) THEN
 	      WRITE (IDLOG,*,ERR=1303) "Roujean BRDF parameters"
 	      WRITE (IDLOG,*,ERR=1303) "K0: ",K0_ROUJEAN           
@@ -2287,7 +2309,7 @@ C	  Cas BRDF de Roujean
 	      WRITE (IDLOG,*,ERR=1303) "Breon's BPDF model"
       	  ENDIF
 
-C     	  Cas BPDF de NADAL => paramètres ALPHA_NADAL et BETA_NADAL    
+C     	  Case of the NADAL BPDF => parameters ALPHA_NADAL and BETA_NADAL
       	  IF (ISURF.EQ.6) THEN
 	      WRITE (IDLOG,*,ERR=1303) "Nadal's BPDF model"
              WRITE (IDLOG,*,ERR=1303) "Parameters:"		
@@ -2300,19 +2322,19 @@ C     	  Cas BPDF de NADAL => paramètres ALPHA_NADAL et BETA_NADAL
              WRITE (IDLOG,*,ERR=1303) "  C coef: ",COEF_C_MAIGNAN 
       	  ENDIF
 	  
-      ENDIF  ! Fin de trace
+      ENDIF  ! End of trace
 
 C ------------------------------------------------------------------        
-C --- Controle du passage des arguments pour les calculs du profil
+C --- Check of the arguments for the profile computations
 C ------------------------------------------------------------------  
 C  
-C ---- Test d'existence et de validité des paramètres obligatoires
+C ---- Existence and validity test of the mandatory parameters
 
-C     Epaisseur optique Rayleigh      
+C     Rayleigh optical thickness
       IF ((TR.NE.CTE_NOT_DEFINED_VALUE_DBLE)
      &     .AND.(TR.LT.0.D-00)) GOTO 2502
       
-C     Echelle de Hauteur Rayleigh    
+C     Rayleigh scale height
 
       IF ((TR.NE.CTE_NOT_DEFINED_VALUE_DBLE)
      &     .AND.(TR.GT.0.)) THEN
@@ -2320,40 +2342,40 @@ C     Echelle de Hauteur Rayleigh
          IF (HR.LE.0.D-00) GOTO 2504
       ENDIF
    
-C     Type de profil pour diffusion aérosols     
+C     Type of profile for the aerosol scattering
       IF (IPROFIL.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2505   
       IF ((IPROFIL.LT.1).OR.(IPROFIL.GT.CTE_NB_PROFIL)) GOTO 2506
 
-C     Echelle de Hauteur aérosols si IPROFIL=1
+C     Aerosol scale height if IPROFIL=1
       IF (IPROFIL.EQ.1) THEN
          IF ((HA.EQ.CTE_NOT_DEFINED_VALUE_DBLE)
      &        .AND.(AOT_REF.GT.0.)) GOTO 2507
          IF ((HA.LE.0.D-00).AND.(AOT_REF.GE.0.))GOTO 2508	  
       ENDIF
        
-C     Altitudes min et max du profil si IPROFIL=2      
+C     Min and max altitudes of the profile if IPROFIL=2
       IF (IPROFIL.EQ.2) THEN
          IF ((ZMIN.EQ.CTE_NOT_DEFINED_VALUE_DBLE)
      &      .OR.(ZMAX.EQ.CTE_NOT_DEFINED_VALUE_DBLE)) GOTO 2509
       ENDIF
 
-C     Type de profil d'absorption gazeuse     
+C     Type of gaseous absorption profile
             
       IF (ABSPROFIL.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2510      
       IF ((ABSPROFIL.LT.0).OR.(ABSPROFIL.GT.7)) GOTO 2511
 
-C     Fichier utilisateur du profil d'absorption si ABSPROFIL = 0
+C     User file of the absorption profile if ABSPROFIL = 0
 	  
       IF (ABSPROFIL.EQ.0) THEN
       	  IF (FICABSPROFIL.EQ."NO_USER_ABS_PROFILE_FILE") GOTO 2512
       ENDIF
      
-C     Pas d'absorption gazeuse si IPROFIL=2
+C     No gaseous absorption if IPROFIL=2
       IF ((IPROFIL.EQ.2).AND.(ABSPROFIL.NE.7)) GOTO 2513
       
-C     Résolution spectrale à préciser si ABSPROFIL != 7
-C     Mode de calcul des luminances à préciser si ABSPROFIL != 7	
-      IF (ABSPROFIL.NE.7) THEN  ! Cas avec absorption gazeuse
+C     Spectral resolution to be given if ABSPROFIL != 7
+C     Radiance computation mode to be given if ABSPROFIL != 7
+      IF (ABSPROFIL.NE.7) THEN  ! Case with gaseous absorption
 
       	  IF (NUSTEP.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2514
 		
@@ -2363,12 +2385,12 @@ C     Mode de calcul des luminances à préciser si ABSPROFIL != 7
          IF (IMODE_CKD_CALCUL.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2515
                 
       ELSE
-          IMODE_CKD_CALCUL = 2	!Mode par défaut pour cas sans absorption gazeuse  
+          IMODE_CKD_CALCUL = 2	!Default mode for the case without gaseous absorption
       ENDIF
 
 
       
-C ---- Affichage des paramètres utilisés dans le fichier de trace
+C ---- Display of the parameters used in the trace file
       
       IF (TRACE) THEN
 
@@ -2377,7 +2399,7 @@ C ---- Affichage des paramètres utilisés dans le fichier de trace
      &       "Profil parameters ***************"
          WRITE (IDLOG,*,ERR=1303) " "
 
-C        Epaisseur optique Rayleigh
+C        Rayleigh optical thickness
 	  WRITE (IDLOG,*,ERR=1303) "Molecular Optical Thickness: ",TR
 
          IF (TR.EQ.CTE_NOT_DEFINED_VALUE_DBLE) THEN
@@ -2393,73 +2415,73 @@ C        Epaisseur optique Rayleigh
   	  ENDIF
 
 
-C        Echelle de Hauteur Rayleigh     
+C        Rayleigh scale height
 	  IF (HR.NE.CTE_NOT_DEFINED_VALUE_DBLE) THEN
 	      WRITE (IDLOG,*,ERR=1303) "Molecular Height scale ",HR
 	  ENDIF
 	  
-C	  Type de profil
+C	  Profile type
       	  WRITE (IDLOG,*,ERR=1303) "Aerosol profile type: ",IPROFIL           
   
-C        Echelle de Hauteur aérosol     
+C        Aerosol scale height
 	  IF (HR.NE.CTE_NOT_DEFINED_VALUE_DBLE) THEN
 	      WRITE (IDLOG,*,ERR=1303) "Aerosol Height Scale ",HA
 	  ENDIF                   
 
-C        Altitudes min et max du profil si IPROFIL=2        
+C        Min and max altitudes of the profile if IPROFIL=2
       	  IF (IPROFIL.EQ.2) THEN
 	      WRITE (IDLOG,*,ERR=1303) "Profil min altitude ",ZMIN
 	      WRITE (IDLOG,*,ERR=1303) "Profil max altitude ",ZMAX
       	  ENDIF	  
 
-C     	  Type de profil d'absorption gazeuse            
+C     	  Type of gaseous absorption profile
       	  WRITE (IDLOG,*,ERR=1303) "Absorption Profil type ",ABSPROFIL
           
-C        Fichier utilisateur du profil d'absorption si ABSPROFIL = 0	  
+C        User file of the absorption profile if ABSPROFIL = 0
           IF (ABSPROFIL.EQ.0) THEN
       	      WRITE (IDLOG,*,ERR=1303) "Absorption user Profile file ",
      &	      FICABSPROFIL
           ENDIF
 	  
-      ENDIF  ! Fin de trace
+      ENDIF  ! End of trace
      
    	
 C -------------------------------------------------------------------  
-C --- Controle des paramètres propres aux calculs d'Ordres Successifs 
-C     et à la production des fichiers résultats
+C --- Check of the parameters specific to the Successive Orders computations
+C     and to the production of the result files
 C -------------------------------------------------------------------  
 C  
-C ---- Test d'existence et de validité des paramètres obligatoires
+C ---- Existence and validity test of the mandatory parameters
 
-C     Controle ordre maximal d'interaction       
+C     Check of the maximum order of interaction
       IF (IGMAX.LT.1) GOTO 2604
 
-C     Option de visée : obligatoire  
+C     Viewing option: mandatory
       IF (ITRPHI.EQ.CTE_NOT_DEFINED_VALUE_INT ) GOTO 2605
 
-C     Option de visée : obligatoire
+C     Viewing option: mandatory
       IF ((ITRPHI.LT.1).OR.(ITRPHI.GT.2)) GOTO 2606
 
-      !Si choix ITRPHI=1 : il faut définir l'azimut relatif	 
+      !If ITRPHI=1 is chosen: the relative azimuth must be defined
       IF (ITRPHI.EQ.1) THEN 
          IF (PHIOS.EQ.CTE_NOT_DEFINED_VALUE_DBLE) GOTO 2607
       ENDIF
           	
-      !Si choix ITRPHI=2 : il faut définir le pas en azimut	 
+      !If ITRPHI=2 is chosen: the azimuth step must be defined
       IF (ITRPHI.EQ.2) THEN 
          IF (PAS_PHI.EQ.CTE_NOT_DEFINED_VALUE_INT) GOTO 2608
          IF (PAS_PHI.LE.0) GOTO 2609
       ENDIF
       
       
-C ---- Test d'existence et de validité des paramètres optionnels
+C ---- Existence and validity test of the optional parameters
 
-C     Option de coupure de la polarisation   
+C     Option to cut the polarisation
       IF ((IPOLAR.LT.0).OR.(IPOLAR.GT.1)) GOTO 2610    
      
-C     Niveau de sortie des simulations de luminance : optionnel  
-C     Si non défini : la sortie est standard : 
-C        Champ émergeant au TOA, champ descendant au SOL : ZOUT = -1     
+C     Output level of the radiance simulations: optional
+C     If not defined: standard output:
+C        Field emerging at TOA, downward field at GROUND: ZOUT = -1
       IF (((ZOUT.LT.0.D+00).AND.(ZOUT.NE.-1.D+00))
      &     .OR.(ZOUT.GT.CTE_TOA_ALT)) THEN
          GOTO 2611
@@ -2474,23 +2496,23 @@ C        Champ émergeant au TOA, champ descendant au SOL : ZOUT = -1
 
 	  WRITE (IDLOG,*,ERR=1303) "***** Mandatory Parameters "
 	  
-C        Facteur de dépolarisation moléculaire
+C        Molecular depolarisation factor
 	  WRITE (IDLOG,*,ERR=1303) "Molecular depolarization factor: ",
      &	  RON
 
-C        Ordre maximal d'interaction :     
+C        Maximum order of interaction:
 	  WRITE (IDLOG,*,ERR=1303) "Maximum Number of interactions: ",
      &	  IGMAX
 
-C	  Option de visée
+C	  Viewing option
 	  WRITE (IDLOG,*,ERR=1303) "Viewing mode: ",ITRPHI
 
-C	  Cas ITRPHI=1 => Affichage azimut relatif		
+C	  Case ITRPHI=1 => Display of the relative azimuth
 	  IF (ITRPHI.EQ.1) THEN
 	  	WRITE (IDLOG,*,ERR=1303) "Relative azimut: ",PHIOS
 	  ENDIF	  
 
-C	  Cas ITRPHI=2 => Affichage du pas d'échantillonnage en phi	  	
+C	  Case ITRPHI=2 => Display of the sampling step in phi
 	  IF (ITRPHI.EQ.2) THEN
 	      WRITE (IDLOG,*,ERR=1303) "Azimut sampling step: ",PAS_PHI
 	  ENDIF		  
@@ -2498,7 +2520,7 @@ C	  Cas ITRPHI=2 => Affichage du pas d'échantillonnage en phi
 	  WRITE (IDLOG,*,ERR=1303) " "
 	  WRITE (IDLOG,*,ERR=1303) "***** Optional Parameters "	  
 
-C        Option de coupure de la polarisation : optionnelle
+C        Option to cut the polarisation: optional
 	  IF (IPOLAR.EQ.0) THEN
 	     WRITE (IDLOG,*,ERR=1303) 
      &	     "Simulation without polarization"
@@ -2507,44 +2529,44 @@ C        Option de coupure de la polarisation : optionnelle
      &	     "Simulation including polarization"
 	  ENDIF	  
 
-C        Niveau de sortie des luminances : optionnelle
+C        Output level of the radiances: optional
          IF (ZOUT.NE.-1.D+00) THEN
 	     WRITE (IDLOG,*,ERR=1303) "Output Altitude (km): ",
      &	     ZOUT
 	  ENDIF	  
 
-      ENDIF  ! Fin trace
+      ENDIF  ! End of trace
 	 
 
 C =========================================================
-C --- Gestion de l'arborescence des fichiers de sortie
+C --- Management of the directory tree of the output files
 C =========================================================     
  
       
-C --- Fichiers de trace
+C --- Trace files
 
-      !Fichier Trace Angles
+      !Angles trace file
       IF (FICANGLOG.NE."NO_LOG_FILE") THEN
           LFIC = INDEX(FICANGLOG,' ') - 1
           IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3001
           FICANGLOG = DIR_LOG(1:LDIRLOG)//'/'//FICANGLOG(1:LFIC)
       ENDIF 
        
-      !Fichier Trace des calculs de Mie des aérosols
+      !Trace file of the aerosol Mie computations
       IF (FICMIE_LOG.NE."NO_LOG_FILE") THEN
           LFIC = INDEX(FICMIE_LOG,' ') - 1
           IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3002
           FICMIE_LOG = DIR_LOG(1:LDIRLOG)//'/'//FICMIE_LOG(1:LFIC)
       ENDIF 
 
-      !Fichier Trace des calculs de phase des aérosols
+      !Trace file of the aerosol phase computations
       IF (FICGRANU_LOG.NE."NO_LOG_FILE") THEN
           LFIC = INDEX(FICGRANU_LOG,' ') - 1
           IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3003
           FICGRANU_LOG = DIR_LOG(1:LDIRLOG)//'/'//FICGRANU_LOG(1:LFIC)
       ENDIF 
        
-      !Fichier Trace des calculs de profils
+      !Trace file of the profile computations
       IF (FICPROFIL_LOG.NE."NO_LOG_FILE") THEN
           LFIC = INDEX(FICPROFIL_LOG,' ') - 1
           IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3004
@@ -2555,14 +2577,14 @@ C --- Fichiers de trace
           TRACEPROF=.FALSE.	  
       ENDIF     
        
-      !Fichier Trace des calculs de matrices de surface
+      !Trace file of the surface matrix computations
       IF (FICSURF_LOG.NE."NO_LOG_FILE") THEN
           LFIC = INDEX(FICSURF_LOG,' ') - 1
           IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3005
           FICSURF_LOG = DIR_LOG(1:LDIRLOG)//'/'//FICSURF_LOG(1:LFIC)
       ENDIF     
        
-      !Fichier Trace des calculs SOS
+      !Trace file of the SOS computations
       IF (FICSOS_LOG.NE."NO_LOG_FILE") THEN
           LFIC = INDEX(FICSOS_LOG,' ') - 1
           IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3006
@@ -2579,51 +2601,51 @@ C --- Fichiers de trace
      &       "************** Trace filenames ***************"
          WRITE (IDLOG,*,ERR=1303) " "
 	  
-C        Fichier Trace Angles
+C        Angles trace file
          WRITE (IDLOG,*,ERR=1303) "Angle trace filename: ",FICANGLOG
 	
-C        Fichier Trace des calculs de Mie des aérosols
+C        Trace file of the aerosol Mie computations
          WRITE (IDLOG,*,ERR=1303) "Mie trace filename: ",FICMIE_LOG
 	
-C        Fichier Trace des calculs de phase des aérosols
+C        Trace file of the aerosol phase computations
          WRITE (IDLOG,*,ERR=1303) "Aerosol trace filename: ",
      &	  FICGRANU_LOG
 
-C        Fichier Trace des calculs de profils
+C        Trace file of the profile computations
          WRITE (IDLOG,*,ERR=1303) "Profil trace filename: ",
      &	  FICPROFIL_LOG
 	  
-C        Fichier Trace des calculs de matrices de surface
+C        Trace file of the surface matrix computations
          WRITE (IDLOG,*,ERR=1303) "Surface trace filename: ",
      &	  FICSURF_LOG
 
-C        Fichier Trace des calculs SOS
+C        Trace file of the SOS computations
          WRITE (IDLOG,*,ERR=1303) "SOS trace filename: ",FICSOS_LOG
               	  
-      ENDIF	! fin trace      
+      ENDIF	! end of trace
                                      
-C ---- Fichiers de sortie
+C ---- Output files
        
-      !Fichier Angles pour luminances
+      !Angle file for the radiances
       LFIC = INDEX(FICANGLES_RES_LUM,' ') - 1
       IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3007
       FICANGLES_RES_LUM = DIR_SOS(1:LDIRSOS)//'/'
      &                    //FICANGLES_RES_LUM(1:LFIC)
          
-      !Fichier Angles pour calculs de Mie
+      !Angle file for the Mie computations
       LFIC = INDEX(FICANGLES_RES_MIE,' ') - 1
       IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3008
       FICANGLES_RES_MIE = DIR_SOS(1:LDIRSOS)//'/'
      &                    //FICANGLES_RES_MIE(1:LFIC)
 
         
-      !Fichier matrice de phase des aérosols
+      !Aerosol phase matrix file
       LFIC = INDEX(FICGRANU,' ') - 1
       IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3009
       FICGRANU = DIR_SOS(1:LDIRSOS)//'/'//FICGRANU(1:LFIC)
              
                 
-      !Fichier binaire de luminance en séries de Fourier
+      !Binary file of the radiance in Fourier series
       IF (FICSOS_RES_BIN.NE.'NO_OUTPUT') THEN
          LFIC = INDEX(FICSOS_RES_BIN,' ') - 1
          IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3011
@@ -2631,7 +2653,7 @@ C ---- Fichiers de sortie
      &        //FICSOS_RES_BIN(1:LFIC)
       ENDIF
 
-      !Test d'existence du fichier
+      !Test of the file existence
       LFICOS=INDEX(FICSOS_RES_BIN,' ')-1
       INQUIRE(FILE=FICSOS_RES_BIN(1:LFICOS),EXIST=EX)
       IF (EX.EQV..TRUE.) THEN
@@ -2652,14 +2674,14 @@ c	     WRITE(6,*)'  The file is deleted before new computations'
       ENDIF    
        
         
-      !Fichier de transmissions
+      !Transmission file
       LFIC = INDEX(FICTRANS,' ') - 1
       IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 3012
       IF (FICTRANS.NE.'NO_OUTPUT') THEN
           FICTRANS = DIR_SOS(1:LDIRSOS)//'/'//FICTRANS(1:LFIC)
       ENDIF
  
-      !Fichier de flux
+      !Flux file
       LFIC = INDEX(FICFLUX,' ') - 1
       IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC1)) GOTO 30121
       IF (FICFLUX.NE.'NO_OUTPUT') THEN
@@ -2674,29 +2696,29 @@ c	     WRITE(6,*)'  The file is deleted before new computations'
          WRITE (IDLOG,*,ERR=1303) " "
 	  
 
-C        Fichier Angles pour luminances
+C        Angle file for the radiances
          WRITE (IDLOG,*,ERR=1303) "Radiance Angles: ",FICANGLES_RES_LUM
        	
-C        Fichier Angles pour calculs de Mie
+C        Angle file for the Mie computations
          WRITE (IDLOG,*,ERR=1303) "Mie Angles: ",FICANGLES_RES_MIE
 	
-C        Fichier matrice de phase des aérosols
+C        Aerosol phase matrix file
          WRITE (IDLOG,*,ERR=1303) "Aerosol phase matrix: ",
      &	  FICGRANU         
 	  
-C        Fichier binaire de luminance en séries de Fourier
+C        Binary file of the radiance in Fourier series
          WRITE (IDLOG,*,ERR=1303) "SOS binary output: ",FICSOS_RES_BIN
 
-C        Fichier de transmissions
+C        Transmission file
          WRITE (IDLOG,*,ERR=1303) "Transmittances: ",FICTRANS
 
-C        Fichier de flux
+C        Flux file
          WRITE (IDLOG,*,ERR=1303) "Flux: ",FICFLUX
 	      	        	  
-      ENDIF	! fin trace            
+      ENDIF	! end of trace
 
 C =========================================================
-C --- Préparation des angles pour les traitements
+C --- Preparation of the angles for the processing
 C =========================================================   
 
       WRITE(6,*) "DEFINING ANGLES FOR COMPUTATIONS"
@@ -2740,7 +2762,7 @@ C =========================================================
      &      FICANGLOG,
      &      FICANGLES_RES_LUM, FICANGLES_RES_MIE, IER)
      
-      IF (IER.NE.0) THEN ! cas d'erreur
+      IF (IER.NE.0) THEN ! error case
       		
          IF (TRACE) THEN
 	    WRITE (IDLOG,*,ERR=1303) 
@@ -2751,7 +2773,7 @@ C =========================================================
       ENDIF
      
 C =========================================================
-C --- Préparation de la matrice de phase des aérosols
+C --- Preparation of the aerosol phase matrix
 C =========================================================    
       
 
@@ -2766,35 +2788,35 @@ C =========================================================
      &	  "AEROSOLS RADIATIVE PROPERTIES COMPUTATION"
 	  WRITE (IDLOG,*,ERR=1303) 
      &	  "-----------------------------------------"	  
-      ENDIF !Fin Trace 	     
+      ENDIF !End of Trace
 
 
-C --- Si l'épaisseur optique est nulle ou si la longueur d'onde de 
-C --- référence est la même que celle de simu, alors on lance la 
-C --- routine SOS_aérosols une seule fois. Sinon, il faut l'exécuter deux 
-C --- fois et déterminer l'épaisseur optique à la longueur d'onde de simu.
+C --- If the optical thickness is null or if the reference wavelength
+C --- is the same as the simulation one, then the routine
+C --- SOS_AEROSOLS is run only once. Otherwise, it must be run twice
+C --- and the optical thickness at the simulation wavelength must be determined.
 
-C     Pour le premier lancement de la routine, on affecte à TA 
-C     (ep optique de simu) la valeur de AOT_REF
+C     For the first run of the routine, TA
+C     (simulation optical thickness) is set to AOT_REF
       TA = AOT_REF
 
-C     Détermination de la longueur d'onde pour le lancement de la routine
+C     Determination of the wavelength for the run of the routine
       		            
-      IF (AOT_REF.EQ.0.D+00) THEN  ! Cas AOT_REF nulle
+      IF (AOT_REF.EQ.0.D+00) THEN  ! Case AOT_REF null
       
-         ! Dans ce cas, on effectue les calculs directement à la longueur d'onde de simu
+         ! In this case, the computations are made directly at the simulation wavelength
 	  WA = WA_SIMU 	
 	  
-      ELSE ! Cas AOT_REF non nulle
+      ELSE ! Case AOT_REF not null
 
-	  ! Les traitements sont faits à la longueur d'onde de référence  
-         ! Un deuxieme traitement sera ensuite fait à la longueur d'onde
-	  ! de simu si elle est différente de la référence
+	  ! The processing is made at the reference wavelength
+         ! A second processing will then be made at the simulation
+	  ! wavelength if it differs from the reference one
 	  WA = WAREF_AOT 
 			  
       ENDIF
 
-C --- Gestion de la trace (affichage paramètres de calcul
+C --- Management of the trace (display of the computation parameters)
       
       IF (TRACE) THEN
 	 
@@ -2873,22 +2895,22 @@ C --- Gestion de la trace (affichage paramètres de calcul
      	    IF (FICUSER_AER.NE.'NO_USER_AEROSOLS') THEN
                WRITE (IDLOG,*,ERR=1303) "UserFile : ",FICUSER_AER
  	    ENDIF
-	  ENDIF ! fin test fichier utilisateur ou AOT=0
+	  ENDIF ! end of test on user file or AOT=0
     
-      ENDIF !Fin Trace   
+      ENDIF !End of Trace
     
 
-C     Si pas de fichier utilisateur => on lance les traitements
+C     If no user file => the processing is run
  
       IF (( FICUSER_AER.EQ.'NO_USER_AEROSOLS' )
      &     .OR.( AOT_REF.EQ.0.D+00)) THEN
 
-C --- Lancement de la routine aérosols 
+C --- Run of the aerosol routine
 
-         ITRONC_AER_IN = ITRONC_AER !Si ITRONC_AER=1 mais que le code estime
-				 	 !la troncature inutile, seul le paramètre 
-					 !ITRONC_AER_IN basculera de 1 à 0, sans
-					 !impacter la valeur de ITRONC_AER
+         ITRONC_AER_IN = ITRONC_AER !If ITRONC_AER=1 but the code considers
+				 	 !the truncation useless, only the parameter
+					 !ITRONC_AER_IN will switch from 1 to 0, without
+					 !changing the value of ITRONC_AER
 
          CALL SOS_AEROSOLS(FICANGLES_RES_MIE, 
      &        WA, TA, WAREF_AOT, AOT_REF,	  
@@ -2911,9 +2933,9 @@ C --- Lancement de la routine aérosols
      &        FICGRANU, FICGRANU_LOG, KMAT1,
      &        PIZAER, COEF_TRONCA, IER)
            			  
-C --- Gestion cas d'erreur 
+C --- Management of the error case
 				  
-         IF (IER.NE.0) THEN ! cas d'erreur 
+         IF (IER.NE.0) THEN ! error case
 	  			
              IF (TRACE) THEN
 	         WRITE (IDLOG,*,ERR=1303) 
@@ -2926,28 +2948,28 @@ C --- Gestion cas d'erreur
 
       ELSE
 
-C    Avec fichier utilisateur => pas de traitements
+C    With a user file => no processing
 
-         !Fichier matrice de phase des aérosols
+         !Aerosol phase matrix file
          LFIC = INDEX(FICUSER_AER,' ') - 1
          FICGRANU = FICUSER_AER(1:LFIC)
       	  
       ENDIF
       
       
-C --- Cas où WAREF != WA_SIMU   (rem: pas le cas si utilisation d'un fichier utilisateur)
-C --- Lancement de la routine aérosol pour WA_SIMU
+C --- Case WAREF != WA_SIMU   (rem: not the case if a user file is used)
+C --- Run of the aerosol routine for WA_SIMU
 
       IF ((AOT_REF.NE.0.D+00).AND.(WA_SIMU.NE.WAREF_AOT)) THEN
 
-C ---    Sauvegarde du coefficient KMAT calculé précédemment
+C ---    Backup of the coefficient KMAT computed previously
 	  KMAT1_WAREF=KMAT1
 	  
-C ---    Epaisseur optique de simu fixee arbitrairement à 0.1
-C ---    pour permettre les calculs aérosols
+C ---    Simulation optical thickness arbitrarily set to 0.1
+C ---    to allow the aerosol computations
 	  TA=0.1	        
 
-C ---    Gestion de la trace (affichage paramètres de calcul)
+C ---    Management of the trace (display of the computation parameters)
       
          IF (TRACE) THEN
 	 
@@ -3016,14 +3038,14 @@ C ---    Gestion de la trace (affichage paramètres de calcul)
  	    WRITE (IDLOG,862,ERR=1303) FICGRANU_LOG 
 	    WRITE (IDLOG,863,ERR=1303) FICGRANU
 	    
-         ENDIF !Fin Trace       
+         ENDIF !End of Trace
             
-C ---     Lancement de la routine aérosols 
+C ---     Run of the aerosol routine
 
-         ITRONC_AER_IN = ITRONC_AER   !Si ITRONC_AER=1 mais que le code estime
-					   !la troncature inutile, seul le paramètre 
-					   !ITRONC_AER_IN basculera de 1 à 0, sans
-					   !impacter la valeur de ITRONC_AER
+         ITRONC_AER_IN = ITRONC_AER   !If ITRONC_AER=1 but the code considers
+					   !the truncation useless, only the parameter
+					   !ITRONC_AER_IN will switch from 1 to 0, without
+					   !changing the value of ITRONC_AER
 
          CALL SOS_AEROSOLS(FICANGLES_RES_MIE, 
      &        WA_SIMU, TA, WAREF_AOT, AOT_REF,	  
@@ -3046,9 +3068,9 @@ C ---     Lancement de la routine aérosols
      &        FICGRANU, FICGRANU_LOG, KMAT1,
      &        PIZAER, COEF_TRONCA, IER)
 
-C ---    Gestion cas d'erreur 
+C ---    Management of the error case
 				  
-         IF (IER.NE.0) THEN ! cas d'erreur 
+         IF (IER.NE.0) THEN ! error case
 	  			
              IF (TRACE) THEN
 	          WRITE (IDLOG,*,ERR=1303) 
@@ -3059,11 +3081,11 @@ C ---    Gestion cas d'erreur
 	 
          ENDIF 	 
 
-C ---    Calcul de l'épaisseur optique à WA_SIMU
+C ---    Computation of the optical thickness at WA_SIMU
 	  TA = (KMAT1 / KMAT1_WAREF) * AOT_REF
          IF (TA.LT.0.0) GOTO 2516
 
-C ---    Gestion de la trace (paramètres de calcul de AOT à WA_SIMU)
+C ---    Management of the trace (parameters of the computation of the AOT at WA_SIMU)
 
 	  IF (TRACE) THEN
 	      WRITE (IDLOG,*,ERR=1303) " "
@@ -3084,50 +3106,50 @@ C ---    Gestion de la trace (paramètres de calcul de AOT à WA_SIMU)
      &	      "    Sect eff ext (WA)    : ", KMAT1
 	      WRITE (IDLOG,*,ERR=1303) 
      &	      "    ===> AOT estimated at WA : ", TA
- 	  ENDIF !Fin Trace 
+ 	  ENDIF !End of Trace
 
                  			  	    
-      ENDIF ! fin cas WAREF != WA_SIMU 
+      ENDIF ! end of case WAREF != WA_SIMU
       	      				  
 C =========================================================
-C --- Préparation des propriétés de surface
+C --- Preparation of the surface properties
 C =========================================================     
       				
 
-C --- Détermination répertoire de sortie
+C --- Determination of the output directory
       IF (ISURF.EQ.1) THEN
-      	   ! Cas glitter
+      	   ! Glitter case
           SURF_OUTDIR(1:LDIRGLIT)=DIR_GLIT(1:LDIRGLIT)
       ENDIF 
       IF (ISURF.EQ.3) THEN
-      	   ! Cas Roujean
+      	   ! Roujean case
           SURF_OUTDIR(1:LDIRROUJ)=DIR_ROUJ(1:LDIRROUJ)
       ENDIF       
       IF (ISURF.EQ.4) THEN
-      	   ! Cas Rondeaux Herman
+      	   ! Rondeaux Herman case
           SURF_OUTDIR(1:LDIRRH)=DIR_RH(1:LDIRRH)
       ENDIF       
       IF (ISURF.EQ.5) THEN
-      	   ! Cas Breon
+      	   ! Breon case
           SURF_OUTDIR(1:LDIRBREON)=DIR_BREON(1:LDIRBREON)
       ENDIF       
       IF (ISURF.EQ.6) THEN
-      	   ! Cas Nadal
+      	   ! Nadal case
           SURF_OUTDIR(1:LDIRNADAL)=DIR_NADAL(1:LDIRNADAL)
       ENDIF       
       IF (ISURF.EQ.7) THEN
-      	   ! Cas Maignan
+      	   ! Maignan case
           SURF_OUTDIR(1:LDIRMAIGNAN)=DIR_MAIGNAN(1:LDIRMAIGNAN)
       ENDIF             
 
-C --- Gestion de la trace
+C --- Management of the trace
       
       IF (TRACE) THEN
          WRITE (IDLOG,*,ERR=1303) " "
 	  WRITE (IDLOG,*,ERR=1303) "SURFACE CALCULATION"
 	  WRITE (IDLOG,*,ERR=1303) "------------------"
 	  
-	  !Cas lambertien
+	  !Lambertian case
 	  IF (ISURF.EQ.0) THEN	  
 	  
 	     WRITE (IDLOG,*,ERR=1303) "Lambertian case "
@@ -3136,7 +3158,7 @@ C --- Gestion de la trace
      
          ELSE
 	  
-	     !Cas Fesnel
+	     !Fresnel case
 	     IF (ISURF.EQ.2) THEN
 	     
 	        WRITE (IDLOG,*,ERR=1303) "Lambertian case + Fresnel"
@@ -3145,7 +3167,7 @@ C --- Gestion de la trace
      
      	     ELSE  
 
-		! Cas fichier utilisateur
+		! User file case
                 IF (FICSURF.NE."DEFAULT") THEN
 		
                   WRITE (IDLOG,*,ERR=1303) "User Surface File Case"
@@ -3153,7 +3175,7 @@ C --- Gestion de la trace
 	           WRITE (IDLOG,*,ERR=1303) 
      &                  "--> SOS_SURFACE is not launched"
                    
-                ELSE            ! Autres cas, lancement de la routine
+                ELSE            ! Other cases, run of the routine
                    
           	    WRITE (IDLOG,*,ERR=1303) 
      &	  	    "--> SOS_SURFACE is called with the parameters :"
@@ -3173,17 +3195,17 @@ C --- Gestion de la trace
 	  	    WRITE (IDLOG,*,ERR=1303) "SURF_OUTDIR ",SURF_OUTDIR
 	  	    WRITE (IDLOG,*,ERR=1303) "DIR_ROUJ ",DIR_ROUJ
 	     
-	     	  ENDIF          ! Fin cas utilisateur
+	     	  ENDIF          ! End of user case
                  
-            ENDIF             ! Fin test Fresnel
+            ENDIF             ! End of Fresnel test
 	     
-         ENDIF                !  Fin test lambertien 
+         ENDIF                !  End of Lambertian test
 	  
-      ENDIF                   ! Fin trace
+      ENDIF                   ! End of trace
       
-C --- Lancement de l'outil de simulation des propriétés de surface
-C --- Cet outil n'est pas exécuté si ISURF=0 ou 2 
-C --- Ou si un fichier de surface FICSURF est défini par l'utilisateur
+C --- Run of the tool simulating the surface properties
+C --- This tool is not run if ISURF=0 or 2
+C --- Or if a surface file FICSURF is defined by the user
 
       IF ((ISURF.NE.0).AND.(ISURF.NE.2)
      &	    .AND.(FICSURF.EQ."DEFAULT")) THEN
@@ -3212,9 +3234,9 @@ C --- Ou si un fichier de surface FICSURF est défini par l'utilisateur
 
       
       
-C --- Gestion du cas d'erreur
+C --- Management of the error case
       
-      IF (IER.NE.0) THEN ! cas d'erreur
+      IF (IER.NE.0) THEN ! error case
       		
          IF (TRACE) THEN
 	     WRITE (IDLOG,*,ERR=1303) 
@@ -3225,15 +3247,15 @@ C --- Gestion du cas d'erreur
       ENDIF
       
 C =============================================================
-C --- Préparation du profil atmosphérique + calcul luminances
+C --- Preparation of the atmospheric profile + radiance computation
 C =============================================================     
 
       WRITE(6,*) 'PROFILE AND RADIANCE COMPUTATION'   
-C --- Gestion de la trace du main
+C --- Management of the trace of the main program
       
       IF (TRACE) THEN
       
-C	  Pour le profil atmosphérique
+C	  For the atmospheric profile
           
          WRITE (IDLOG,*,ERR=1303) " "
 	  WRITE (IDLOG,*,ERR=1303) "PROFILE CALCULATION"
@@ -3257,7 +3279,7 @@ C	  Pour le profil atmosphérique
 	  WRITE (IDLOG,*,ERR=1303) "FICABSPROFIL ",FICABSPROFIL
 	  WRITE (IDLOG,*,ERR=1303) "FICPROFIL_LOG ",FICPROFIL_LOG
 
-C	  Pour le calcul des luminances
+C	  For the radiance computation
       
          WRITE (IDLOG,*,ERR=1303) " "
 	  WRITE (IDLOG,*,ERR=1303) " "
@@ -3310,9 +3332,9 @@ C	  Pour le calcul des luminances
 	  WRITE (IDLOG,*,ERR=1303) "FICFLUX ",FICFLUX
 	  WRITE (IDLOG,*,ERR=1303) "FICSOS_LOG ",FICSOS_LOG	  
 	     
-      ENDIF   ! Fin trace
+      ENDIF   ! End of trace
 
-C ---- Ouverture des fichiers trace des sous fonctions de profils et d'OS
+C ---- Opening of the trace files of the profile and OS subfunctions
 
       IF (TRACEPROF) THEN
           OPEN (IDLOGPROF,FILE=FICPROFIL_LOG,ERR=3104)
@@ -3322,11 +3344,11 @@ C ---- Ouverture des fichiers trace des sous fonctions de profils et d'OS
           OPEN (IDLOGOS,FILE=FICSOS_LOG,ERR=3106)
       ENDIF
       
-C --- Calcul de l'épaisseur optique moléculaire
+C --- Computation of the molecular optical thickness
 
-C     Si l'épaisseure optique n'est pas définie, on la calcule
-C     en fonction de la pression atmosphérique selon la formule
-C     CNES (Perbos, 1982)
+C     If the optical thickness is not defined, it is computed
+C     from the atmospheric pressure with the
+C     CNES formula (Perbos, 1982)
 
       IF (TR.EQ.CTE_NOT_DEFINED_VALUE_DBLE) THEN
       
@@ -3351,8 +3373,8 @@ C     CNES (Perbos, 1982)
       ENDIF
 
        
-C --- Lancement de la routine de préparation du profil pour l'absorption
-C --- Executée seulement si l'absorption est prise en compte IPROFIL=1 et ABSPROFIL!=7
+C --- Run of the routine preparing the profile for the absorption
+C --- Run only if the absorption is taken into account IPROFIL=1 and ABSPROFIL!=7
       
       IF ((IPROFIL.EQ.1).AND.(ABSPROFIL.NE.7)) THEN
      	 
@@ -3365,9 +3387,9 @@ C --- Executée seulement si l'absorption est prise en compte IPROFIL=1 et ABSPR
      &                   TAB_CONC_H2O,NB_CONC_H2O, IER)
   
  
-C ---    Gestion du cas d'erreur
+C ---    Management of the error case
       
-         IF (IER.NE.0) THEN ! cas d'erreur
+         IF (IER.NE.0) THEN ! error case
       		
             IF (TRACE) THEN
 	        WRITE (IDLOG,*,ERR=1303) 
@@ -3377,7 +3399,7 @@ C ---    Gestion du cas d'erreur
 	  
          ENDIF
  
-C ---    Calcul de la somme des coefficients AIK de pondération des luminances par exponentielle
+C ---    Computation of the sum of the weighting coefficients AIK of the radiances per exponential
          sumAIK=0.D+00
          DO IK1=1,NEXP(1,LAMB1)
          DO IK2=1,NEXP(2,LAMB1)
@@ -3387,7 +3409,7 @@ C ---    Calcul de la somme des coefficients AIK de pondération des luminances 
          DO IK6=1,NEXP(6,LAMB1)
          DO IK7=1,NEXP(7,LAMB1)
          DO IK8=1,NEXP(8,LAMB1)
-           !Calcul du produit des fonctions de répartition (poids affecté aux luminances)
+           !Computation of the product of the distribution functions (weight given to the radiances)
             AIK=KDIS_AI(IK1,1,LAMB1)*KDIS_AI(IK2,2,LAMB1)*
      &          KDIS_AI(IK3,3,LAMB1)*KDIS_AI(IK4,4,LAMB1)*
      &          KDIS_AI(IK5,5,LAMB1)*KDIS_AI(IK6,6,LAMB1)*
@@ -3410,15 +3432,15 @@ C ---    Calcul de la somme des coefficients AIK de pondération des luminances 
             WRITE (IDLOG,*,ERR=1303) " "
 	  ENDIF 
 
-         !Controle de l'amplitude d'écart à 1.
+         !Check of the amplitude of the difference with 1.
          IF (ABS(sumAIK-1.D+00).GE.1.D-06) GOTO 3500
 
      
-      ENDIF ! fin test appel SOS_PREPA_ABSPROFILE
+      ENDIF ! end of test call of SOS_PREPA_ABSPROFILE
 
 
-C --- Lancement de la routine de préparation pour le calcul des OS
-C --- Cette routine lit les fichiers aérosols et angles
+C --- Run of the preparation routine for the OS computation
+C --- This routine reads the aerosol and angle files
        
       CALL SOS_PREPA_OS(FICANGLES_RES_LUM, FICGRANU, 
      &	     ISURF, SURF_IND,WIND, 
@@ -3431,9 +3453,9 @@ C --- Cette routine lit les fichiers aérosols et angles
      &	     AER_ALPHA, AER_BETA, AER_GAMMA, AER_ZETA, 
      &	     IND_ANGOUT_FIN, IER)   
 	
-C --- Gestion du cas d'erreur
+C --- Management of the error case
       
-      IF (IER.NE.0) THEN ! cas d'erreur
+      IF (IER.NE.0) THEN ! error case
       		
          IF (TRACE) THEN
 	      WRITE (IDLOG,*,ERR=1303) 
@@ -3445,13 +3467,25 @@ C --- Gestion du cas d'erreur
    
     
 C* ----------------------------------------------------------------------------------------- 
-C* Calcul par approche CKD de base: 1 calcul par terme de la décomposition en exponentielles 
+C* Computation with the basic CKD approach: 1 computation per term of the decomposition in exponentials
 C* -----------------------------------------------------------------------------------------    
-C --- Le profil et les luminances sont calculés pour tous les coefficients CKD de chaque espèce.
-C --- Il y a 8 absorbants => la luminance est calculée pour chaque produit d'exponentielles sur les 8 absorbants
-C --- Dans le cas où l'absorption n'est pas prise en compte, le nombre d'exponentielles pour chaque composant vaut 1
+C --- The profile and the radiances are computed for all the CKD coefficients of each species.
+C --- There are 8 absorbers => the radiance is computed for each product of exponentials over the 8 absorbers
+C --- When the absorption is not taken into account, the number of exponentials for each component is 1
 
-      IF (IMODE_CKD_CALCUL.EQ.1) THEN  ! CAS CALCUL LUM POUR EP OPT UNIQUE PAR CKD
+      DO J=1,CTE_OS_NBMU_MAX
+         AT_DIR(J)=0.D+00
+      ENDDO
+      DO J=0,CTE_OS_NBMU_MAX
+         TDIR_TRONC_MU(J)=0.D+00
+         TDIR_VRAI_MU(J)=0.D+00
+      ENDDO
+      ATDIR_CKD=.FALSE.
+      XMUS=DCOS(INCTE_PI*TETAS/180.D+00)
+
+      IF (IMODE_CKD_CALCUL.EQ.1) THEN  ! CASE RADIANCE COMPUTATION FOR EACH CKD OPT. THICKNESS
+
+         ATDIR_CKD=.TRUE.
 
          WRITE(6,*)  
      &	  "==> Radiance computation for each CKD term" //
@@ -3466,7 +3500,7 @@ C --- Dans le cas où l'absorption n'est pas prise en compte, le nombre d'expone
          DO IK8=1,NEXP(8,LAMB1)
 
 
-C ---       Affichage des infos à l'écran
+C ---       Display of the information on screen
             write(6,*) '     IK1 (H2O) ',IK1,'/',NEXP(1,LAMB1)
             write(6,*) '     IK2 (CO2) ',IK2,'/',NEXP(2,LAMB1)
             write(6,*) '     IK3 (O3)  ',IK3,'/',NEXP(3,LAMB1)
@@ -3477,19 +3511,19 @@ C ---       Affichage des infos à l'écran
             write(6,*) '     IK8 (NO2) ',IK8,'/',NEXP(8,LAMB1)
             write(6,*) '     --------------------------------'
 	   
-C ---       Calcul du produit des fonctions de répartition (poids affecté aux luminances)
+C ---       Computation of the product of the distribution functions (weight given to the radiances)
             AIK=KDIS_AI(IK1,1,LAMB1)*KDIS_AI(IK2,2,LAMB1)*
      &          KDIS_AI(IK3,3,LAMB1)*KDIS_AI(IK4,4,LAMB1)*
      &          KDIS_AI(IK5,5,LAMB1)*KDIS_AI(IK6,6,LAMB1)*
      &	         KDIS_AI(IK7,7,LAMB1)*KDIS_AI(IK8,8,LAMB1)
 
-C ---       Renormalisation (gestion des cas pour lesquels la somme est un peu différente de 1.)
+C ---       Renormalisation (management of the cases where the sum differs slightly from 1.)
 	     AIK=AIK/sumAIK
 
             !write(6,*) 'AIK ',AIK
 
 	   
-C ---       Calcul du profil d'épaisseurs optiques d'absorption en fonction de l'altitude
+C ---       Computation of the profile of absorption optical thicknesses versus altitude
 
             CALL SOS_ABSPROFILE(ABSPROFIL, NU, LAMB1, IABS, 
      &		               ABS_USERPROFIL, ALTABS, RO, NEXP,
@@ -3501,8 +3535,8 @@ C ---       Calcul du profil d'épaisseurs optiques d'absorption en fonction de 
                   
 
 
-C ---       Gestion du cas d'erreur      
-            IF (IER.NE.0) THEN ! cas d'erreur
+C ---       Management of the error case
+            IF (IER.NE.0) THEN ! error case
       		
                IF (TRACE) THEN
                    WRITE (IDLOG,*,ERR=1303) 
@@ -3513,7 +3547,7 @@ C ---       Gestion du cas d'erreur
             ENDIF
 
        				
-            ! Lancement de l'outil de calcul du profil atmo en épaisseurs optiques
+            ! Run of the tool computing the atmospheric profile in optical thicknesses
 
             CALL SOS_PROFILE(IPROFIL, TR, HR, TA, HA, ZMIN,  
      &		               ZMAX, ABSPROFIL, ALTABS, TAUABS, 
@@ -3521,8 +3555,8 @@ C ---       Gestion du cas d'erreur
      &			        NT, IER)
 
 
-            ! Gestion du cas d'erreur
-            IF (IER.NE.0) THEN ! cas d'erreur
+            ! Management of the error case
+            IF (IER.NE.0) THEN ! error case
       		
                 IF (TRACE) THEN
 	             WRITE (IDLOG,*,ERR=1303) 
@@ -3533,7 +3567,7 @@ C ---       Gestion du cas d'erreur
             ENDIF
 
  
-            !Lancement de l'outil de calcul des luminances
+            !Run of the radiance computation tool
 
             CALL SOS(FICOS_TMP, FICTRANS, FICPROFIL_TMP,
      &	             NT, ZOUT, IGMAX, IPOLAR, RON,         
@@ -3545,8 +3579,8 @@ C ---       Gestion du cas d'erreur
      &		     TDIFMUS_TMP, TDIFMUG_TMP, EMOINS_TMP, EPLUS_TMP,
      &               TRACEOS, IDLOGOS, IER)      
       
-            ! Gestion du cas d'erreur
-            IF (IER.NE.0) THEN ! cas d'erreur
+            ! Management of the error case
+            IF (IER.NE.0) THEN ! error case
       		
                IF (TRACE) THEN
 	            WRITE (IDLOG,*,ERR=1303) 
@@ -3556,10 +3590,30 @@ C ---       Gestion du cas d'erreur
 	  
             ENDIF
 
-            ! Lecture des résultats pour l'octuple ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8
-            ! Pondération et aggrégation des éléments du vecteur de Stokes
-            ! Pondération et aggrégation des transmissions
-            ! Pondération et aggrégation des épaisseurs optiques
+            ! CKD-weighted direct transmission TOA -> surface -> output level
+            IF (N0.GT.0) THEN
+               DO J=1,LUM_NBMU
+                  AT_DIR(J) = AT_DIR(J) + AIK *
+     &                 DEXP(-TTOT_TRONC_TMP/RMU(N0)) *
+     &                 DEXP(-(TTOT_TRONC_TMP-TAUOUT_TMP)/RMU(J))
+               ENDDO
+            ENDIF
+            ! CKD-weighted direct transmission TOA -> surface
+            TDIR_TRONC_MU(0) = TDIR_TRONC_MU(0) + 
+     &                         AIK*DEXP(-TTOT_TRONC_TMP/XMUS)
+            TDIR_VRAI_MU(0) = TDIR_VRAI_MU(0) + 
+     &                         AIK*DEXP(-TTOT_VRAI_TMP/XMUS)
+            DO J=1,LUM_NBMU
+               TDIR_TRONC_MU(J) = TDIR_TRONC_MU(J) + 
+     &                            AIK*DEXP(-TTOT_TRONC_TMP/RMU(J))
+               TDIR_VRAI_MU(J) = TDIR_VRAI_MU(J) + 
+     &                            AIK*DEXP(-TTOT_VRAI_TMP/RMU(J))
+            ENDDO
+
+            ! Reading of the results for the octet ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8
+            ! Weighting and aggregation of the elements of the Stokes vector
+            ! Weighting and aggregation of the transmissions
+            ! Weighting and aggregation of the optical thicknesses
 	   
             CALL SOS_AGGREGATE(LUM_NBMU, AIK, FICOS_TMP, 
      &           TTOT_TRONC_TMP, TTOT_VRAI_TMP, 
@@ -3572,8 +3626,8 @@ C ---       Gestion du cas d'erreur
      &           EMOINS, EPLUS, IER)
 
 
-            ! Gestion du cas d'erreur      
-            IF (IER.NE.0) THEN ! cas d'erreur
+            ! Management of the error case
+            IF (IER.NE.0) THEN ! error case
       		
                IF (TRACE) THEN
 	            WRITE (IDLOG,*,ERR=1303) 
@@ -3583,7 +3637,7 @@ C ---       Gestion du cas d'erreur
 	  
             ENDIF
 
-C ---    Fin des boucles sur les coeff CKD de chaque élément absorbant
+C ---    End of the loops on the CKD coeff of each absorbing element
          ENDDO  !IK1
          ENDDO  !IK2
          ENDDO  !IK3
@@ -3593,20 +3647,20 @@ C ---    Fin des boucles sur les coeff CKD de chaque élément absorbant
          ENDDO  !IK7
          ENDDO  !IK8
 
-         ! Destruction du fichier temporaire
+         ! Deletion of the temporary file
 	  OPEN(UNIT=3,FILE=FICOS_TMP,FORM='UNFORMATTED') 
          CLOSE(3,STATUS='DELETE')    
 
-      ENDIF ! Fin CAS CALCUL LUMINANCE POUR CHAQUE EP OPT CKD
+      ENDIF ! End of CASE RADIANCE COMPUTATION FOR EACH CKD OPT. THICKNESS
 
 
 C* ----------------------------------------------------------------------------------------- 
-C* Calcul par approche CKD appliquée au calcul de transmission gazeuse uniquement: 
-C* ==> Approche simplifiée, approximative, avec 1 calcul d'épaisseur optique d'absorption unique
+C* Computation with the CKD approach applied to the gaseous transmission computation only:
+C* ==> Simplified, approximate approach, with 1 single absorption optical thickness computation
 C* -----------------------------------------------------------------------------------------    
-C --- Le profil et les luminances sont calculés pour l'épaisseur optique d'absorption estimée globalement.
+C --- The profile and the radiances are computed for the absorption optical thickness estimated globally.
 
-      IF (IMODE_CKD_CALCUL.EQ.2) THEN  ! CAS CALCUL LUM POUR EP OPT ESTIMEE PAR CKD
+      IF (IMODE_CKD_CALCUL.EQ.2) THEN  ! CASE RADIANCE COMPUTATION FOR AN OPT. THICKNESS ESTIMATED BY CKD
 
          WRITE(6,*)  
      &	  "==> Radiance computation for the absorption optical " //
@@ -3626,16 +3680,16 @@ C --- Le profil et les luminances sont calculés pour l'épaisseur optique d'abs
          DO IK8=1,NEXP(8,LAMB1)
 
 	   
-C ---       Calcul du produit des fonctions de répartition (poids affecté aux luminances)
+C ---       Computation of the product of the distribution functions (weight given to the radiances)
             AIK=KDIS_AI(IK1,1,LAMB1)*KDIS_AI(IK2,2,LAMB1)*
      &          KDIS_AI(IK3,3,LAMB1)*KDIS_AI(IK4,4,LAMB1)*
      &          KDIS_AI(IK5,5,LAMB1)*KDIS_AI(IK6,6,LAMB1)*
      &	         KDIS_AI(IK7,7,LAMB1)*KDIS_AI(IK8,8,LAMB1)
 
-C ---       Renormalisation (gestion des cas pour lesquels la somme est un peu différente de 1.)
+C ---       Renormalisation (management of the cases where the sum differs slightly from 1.)
 	     AIK=AIK/sumAIK
 	   
-C ---       Calcul du profil d'épaisseurs optiques d'absorption en fonction de l'altitude
+C ---       Computation of the profile of absorption optical thicknesses versus altitude
             CALL SOS_ABSPROFILE(ABSPROFIL, NU, LAMB1, IABS, 
      &		               ABS_USERPROFIL, ALTABS, RO, NEXP,
      &		               KDIS_KI, KDIS_KI_H2O,
@@ -3644,8 +3698,8 @@ C ---       Calcul du profil d'épaisseurs optiques d'absorption en fonction de 
      &                       TAB_CONC_H2O, NB_CONC_H2O,
      &			        TAUABS, TRACEPROF, IDLOGPROF,IER) 
 
-C ---       Gestion du cas d'erreur      
-            IF (IER.NE.0) THEN ! cas d'erreur
+C ---       Management of the error case
+            IF (IER.NE.0) THEN ! error case
       		
                IF (TRACE) THEN
                    WRITE (IDLOG,*,ERR=1303) 
@@ -3655,12 +3709,12 @@ C ---       Gestion du cas d'erreur
 	  
             ENDIF
 
-            !Calcul de la transmission par niveau I, pour masse d'air fictive de 1 selon la méthode CKD
+            !Computation of the transmission per level I, for a fictitious air mass of 1 with the CKD method
             DO I=1,CTE_ABS_NBLEV
                TRSCKD(I)=TRSCKD(I)+AIK*DEXP(-TAUABS(I))
             ENDDO              
 	  
-C ---    Fin des boucles sur les coeff CKD de chaque élément absorbant
+C ---    End of the loops on the CKD coeff of each absorbing element
          ENDDO  !IK1
          ENDDO  !IK2
          ENDDO  !IK3
@@ -3670,21 +3724,21 @@ C ---    Fin des boucles sur les coeff CKD de chaque élément absorbant
          ENDDO  !IK7
          ENDDO  !IK8
 
-         ! Estimation du profil d'épaisseur optique d'absorption
+         ! Estimation of the absorption optical thickness profile
          DO I=1,CTE_ABS_NBLEV
              TAUABS(I)=-DLOG(TRSCKD(I))
-             if (TAUABS(I).LT.0.D+00) TAUABS(I)=0.D+00	!MODIF TEST : pour gestion des arrondis donnant transmission très légèrement sup à 1
+             if (TAUABS(I).LT.0.D+00) TAUABS(I)=0.D+00	!TEST MODIF: to manage rounding errors giving a transmission very slightly above 1
          ENDDO              
 
-          ! Lancement de l'outil de calcul du profil atmo en épaisseurs optiques
+          ! Run of the tool computing the atmospheric profile in optical thicknesses
 
          CALL SOS_PROFILE(IPROFIL, TR, HR, TA, HA, ZMIN,  
      &		            ZMAX, ABSPROFIL, ALTABS, TAUABS, 
      &			     TRACEPROF, IDLOGPROF, FICPROFIL_TMP,
      &			     NT, IER)
 
-         ! Gestion du cas d'erreur
-         IF (IER.NE.0) THEN ! cas d'erreur
+         ! Management of the error case
+         IF (IER.NE.0) THEN ! error case
       		
               IF (TRACE) THEN
 	           WRITE (IDLOG,*,ERR=1303) 
@@ -3695,7 +3749,7 @@ C ---    Fin des boucles sur les coeff CKD de chaque élément absorbant
          ENDIF
 
  
-         !Lancement de l'outil de calcul des luminances
+         !Run of the radiance computation tool
 
          CALL SOS(FICSOS_RES_BIN, FICTRANS, FICPROFIL_TMP,
      &         NT, ZOUT, IGMAX, IPOLAR, RON,         
@@ -3707,8 +3761,8 @@ C ---    Fin des boucles sur les coeff CKD de chaque élément absorbant
      &         TDIFMUS, TDIFMUG, EMOINS, EPLUS,
      &         TRACEOS, IDLOGOS, IER)      
       
-         ! Gestion du cas d'erreur
-         IF (IER.NE.0) THEN ! cas d'erreur
+         ! Management of the error case
+         IF (IER.NE.0) THEN ! error case
       		
              IF (TRACE) THEN
 	          WRITE (IDLOG,*,ERR=1303) 
@@ -3718,19 +3772,19 @@ C ---    Fin des boucles sur les coeff CKD de chaque élément absorbant
 	  
          ENDIF
 
-         ! Destruction du fichier de profil temporaire
+         ! Deletion of the temporary profile file
          OPEN(UNIT=3,FILE=FICPROFIL_TMP,FORM='UNFORMATTED') 
          CLOSE(3,STATUS='DELETE') 
 
-      ENDIF ! Fin CAS CALCUL LUM POUR EP OPT UNIQUE PAR CKD
+      ENDIF ! End of CASE RADIANCE COMPUTATION FOR A SINGLE CKD OPT. THICKNESS
 
 
 
 C* ----------------------------------------------------------------------------------------- 
-C* Recomposition de la série de Fourier pour un azimuth de visée donné
-C* ==> Génération des fichiers résultats
+C* Recomposition of the Fourier series for a given viewing azimuth
+C* ==> Generation of the result files
 C* -----------------------------------------------------------------------------------------    
-C --- Création des fichiers de sortie (I,Q,U)
+C --- Creation of the output files (I,Q,U)
       WRITE(6,*) "FINALYSING COMPUTATIONS AND WRITING OUTPUT FILES"
 
 
@@ -3752,8 +3806,25 @@ C --- Création des fichiers de sortie (I,Q,U)
       ENDIF    !TRACE
     
 
+C --- Direct transmissions of the solar beam (Beer law) if not
+C --- accumulated over the CKD terms
+      IF (.NOT.ATDIR_CKD) THEN
+         IF (N0.GT.0) THEN
+            DO J=1,LUM_NBMU
+               AT_DIR(J) = DEXP(-TTOT_TRONC/RMU(N0))*
+     &                     DEXP(-(TTOT_TRONC-TAUOUT)/RMU(J))
+            ENDDO
+         ENDIF
+         TDIR_TRONC_MU(0) = DEXP(-TTOT_TRONC/XMUS)
+         TDIR_VRAI_MU(0) = DEXP(-TTOT_VRAI/XMUS)
+         DO J=1,LUM_NBMU
+            TDIR_TRONC_MU(J) = DEXP(-TTOT_TRONC/RMU(J))
+            TDIR_VRAI_MU(J) = DEXP(-TTOT_VRAI/RMU(J))
+         ENDDO
+      ENDIF
+
       CALL SOS_TRPHI_OPTION(LUM_NBMU, RMU, GA,
-     &     FICSOS_RES_BIN, TTOT_TRONC, TAUOUT, ZOUT,
+     &     FICSOS_RES_BIN, TTOT_TRONC, TAUOUT, AT_DIR, ZOUT,
      &     IGLI, N0,WIND, SURF_IND, IFRESNEL,
      &     IROUJEAN, K0_ROUJEAN, K1_ROUJEAN, K2_ROUJEAN,
      &     IRONDEAUX, IBREON,
@@ -3767,9 +3838,9 @@ C --- Création des fichiers de sortie (I,Q,U)
      &     POL_ANG_DOWN_FIN, POL_RATE_DOWN_FIN, L_POL_DOWN_FIN,     
      &     IER)
            
-C --- Gestion du cas d'erreur
+C --- Management of the error case
       
-      IF (IER.NE.0) THEN ! cas d'erreur
+      IF (IER.NE.0) THEN ! error case
       		
          IF (TRACEOS) THEN
 	         WRITE (IDLOGOS,*,ERR=1303) 
@@ -3780,36 +3851,34 @@ C --- Gestion du cas d'erreur
       ENDIF
 
 C* ----------------------------------------------------------------------------------------- 
-C* Sauvegarde des transmissions dans un fichier
+C* Saving of the transmissions in a file
 C* -----------------------------------------------------------------------------------------    
       IF (FICTRANS.NE.'NO_OUTPUT') THEN
       
          OPEN(UNIT=20,FILE=FICTRANS,FORM='FORMATTED',ERR=997)
 
-C     --> Transmission directe pour épaisseur optique vraie (non tronquée)
+C     --> Direct transmission for the true (not truncated) optical thickness
   
-	  TDIR_TRONC = 
-     &      DEXP(-TTOT_TRONC/DCOS(INCTE_PI*TETAS/180.D+00))
-	  TDIR_VRAI = 
-     &      DEXP(-TTOT_VRAI/DCOS(INCTE_PI*TETAS/180.D+00))
+	  TDIR_TRONC = TDIR_TRONC_MU(0)
+	  TDIR_VRAI = TDIR_VRAI_MU(0)
 	  
 	  WRITE(20,1005,err=998) TETAS 
 	  WRITE(20,1006,err=998) TDIR_VRAI
 	  WRITE(20,*,err=998) ' '
 
-C     --> Transmission diffuse TOA --> Sol	 
+C     --> Diffuse transmission TOA --> Ground
 	
 	  WRITE(20,*,err=998)'Diffuse transmittance : TOA -> surface'
 	  WRITE(20,1010,err=998)TETAS,(TDIFMUS + TDIR_TRONC - TDIR_VRAI)
 	  WRITE(20,*,err=998) ' '
 	  
-C     --> Transmission diffuse Sol --> TOA : 
-C         Boucle sur les valeurs IMUS : N0 = J	pour calcul TOA --> Sol (reciprocite)  
+C     --> Diffuse transmission Ground --> TOA:
+C         Loop on the values IMUS: N0 = J	for computation TOA --> Ground (reciprocity)
          WRITE(20,*,err=998)'Diffuse transmittance : surface -> TOA'
 	  DO J=1,LUM_NBMU
 	  
-	     TDIR_TRONC = DEXP(-TTOT_TRONC/RMU(J))
-	     TDIR_VRAI  = DEXP(-TTOT_VRAI/RMU(J))
+	     TDIR_TRONC = TDIR_TRONC_MU(J)
+	     TDIR_VRAI  = TDIR_VRAI_MU(J)
 	  	      
 	     WRITE(20,2010,err=998) DACOS(RMU(J))*180.D+00/INCTE_PI, 
      &	                           (TDIFMUG(J) + TDIR_TRONC - TDIR_VRAI)
@@ -3817,23 +3886,23 @@ C         Boucle sur les valeurs IMUS : N0 = J	pour calcul TOA --> Sol (reciproc
 
 	  CLOSE(20)
   
-      ENDIF !Fin test si fichier transmission à créer
+      ENDIF !End of test whether the transmission file is to be created
 
 C* ----------------------------------------------------------------------------------------- 
-C* Sauvegarde des flux TOA et BOA dans un fichier
+C* Saving of the TOA and BOA fluxes in a file
 C* -----------------------------------------------------------------------------------------  
 
-!     On récupère les grandeurs TDIR_VRAI, FLUX_DIFF_DOWN et FLUX_DOWN pour les fournir 
-!     en sorties de SOS_PROC (même si on ne les enregistre pas dans un fichier optionnel).
-!     --> Utile à l'appel de la routine SOS_PROC via binding Python :
+!     The quantities TDIR_VRAI, FLUX_DIFF_DOWN and FLUX_DOWN are retrieved to provide them
+!     as outputs of SOS_PROC (even if they are not stored in an optional file).
+!     --> Useful for the call of the routine SOS_PROC through the Python binding:
 
-C     Transmission directe pour épaisseur optique tronquée
-      TDIR_TRONC = DEXP(-TTOT_TRONC/DCOS(INCTE_PI*TETAS/180.D+00))
-C     Transmission directe pour épaisseur optique vraie (non tronquée)
-      TDIR_VRAI = DEXP(-TTOT_VRAI/DCOS(INCTE_PI*TETAS/180.D+00))
-C     Flux diffus descendant
+C     Direct transmission for the truncated optical thickness
+      TDIR_TRONC = TDIR_TRONC_MU(0)
+C     Direct transmission for the true (not truncated) optical thickness
+      TDIR_VRAI = TDIR_VRAI_MU(0)
+C     Downward diffuse flux
       FLUX_DIFF_DOWN = EMOINS + TDIR_TRONC - TDIR_VRAI
-C     Flux total descendant
+C     Total downward flux
       FLUX_DOWN = EMOINS + TDIR_TRONC
 
       IF (FICFLUX.NE.'NO_OUTPUT') THEN
@@ -3843,7 +3912,7 @@ C     Flux total descendant
 	   WRITE(30,1005,err=988)TETAS  	                       
 	   WRITE(30,*,err=988) ' '
 
-C     --> Flux diffus descendant au BOA: TOA --> Sol	 
+C     --> Downward diffuse flux at BOA: TOA --> Ground
 	   WRITE(30,*,err=988)
      &          'Downward fluxes at BOA (normalized by TOA solar flux)'	  
 	   WRITE(30,2016,err=988) TDIR_VRAI
@@ -3851,7 +3920,7 @@ C     --> Flux diffus descendant au BOA: TOA --> Sol
 	   WRITE(30,2018,err=988) FLUX_DOWN
 	   WRITE(30,*,err=988) ' '
            
-C     --> Flux diffus montant au TOA: Sol --> TOA : 
+C     --> Upward diffuse flux at TOA: Ground --> TOA:
           WRITE(30,*,err=988)
      &    'Upward diffuse flux at TOA (normalized by TOA solar flux):',
      &    EPLUS
@@ -3871,9 +3940,9 @@ C     --> Flux diffus montant au TOA: Sol --> TOA :
 
           CLOSE(30)
 	  
-      ENDIF !Fin test si fichier de flux a creer
+      ENDIF !End of test whether the flux file is to be created
      
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IF (TRACEPROF) CLOSE(IDLOGPROF)
       IF (TRACEOS)   CLOSE(IDLOGOS)
@@ -3888,10 +3957,10 @@ C-------------------
       
 
 C =========================================================
-C --- Cas d'erreur et retour du status 1 au shell  
+C --- Error case and return of status 1 to the shell
 C =========================================================  
 
-C --- Définition Arborescence de sortie
+C --- Definition of the output directory tree
  1000 WRITE(6,*) '  SOS_PROC : ERROR_1000 on parameters'
       WRITE(6,*) '     RESROOT parameter in SOS_PROC'
       WRITE(6,*) '     (-SOS_Main.ResRoot keyword parameter)'
@@ -3982,7 +4051,7 @@ C --- Définition Arborescence de sortie
       WRITE(6,*) '  => Check if CTE_LENDIR has to be adjusted.' 
       GOTO 9998   
 
-C --- Création arborescence de sortie
+C --- Creation of the output directory tree
 
  1201 WRITE(6,*) '  SOS_PROC : ERROR_1201 : '
       WRITE(6,*) 
@@ -4056,7 +4125,7 @@ C --- Création arborescence de sortie
       WRITE(6,*) '  => Check if CTE_LENCOM has to be adjusted.' 
       GOTO 9998   
 
-C --- gestion du log
+C --- log management
                                            
  1301 WRITE(6,*) '  SOS_PROC : ERROR_1301 : '
       WRITE(6,*) '  => Log filename : maybe too long'
@@ -4069,7 +4138,7 @@ C --- gestion du log
  1303 WRITE(6,*) '  SOS_PROC : ERROR_1303 on Log file writing'
       GOTO 9998
             
-C --- Controle paramètres simulation
+C --- Check of the simulation parameters
 
  2100 WRITE(6,*) '  SOS_PROC : ERROR_2100 on parameters'
       WRITE(6,*) '     WA_SIMU parameter is required in SOS_PROC'
@@ -4085,7 +4154,7 @@ C --- Controle paramètres simulation
       WRITE(6,*) '         CTE_WAMIN = ', CTE_WAMIN
       WRITE(6,*) '         CTE_WAMAX = ', CTE_WAMAX
 
-C --- Controle des paramètres pour les calculs d'angles
+C --- Check of the parameters for the angle computations
 
  2200 WRITE(6,*) '  SOS_PROC : ERROR_2200 on parameters'
       WRITE(6,*) '     TETAS parameter is required in SOS_PROC'
@@ -4098,7 +4167,7 @@ C --- Controle des paramètres pour les calculs d'angles
       WRITE(6,*) '  --> Solar Zenith Angle out of available range'
       GOTO 9998  	
 
-C --- Controle des paramètres de calculs d'aérosols
+C --- Check of the parameters of the aerosol computations
 
  2301 WRITE(6,*) '  SOS_PROC : ERROR_2301 on parameters'
       WRITE(6,*) '     AOT_REF parameter in SOS_PROC'
@@ -4413,7 +4482,7 @@ C --- Controle des paramètres de calculs d'aérosols
       GOTO 9998   
 
 
-C --- Controle des paramètres de surface
+C --- Check of the surface parameters
 
  2401 WRITE(6,*) '  SOS_PROC : ERROR_2401 on parameters'
       WRITE(6,*) '     RHO parameter in SOS_PROC'
@@ -4526,7 +4595,7 @@ C --- Controle des paramètres de surface
      &"  ==>  C*exp(-NDVI) coefficient of the Maignan's BPDF model"
       GOTO 9998 
 
-C --- Controle des paramètres de profil
+C --- Check of the profile parameters
 
  2502 WRITE(6,*) '  SOS_PROC : ERROR_2502 on parameter value'
       WRITE(6,*) '     TR parameter in SOS_PROC'
@@ -4682,7 +4751,7 @@ C --- Controle des paramètres de profil
      &'  ==> Check the parameters defining the aerosol model'
       GOTO 9998           
 
-C --- Controle des paramètres SOS
+C --- Check of the SOS parameters
  2604 WRITE(6,*) '  SOS_PROC : ERROR_2604 on parameter value'
       WRITE(6,*) '     IGMAX parameter in SOS_PROC'
       WRITE(6,*) '     (-SOS.IGmax keyword parameter - Integer)'
@@ -4749,7 +4818,7 @@ C --- Controle des paramètres SOS
      &'          with CTE_TOA_ALT =',CTE_TOA_ALT            
       GOTO 9998 
    
-C --- Définition des fichiers de trace
+C --- Definition of the trace files
 
  3001 WRITE(6,*) '  SOS_PROC : ERROR_3001 : '
       WRITE(6,*) '  => Angles Log filename : maybe too long'
@@ -4781,7 +4850,7 @@ C --- Définition des fichiers de trace
       WRITE(6,*) '  => Check if CTE_LENFIC1 has to be adjusted.' 
       GOTO 9998                  	
 
-C --- Définition des fichiers de sortie
+C --- Definition of the output files
 
  3007 WRITE(6,*) '  SOS_PROC : ERROR_3007 : '
       WRITE(6,*) '  => Radiance Angles filename : maybe too long'
@@ -4820,7 +4889,7 @@ C --- Définition des fichiers de sortie
       WRITE(6,*) '  => Check if CTE_LENFIC1 has to be adjusted.' 
       GOTO 9998   
 
-C --- Ouverture des fichiers de trace
+C --- Opening of the trace files
 
  3104 WRITE(6,*) '  SOS_PROC : ERROR_3104 : '
       WRITE(6,*) '  => Error opening Profile log file: ',FICPROFIL_LOG
@@ -4830,13 +4899,13 @@ C --- Ouverture des fichiers de trace
       WRITE(6,*) '  => Error opening SOS log file: ',FICSOS_LOG
       GOTO 9998          
     
-C --- Lancement des routines
+C --- Run of the routines
  3500 WRITE(6,*) '  SOS_PROC : ERROR_3500 : '
       WRITE(6,*) '  => The summation of AIK coefs is not 1 : ',sumAIK
       WRITE(6,*) '  => Check the CKD coefficients'
       GOTO 9998          
   
-C --- Lancement des routines
+C --- Run of the routines
 
  4000 WRITE(6,*) '  SOS_PROC : ERROR_4000 on subroutine SOS_ANGLES'
       GOTO 9998 
@@ -4870,7 +4939,7 @@ C --- Lancement des routines
      &  '  SOS_PROC : ERROR_4900 on subroutine SOS_TRPHI_OPTION'
       GOTO 9998 
 
-C -- Ouverture / écriture des fichiers Transmissions et Flux
+C -- Opening / writing of the Transmission and Flux files
   997 WRITE(6,*) '  SOS_PROC : ERROR_997 : '
       WRITE(6,*) '  => ERROR on transmission file opening'
       GOTO 9998         
@@ -4887,7 +4956,7 @@ C -- Ouverture / écriture des fichiers Transmissions et Flux
       WRITE(6,*) '  => ERROR on flux file writing'
       GOTO 9998         
 
-      CALL FLUSH(6)             !Force l'envoie du buffer à l'écran
+      CALL FLUSH(6)             !Forces the flush of the buffer to the screen
 
        
  9998 IER=1
@@ -4903,7 +4972,7 @@ C =========================================================
 C
 
 
-C --- Formats pour le fichier Trace : entrées de SOS_AEROSOLS
+C --- Formats for the trace file: inputs of SOS_AEROSOLS
   807 FORMAT(28h       FICANGLES_RES_LUM :  ,A)
   841 FORMAT(45h       Simulation wavelength (Wa)          : ,F12.5)
   842 FORMAT(45h       AOT                                 : ,F12.5) 
@@ -4940,7 +5009,7 @@ c$$$     &      (F12.3,2X,F12.5))
   864 FORMAT(45h       Storage directory for MIE files     : ,A)  
   865 FORMAT(45h       Mie computations log file           : ,A)    
 
-C --- Formats pour le fichier Transmissions et Flux : 
+C --- Formats for the Transmission and Flux file:
 1005  FORMAT(20hSolar Zenith Angle :,1x,f7.3)
 1006  FORMAT(36hDirect transmission TOA -> surface :,1x,f8.4)
 1010  FORMAT(12h    thetas =,1x,f6.3,3x,12htd(thetas) =,1x,f7.4)  
@@ -4951,4 +5020,4 @@ C --- Formats pour le fichier Transmissions et Flux :
 2020  FORMAT(f7.2,2x,f7.4,1x,f7.4,1x,f7.4,1x,f7.4) 
 
      
-      END     !FIN DU PROGRAMME SOS_PROC
+      END     !END OF PROGRAM SOS_PROC

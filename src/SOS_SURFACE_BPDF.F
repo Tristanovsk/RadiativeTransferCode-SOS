@@ -19,41 +19,41 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_SURFACE_BPDF.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Génère les fichiers de BPDF des modèles de Rondeaux-Herman, Bréon et Maignan.
+C* FILE: SOS_SURFACE_BPDF.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: Generates the BPDF files of the Rondeaux-Herman, Bréon and Maignan models.
 C*
-C* AUTEUR: 
+C* AUTHOR:
 C*   CS GROUP France, B.Lafrance.
 C* DATE: 12/08/2020
 C*
-C* MOD:VERSION:1.0: Création du programme.
-C*    - Récupération des routines existantes : SOS_GSF_RONDEAUX_BREON, SOS_F21SF_NADAL, SOS_CALC_F21_NADAL_SUR_FRESNEL.
-C*    - Développement de routines nouvelles: SOS_GSF_MAIGNAN et SOS_CALCG_MAIGNAN.
+C* MOD:VERSION:1.0: Creation of the program.
+C*    - Reuse of existing routines: SOS_GSF_RONDEAUX_BREON, SOS_F21SF_NADAL, SOS_CALC_F21_NADAL_SUR_FRESNEL.
+C*    - Development of new routines: SOS_GSF_MAIGNAN and SOS_CALCG_MAIGNAN.
 C*
 C* MOD:VERSION:1.1: 31/08/2022
-C*    - Renommage des constantes de SOS_* en CTE_*
-C*    - Conversion des traces en Anglais.
+C*    - Constants renamed from SOS_* to CTE_*
+C*    - Traces converted to English.
 C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Definition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisées :
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_OS_NBMU_MAX : Nombre maximal d'angles positifs.
-C    INCTE_PI : Valeur de PI.
-C    CTE_OS_NB_MAX :  Valeur maximale pour l'ordre limite du développement en 
-C                     polynomes de Legendre.
-C    CTE_OS_NS_MAX :  Valeur maximale pour l'ordre limite du développement en polynomes 
-C                     de Legendre des éléments de la matrice de Fresnel 
-C                     et en séries de Fourier des luminances.
-C    CTE_OS_NM_MAX :  Valeur maximale pour l'ordre limite  du développement 
-C                     en séries de Fourier de la fonction G.
-C    CTE_PH_TEST : Facteur pour la comparaison de GMIN et GMAX
-C    CTE_PH_NU : Nombre d'angle azimutal (2**NQ)
-C    CTE_PH_NQ : Puissance de 2 de CTE_PH_NU (NU=2**NQ)
+C Constants used:
+C     CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_OS_NBMU_MAX : Maximum number of positive angles.
+C    INCTE_PI : Value of PI.
+C    CTE_OS_NB_MAX :  Maximum value of the limit order of the expansion in
+C                     Legendre polynomials.
+C    CTE_OS_NS_MAX :    Maximum value of the limit order of the expansion in Legendre
+C                     polynomials of the Fresnel matrix elements
+C                     and in Fourier series of the radiances.
+C    CTE_OS_NM_MAX :    Maximum value of the limit order of the expansion
+C                     in Fourier series of the G function.
+C    CTE_PH_TEST : Factor for the comparison of GMIN and GMAX
+C    CTE_PH_NU : Number of azimuth angles (2**NQ)
+C    CTE_PH_NQ : Power of 2 of CTE_PH_NU (NU=2**NQ)
 C
 C----------------------------------------------------------------------------
 #include "SOS.h"
@@ -62,154 +62,154 @@ C----------------------------------------------------------------------------
 C==============================================================================
 C PROCEDURE: SOS_SURFACE_BPDF
 C ==========      
-C      Cette procédure génère les fichiers de réflexion de surface des modèles de BPDF
+C      This procedure generates the surface reflection files of the BPDF models
 
-C          Modèle de Rondeaux :
+C          Rondeaux model:
 C           => Rp(Teta1, Teta2, phi) =  G(Teta1, Teta2, phi) * Fp(Teta1, Teta2, phi) 
-C                avec G(Teta1, Teta2, phi) = 1 / [ 4 * (cosTeta1+cosTeta2) ]
+C                with G(Teta1, Teta2, phi) = 1 / [ 4 * (cosTeta1+cosTeta2) ]
 C
-C          Modèle de Bréon :
+C          Bréon model:
 C           => Rp(Teta1, Teta2, phi) =  G(Teta1, Teta2, phi) * Fp(Teta1, Teta2, phi) 
-C                avec G(Teta1, Teta2, phi) = 1 / [ 4*cosTeta1*cosTeta2 ]
+C                with G(Teta1, Teta2, phi) = 1 / [ 4*cosTeta1*cosTeta2 ]
 C
-C          Modèle de Maignan :
+C          Maignan model:
 C           => Rp(Teta1, Teta2, phi) =  G(Teta1, Teta2, phi) * Fp(Teta1, Teta2, phi) 
-C                avec G(Teta1, Teta2, phi) = C*exp[-tan(TetaN)] / [ 4 * (cosTeta1+cosTeta2) ]
+C                with G(Teta1, Teta2, phi) = C*exp[-tan(TetaN)] / [ 4 * (cosTeta1+cosTeta2) ]
 C
-C	     avec Teta1 : angle zenithal d'incidence  (0 < Teta1 < PI/2),
-C                Teta2 : angle zenithal de réflexion (0 < Teta2 < PI/2),
-C                phi   : angle azimutal relatif entre les directions
-C                        d'incidence et de réflexion,
-C                Fp(Teta1, Teta2, phi) : matrice de réflexion de Fresnel,
-C                TetaN : angle d'incidence par rapport à la normale de la facette 
-C                        qui pour une incidence TetaN donne une réflexion sous Teta2 pour l'angle azimutal phi,
-C                C     : coefficient constant du modèle de Maignan (intègre le terme exp(-NDVI) du modèle).
+C	     with Teta1 : incidence zenith angle  (0 < Teta1 < PI/2),
+C                Teta2 : reflection zenith angle (0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                        of incidence and reflection,
+C                Fp(Teta1, Teta2, phi) : Fresnel reflection matrix,
+C                TetaN : incidence angle with respect to the normal of the facet
+C                        which, for an incidence TetaN, gives a reflection at Teta2 for the azimuth angle phi,
+C                C     : constant coefficient of the Maignan model (includes the term exp(-NDVI) of the model).
 C
 C
-C Données en entrée du programme 
+C Input data of the program
 C ------------------------------
-C    -->Les paramètres/arguments du programme
-C       LUM_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles
-C	 RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) : (E) Cosinus des angles.
-C	 CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) : (E) Poids des angles.
-C       IND   (DOUBLE)  : (E) Indice de réfraction de l'eau / air.
-C	 ISURF  (I2) : (E) Type de surface ISURF 
-C			       (format de decodage en entier I2)
-C			4 :surface lambertienne + BRDF de Roujean + BPDF de Rondeaux.
-C			5 :surface lambertienne + BRDF de Roujean + BPDF de Breon.
-C			6 :surface lambertienne + BRDF de Roujean + BPDF de Nadal.	
-C			7 :surface lambertienne + BRDF de Roujean + BPDF de Maignan.	    
-C 	 ALPHA   (DOUBLE)  (E) : Paramètre alpha du modèle de Nadal ==> Associé à ISURF = 6         	
-C 	 BETA    (DOUBLE)  (E) : Paramètre beta du modèle de Nadal  ==> Associé à ISURF = 6
-C       COEF_C  (DOUBLE)  (E) : Paramètre C*exp(-NDVI) du modèle de BPDF de Maignan
-C                               ==> Associé à : ISURF = 7   		        	  
-C       OS_NB (I4) : (E) Ordre des développements des fonctions de phase 
-C		           en Polynomes de Legendre à utiliser.
-C       OS_NS (I4) : (E) Ordre maximal à utiliser pour le développement en
-C                        polynomes de Legendre des éléments de la matrice de Fresnel 
-C                        et en séries de Fourier des calculs de luminance.
-C       OS_NM (I4) : (E) Ordre maximal du développement en séries de Fourier  
-C                        de la fonction G des calculs de matrice de réflexion.
+C    -->Parameters/arguments of the program
+C       LUM_NBMU (I4) : (I) Number of actually useful (positive) angles
+C	 RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) : (I) Cosines of the angles.
+C	 CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) : (I) Weights of the angles.
+C       IND   (DOUBLE)  : (I) Refractive index water / air.
+C	 ISURF  (I2) : (I) Surface type ISURF
+C			       (decoding format: integer I2)
+C			4 :Lambertian surface + Roujean BRDF + Rondeaux BPDF.
+C			5 :Lambertian surface + Roujean BRDF + Breon BPDF.
+C			6 :Lambertian surface + Roujean BRDF + Nadal BPDF.
+C			7 :Lambertian surface + Roujean BRDF + Maignan BPDF.
+C 	 ALPHA   (DOUBLE)  (I) : Parameter alpha of the Nadal model ==> Associated with ISURF = 6
+C 	 BETA    (DOUBLE)  (I) : Parameter beta of the Nadal model  ==> Associated with ISURF = 6
+C       COEF_C  (DOUBLE)  (I) : Parameter C*exp(-NDVI) of the Maignan BPDF model
+C                               ==> Associated with: ISURF = 7
+C       OS_NB (I4) : (I) Order of the expansions of the phase functions
+C				     in Legendre polynomials to be used.
+C       OS_NS (I4) : (I) Maximum order to be used for the expansion in
+C                                Legendre polynomials of the Fresnel matrix elements
+C                                and in Fourier series of the radiance computations.
+C       OS_NM (I4) : (I) Maximum order of the expansion in Fourier series
+C                                of the G function of the reflection matrix computations.
 C       FIC_RES_FRESNEL (CHARACTER*CTE_LENFIC2)  : 
-C                 (E) Nom du fichier temporaire RES_FRESNEL avec arborescence complète.
+C                 (I) Name of the temporary file RES_FRESNEL with complete directory tree.
 C       FIC_RES_GSF (CHARACTER*CTE_LENFIC2)  :  
-C                 (E) Nom du fichier temporaire RES_GSF avec arborescence complète.
+C                 (I) Name of the temporary file RES_GSF with complete directory tree.
 C       FIC_RES_FRESNEL (CHARACTER*CTE_LENFIC2)  :  
-C                 (E) Nom du fichier temporaire RES_FRESNEL avec arborescence complète.
+C                 (I) Name of the temporary file RES_FRESNEL with complete directory tree.
 C       FIC_RES_MAT_REFLEX (CHARACTER*CTE_LENFIC2)  :  
-C                 (E) Nom du fichier temporaire RES_MAT_REFLEX avec arborescence complète.
-C       FICBPDF  (CHARACTER*CTE_LENFIC2) : (S) nom complet du fichier résultat.
-C       TRACE  (LOGICAL)   ! = vrai,si écriture dans le fichier trace.
-C       IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon
+C          (I) Name of the temporary file RES_MAT_REFLEX with complete directory tree.
+C       FICBPDF  (CHARACTER*CTE_LENFIC2) : (O) complete name of the result file.
+C       TRACE  (LOGICAL)   ! = true if writing in the trace file.
+C       IER  (I4)   (O) : error code =0 if no error, =-1 otherwise
 C
 C
-C Résultat fourni par le programme
+C Result provided by the program
 C --------------------------------
-C   Fichier BRDF / BPDF
-C   Fichier de trace (optionnel), 
-C               si un fichier de même nom existe déjà, il est écrasé
-C              (No d'unite logique du fichier trace =99)
+C   BRDF / BPDF file
+C   Trace file (optional),
+C               if a file with the same name already exists, it is overwritten
+C              (logical unit number of the trace file =99)
 C
 C 
-C Variable d'environnement
+C Environment variable
 C ------------------------
-C   Aucune
+C   None
 C
 C
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
 C
-C   -->Contenu du fichier Résultat
-C       Fichier binaire non formatté, créé par SOS_MISE_FORMAT
-C       Il contient la matrice de réflexion de surface ,
-C       c'est à dire les éléments Pij de la matrice de réflexion 
-C              P11(LUM_NBMU,LUM_NBMU) (réel),
-C              P12(LUM_NBMU,LUM_NBMU) (réel),
-C              P13(LUM_NBMU,LUM_NBMU) (réel),
-C              P21(LUM_NBMU,LUM_NBMU) (réel),
-C              P22(LUM_NBMU,LUM_NBMU) (réel),
-C              P23(LUM_NBMU,LUM_NBMU) (réel),
-C              P31(LUM_NBMU,LUM_NBMU) (réel),
-C              P32(LUM_NBMU,LUM_NBMU) (réel),
-C              P33(LUM_NBMU,LUM_NBMU) (réel)
+C   -->Content of the Result file
+C       Unformatted binary file, created by SOS_MISE_FORMAT
+C       It contains the surface reflection matrix,
+C       i.e. the elements Pij of the reflection matrix
+C              P11(LUM_NBMU,LUM_NBMU) (real),
+C              P12(LUM_NBMU,LUM_NBMU) (real),
+C              P13(LUM_NBMU,LUM_NBMU) (real),
+C              P21(LUM_NBMU,LUM_NBMU) (real),
+C              P22(LUM_NBMU,LUM_NBMU) (real),
+C              P23(LUM_NBMU,LUM_NBMU) (real),
+C              P31(LUM_NBMU,LUM_NBMU) (real),
+C              P32(LUM_NBMU,LUM_NBMU) (real),
+C              P33(LUM_NBMU,LUM_NBMU) (real)
 C
-C        --> Enregistrement sur le domaine limité aux angles utiles
+C        --> Record on the domain limited to the useful angles
 C                                  --------------------------------
 C
-C   -->Contenu du fichier temporaire RES_GSF
-C       Fichier binaire non formatte, créé par SOS_GSF_RONDEAUX_BREON, SOS_F21SF_NADAL ou SOS_GSF_MAIGNAN
-C       Fichier créé dans le répertoire de lancement du programme
-C       Si un fichier de même nom existe déjà, il est écrasé
-C       Chaque enregistrement contient :
-C           -numéro d'angle Teta1 (valeur entière)
-C           -numéro d'angle Teta2 (valeur entière)
-C           -ordre maximale utile de la décomposition : IL  (valeur entière)
-C           -Fonction G décomposée pour (Teta1,Teta2) : (E(J),J=0,IL)
-C            (IL+1 valeurs double précision)
+C   -->Content of the temporary file RES_GSF
+C       Unformatted binary file, created by SOS_GSF_RONDEAUX_BREON, SOS_F21SF_NADAL or SOS_GSF_MAIGNAN
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Each record contains:
+C           -number of the angle Teta1 (integer value)
+C           -number of the angle Teta2 (integer value)
+C           -maximum useful order of the decomposition: IL  (integer value)
+C           -Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
+C            (IL+1 double precision values)
 C
-C   -->Contenu du fichier temporaire RES_FRESNEL
-C      Fichier Ascii, format d'un enregistrement 4E15.8, 
-C      créé par SOS_MAT_FRESNEL
-C      Fichier créé dans le répertoire de lancement du programme
-C      Si un fichier de même nom existe déjà, il est écrasé
-C      Nombre d'enregistrements : de k=0 a OS_NS
-C      Chaque enregistrement contient les paramètres ALPHA(k), BETA(k), 
-C      GAMMA(k) et ZETA(k) associés à la matrice de Fresnel
+C   -->Content of the temporary file RES_FRESNEL
+C      Ascii file, record format 4E15.8,
+C      created by SOS_MAT_FRESNEL
+C      File created in the directory where the program is run
+C      If a file with the same name already exists, it is overwritten
+C      Number of records: from k=0 to OS_NS
+C      Each record contains the parameters ALPHA(k), BETA(k),
+C      GAMMA(k) and ZETA(k) associated with the Fresnel matrix
 C
-C   -->Contenu du fichier temporaire RES_MAT_REFLEX
-C       Fichier binaire non formatte, créé par SOS_MAT_REFLEXION
-C       Fichier créé dans le répertoire de lancement du programme
-C       Si un fichier de même nom existe déjà, il est écrasé
-C       Enregistrement pour chaque couple (Teta1, Teta2) de
-C       la décomposition en séries de Fourier de la matrice de Fresnel:
+C   -->Content of the temporary file RES_MAT_REFLEX
+C       Unformatted binary file, created by SOS_MAT_REFLEXION
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Record for each pair (Teta1, Teta2) of
+C       the Fourier series decomposition of the Fresnel matrix:
 C       M11,M12,M13,M21,M22,M23,M31,M32,M33 
-C       (n valeurs réelles)
+C       (n real values)
 C
-C    Les 3 fichiers temporaires sont écrasés s'ils existent, puis 
-C    détruits en fin de programme.
+C    The 3 temporary files are overwritten if they exist, then
+C    deleted at the end of the program.
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C      Erreur si le fichier Glitter existe déjà
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C      Error if the Glitter file already exists
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, arrêt du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C        
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Cette procédure fait appel aux routines:
+C  This procedure calls the routines:
 C      - SOS_GSF_RONDEAUX_BREON
-C      - SOS_F21SF_NADAL et SOS_CALC_F21_NADAL_SUR_FRESNEL 
-C      - SOS_GSF_MAIGNAN et SOS_CALCG_MAIGNAN
+C      - SOS_F21SF_NADAL and SOS_CALC_F21_NADAL_SUR_FRESNEL
+C      - SOS_GSF_MAIGNAN and SOS_CALCG_MAIGNAN
 C      - SOS_MAT_FRESNEL 
 C      - SOS_MAT_REFLEXION 
 C      - SOS_MISE_FORMAT
@@ -226,54 +226,54 @@ C=============================================================================
       IMPLICIT NONE
 
 
-C* Definition des variables   
+C* Definition of variables
 C*--------------------------------------------------------------------------
-      CHARACTER*CTE_LENFIC2 FICBPDF	! Nom complet du fichier BPDF/BRDF résultat.
+      CHARACTER*CTE_LENFIC2 FICBPDF	! Complete name of the result BPDF/BRDF file.
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Nom du fichier RES_GSF
-                                        ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Name of the file RES_GSF
+                                        ! with complete directory tree
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Nom du fichier RES_FRESNEL
-                                            ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Name of the file RES_FRESNEL
+                                            ! with complete directory tree
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Nom du fichier RES_MAT_REFLEX
-                                               ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Name of the file RES_MAT_REFLEX
+                                               ! with complete directory tree
 
-      DOUBLE PRECISION IND	! Indice de réfraction de l'eau / air
+      DOUBLE PRECISION IND	! Refractive index water / air
 
-      DOUBLE PRECISION ALPHA	!Paramètre alpha du modèle de Nadal.
-      DOUBLE PRECISION BETA	       !Paramètre beta du modèle de Nadal.
-      DOUBLE PRECISION COEF_C      !Paramètre C*exp(-NDVI) du modèle de Maignan.
+      DOUBLE PRECISION ALPHA	!Parameter alpha of the Nadal model.
+      DOUBLE PRECISION BETA	       !Parameter beta of the Nadal model.
+      DOUBLE PRECISION COEF_C      !Parameter C*exp(-NDVI) of the Maignan model.
 	
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Tableau des mu de Gauss
-      DOUBLE PRECISION CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Poids de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Array of the Gauss mu
+      DOUBLE PRECISION CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Gauss weights.
       
-      LOGICAL TRACE     ! = vrai,si écriture dans le fichier trace
+      LOGICAL TRACE     ! = true if writing in the trace file
 
-      INTEGER*2 ISURF   ! Type de surface     
+      INTEGER*2 ISURF   ! Surface type
 
-      INTEGER*4 OS_NB   ! Ordre des développements des fonctions de phase 
-			   ! en Polynomes de Legendre.
-      INTEGER*4 OS_NS   ! Ordre maximal du développement en polynomes de Legendre   
-			   ! des éléments de la matrice de Fresnel.
-      INTEGER*4 OS_NM   ! Ordre maximal du développement en séries de Fourier  
-			   ! de la fonction G des calculs de matrice de réflexion.
+      INTEGER*4 OS_NB   ! Order of the expansions of the phase functions
+			   ! in Legendre polynomials.
+      INTEGER*4 OS_NS   ! Maximum order of the expansion in Legendre polynomials
+			   ! of the Fresnel matrix elements.
+      INTEGER*4 OS_NM   ! Maximum order of the expansion in Fourier series
+			   ! of the G function of the reflection matrix computations.
 			
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations
-      INTEGER*4 I	    ! Indice de tableau.
-      INTEGER*4 IFIN     ! nb caracteres significatifs d'une chaine
-      INTEGER*4 IER      ! code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
+      INTEGER*4 I	    ! Array index.
+      INTEGER*4 IFIN     ! nb of significant characters of a string
+      INTEGER*4 IER      ! error code =0 if no error, =-1 otherwise
 
 
 
 
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0
 
      
       
-C* Ouverture du fichier Trace 
+C* Opening of the trace file
 C------------------------------------------------------
       IF (TRACE) THEN
          WRITE(99,*,err=921)	 
@@ -290,20 +290,20 @@ C------------------------------------------------------
       END IF
         
 
-C* Decomposition en séries de Fourier de la fonction G(Teta1,Teta2,phi).
+C* Fourier series decomposition of the function G(Teta1,Teta2,phi).
 C---------------------------------------------------------------------
-      IF (ISURF.EQ.4) THEN	!Modèle BPDf de Rondeaux
+      IF (ISURF.EQ.4) THEN	!Rondeaux BPDF model
           CALL SOS_GSF_RONDEAUX_BREON(LUM_NBMU,RMU,1,OS_NM,
      &                                FIC_RES_GSF,TRACE,IER)
       ENDIF
 
-      IF (ISURF.EQ.5) THEN	!Modèle BPDf de Bréon
+      IF (ISURF.EQ.5) THEN	!Bréon BPDF model
           CALL SOS_GSF_RONDEAUX_BREON(LUM_NBMU,RMU,2,OS_NM,
      &                                FIC_RES_GSF,TRACE,IER)
       ENDIF
 
-C			4 :surface lambertienne + BRDF de Roujean + BPDF de Rondeaux.
-C			5 :surface lambertienne + BRDF de Roujean + BPDF de Breon.
+C			4 :Lambertian surface + Roujean BRDF + Rondeaux BPDF.
+C			5 :Lambertian surface + Roujean BRDF + Breon BPDF.
 
 
 
@@ -317,34 +317,34 @@ C			5 :surface lambertienne + BRDF de Roujean + BPDF de Breon.
      &                         FIC_RES_GSF,IER)
       ENDIF
      
-      IF (IER.NE.0) GOTO 995   ! cas d'erreur
+      IF (IER.NE.0) GOTO 995   ! error case
       
       
-C* Développement en fonctions de Legendre de la matrice de Fresnel.
+C* Expansion of the Fresnel matrix in Legendre functions.
 C------------------------------------------------------------------
       CALL SOS_MAT_FRESNEL(LUM_NBMU,RMU,CHR,IND,OS_NS,
      &                     FIC_RES_FRESNEL,TRACE,IER)
-      IF (IER.NE.0) GOTO 996   ! cas d'erreur
+      IF (IER.NE.0) GOTO 996   ! error case
       
-C* Calcul de la matrice de réflexion developpee en séries de Fourier.
+C* Computation of the reflection matrix expanded in Fourier series.
 C------------------------------------------------------------------
       CALL SOS_MAT_REFLEXION(1.D+00,LUM_NBMU,RMU,OS_NB,OS_NS,OS_NM,
      &                       FIC_RES_FRESNEL,FIC_RES_GSF,
      &                       FIC_RES_MAT_REFLEX,IER)
-      IF (IER.NE.0) GOTO 997   ! cas d'erreur
+      IF (IER.NE.0) GOTO 997   ! error case
       
-C* Rearrangement des résultats pour etre compatible avec le code des OS.
+C* Rearrangement of the results to be compatible with the OS code.
 C-----------------------------------------------------------------------
       CALL SOS_MISE_FORMAT(FIC_RES_MAT_REFLEX, FICBPDF,
      &                     LUM_NBMU,OS_NB,IER)
-      IF (IER.NE.0) GOTO 998   ! cas d'erreur
+      IF (IER.NE.0) GOTO 998   ! error case
 
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
   912 WRITE(6,*) 'Erreur à l''ouverture du fichier angles de Gauss'
       IER=-1
@@ -379,7 +379,7 @@ C---------
               
  9999 CONTINUE
 
-C* Destruction des fichiers temporaires
+C* Deletion of the temporary files
 C---------------------------------------   
       OPEN(UNIT=3,FILE=FIC_RES_GSF,FORM='UNFORMATTED') 
       CLOSE(3,STATUS='DELETE')     
@@ -389,7 +389,7 @@ C---------------------------------------
       CLOSE(3,STATUS='DELETE') 
                                                       
       RETURN
-      END    !FIN DU PROGRAMME SOS_SURFACE_BPDF
+      END    !END OF PROGRAM SOS_SURFACE_BPDF
 
 
 
@@ -397,67 +397,67 @@ C---------------------------------------
 C==============================================================================
 C PROCEDURE: SOS_GSF_RONDEAUX_BREON
 C ==========
-C      Cette procédure realise la decomposition en series de Fourier
-C      (sur phi) de la fonction G(Teta1,Teta2,phi) :
+C      This procedure performs the Fourier series decomposition
+C      (on phi) of the function G(Teta1,Teta2,phi):
 C
-C         Modèle de Rondeaux :G(Teta1, Teta2, phi) = 1. / [ 4 * (cosTeta1+cosTeta2) ]
+C         Rondeaux model: G(Teta1, Teta2, phi) = 1. / [ 4 * (cosTeta1+cosTeta2) ]
 C
-C         Modèle de Breon :   G(Teta1, Teta2, phi) = 1. / [ 4*cosTeta1*cosTeta2 ]
+C         Breon model:    G(Teta1, Teta2, phi) = 1. / [ 4*cosTeta1*cosTeta2 ]
 C
-C	    avec  Teta1 : angle zenithal d'incidence  (0 < Teta1 < PI/2),
-C                Teta2 : angle zenithal de reflexion (0 < Teta2 < PI/2),
-C                phi   : angle azimutal relatif entre les directions
-C                        d'incidence et de reflexion,
+C	    with  Teta1 : incidence zenith angle  (0 < Teta1 < PI/2),
+C                Teta2 : reflection zenith angle (0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                     of incidence and reflection,
 C			
 C
-C      Enregistre les resultats dans le fichier "RES_GSF" sous la forme:
-C	   Numéro d'angle Teta1 : I1,
-C         Numéro d'angle Teta2 : I2,
-C         Ordre maximal utile de la decomposition: IL
-C            (IL = 0 pour ces fonctions independantes  de l'azimut),
-C         Fonction G decomposee pour (Teta1,Teta2) : (E(J),J=0,IL)
+C      Stores the results in the file "RES_GSF" as:
+C	   Number of the angle Teta1 : I1,
+C         Number of the angle Teta2 : I2,
+C         Maximum useful order of the decomposition: IL
+C            (IL = 0 for these azimuth-independent functions),
+C         Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C      LUM_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles.
-C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)	 (E) : Tableau des mu de Gauss.
-C      IRONDEAUX (integer*4) (E) : Indice de modèle 1 <-> Rondeaux, Breon sinon.
-C      OS_NM (I4) : (E) Ordre maximal du développement en series de Fourier  
-C                       de la fonction G des calculs de matrice de reflexion.
+C      LUM_NBMU (I4) : (I) Number of actually useful (positive) angles.
+C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)	 (I) : Array of the Gauss mu.
+C      IRONDEAUX (integer*4) (I) : Model index 1 <-> Rondeaux, Breon otherwise.
+C      OS_NM (I4) : (I) Maximum order of the expansion in Fourier series
+C                           of the G function of the reflection matrix computations.
 C      FIC_RES_GSF (CHARACTER*CTE_LENFIC2)  :  
-C                 (E) Nom du fichier temporaire RES_GSF avec arborescence complète.
-C      TRACE (logical) (E) : Option de Trace.
-C      IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon.
+C                 (I) Name of the temporary file RES_GSF with complete directory tree.
+C      TRACE (logical) (I) : Trace option.
+C      IER  (I4)   (O) : error code =0 if no error, =-1 otherwise.
 C
-C Autre resultat fourni par la procédure
+C Other result provided by the procedure
 C -------------------------------------
-C      Fichier temporaire RES_GSF
+C      Temporary file RES_GSF
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier temporaire RES_GSF
-C       Fichier binaire non formatte, cree par SOS_GSF_RONDEAUX_BREON
-C       Fichier cree dans le repertoire de lancement du programme
-C       Si un fichier de meme nom existe deja, il est ecrase
-C       Chaque enregistrement contient :
-C           -numéro d'angle Teta1 (valeur entiere)
-C           -numéro d'angle Teta2 (valeur entiere)
-C           -ordre maximale utile de la decompositon : IL  (valeur entiere)
-C           -Fonction G decomposee pour (Teta1,Teta2) : (E(J),J=0,IL)
-C            (IL+1 valeurs double précision)
+C   -->Content of the temporary file RES_GSF
+C       Unformatted binary file, created by SOS_GSF_RONDEAUX_BREON
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Each record contains:
+C           -number of the angle Teta1 (integer value)
+C           -number of the angle Teta2 (integer value)
+C           -maximum useful order of the decomposition: IL  (integer value)
+C           -Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
+C            (IL+1 double precision values)
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C==============================================================================
       SUBROUTINE SOS_GSF_RONDEAUX_BREON(LUM_NBMU,RMU,IRONDEAUX,
@@ -465,40 +465,40 @@ C==============================================================================
  	
       IMPLICIT NONE
 
-C* Definition des variables    
+C* Definition of variables
 C*-------------------------------------------------------------------
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Tableau des mu de Gauss
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Array of the Gauss mu
 
-      DOUBLE PRECISION E(0:CTE_OS_NM_MAX)	! Resultat de la decomposition en 
-      				        ! series de Fourier de la fonction G.
+      DOUBLE PRECISION E(0:CTE_OS_NM_MAX)	! Result of the decomposition in
+      				        ! Fourier series of the function G.
 
       DOUBLE PRECISION C1	! Cos(Teta1).
       DOUBLE PRECISION S1	! Sin(Teta1).
       DOUBLE PRECISION C2	! Cos(Teta2).
       DOUBLE PRECISION S2	! Sin(Teta2).
 
-      LOGICAL TRACE     ! = vrai,si écriture dans le fichier trace.
+      LOGICAL TRACE     ! = true if writing in the trace file.
 
-      INTEGER*4 OS_NM   ! Ordre maximal du développement en series de Fourier  
-			   ! de la fonction G des calculs de matrice de reflexion.      
-      INTEGER*4 LUM_NBMU  ! Nombre d'angles effectifs des simulations
-      INTEGER*4 IRONDEAUX ! 1 si simulation du modèle de Rondeaux.
-      		            ! Sinon simulation du modèle de Breon.
-      INTEGER*4 IL	! Ordre maximale utile pour la fonction E.
-      INTEGER*4 I1	! Indice de numéro d'angle Teta1.
-      INTEGER*4 I2	! Indice de numéro d'angle Teta2.
-      INTEGER*4 IER  ! code d'erreur =0 si pas d'erreur, =-1 sinon  
-      INTEGER*4 J	! Indice de tableau.
+      INTEGER*4 OS_NM   ! Maximum order of the expansion in Fourier series
+			   ! of the G function of the reflection matrix computations.
+      INTEGER*4 LUM_NBMU  ! Number of actual angles of the simulations
+      INTEGER*4 IRONDEAUX ! 1 if simulation of the Rondeaux model.
+      		            ! Otherwise simulation of the Breon model.
+      INTEGER*4 IL	! Maximum useful order for the function E.
+      INTEGER*4 I1	! Index of the angle number Teta1.
+      INTEGER*4 I2	! Index of the angle number Teta2.
+      INTEGER*4 IER  ! error code =0 if no error, =-1 otherwise
+      INTEGER*4 J	! Array index.
       
-      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Nom du fichier RES_GSF
-                                        ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Name of the file RES_GSF
+                                        ! with complete directory tree
 
 
-C* Ouverture du fichier resultat
+C* Opening of the result file
 C--------------------------------
       OPEN(UNIT=30,FILE=FIC_RES_GSF,FORM='UNFORMATTED',ERR=991)
 
-C* Fichier Trace
+C* Trace file
 C--------------------------------
       IF (TRACE) THEN
          IF(IRONDEAUX.EQ.1) THEN
@@ -509,27 +509,27 @@ C--------------------------------
 	    	 
       ENDIF  
 	   
-C* Boucle sur l'angle Teta1 > 0.
+C* Loop on the angle Teta1 > 0.
 C---------------------------------
       DO  3 I1=1 ,LUM_NBMU
 
-C* Cosinus et sinus de Teta1
+C* Cosine and sine of Teta1
 C---------------------------------
          C1=RMU(I1)
          S1=DSQRT(1-C1*C1)
 
-C*   Boucle sur l'angle teta2 > 0.
+C*   Loop on the angle teta2 > 0.
 C---------------------------------
          DO 4 I2=1 ,I1
 
-C*   Cosinus et sinus de Teta2
+C*   Cosine and sine of Teta2
 C---------------------------------
            C2=RMU(I2)
            S2=DSQRT(1-C2*C2)
           
 
-C*   Fonction G a l'ordre IS = 0 pour le modèle de Rondeaux.
-C*   => Independant de l'azimut : Terme unique IS = 0.
+C*   G function at order IS = 0 for the Rondeaux model.
+C*   => Independent of the azimuth: single term IS = 0.
 C---------------------------------
            IF(IRONDEAUX.EQ.1) THEN
 	      E(0) = 1. / (1./C1 + 1./C2)
@@ -538,7 +538,7 @@ C---------------------------------
 	   ENDIF   
 	   IL=0
 
-C* Ecriture des resultats dans le fichier Trace
+C* Writing of the results in the trace file
 C--------------------------------
 	   IF (TRACE) THEN
 	       WRITE(99,1000,err=921) ACOS(C1)*180./INCTE_PI, 
@@ -548,21 +548,21 @@ C--------------------------------
 	      
                  
 
-C*   Enregistrement des resultats
+C*   Recording of the results
 C---------------------------------
  17        WRITE(30,err=992)I1,I2,IL,(E(J),J=0,IL)
 
- 4       CONTINUE	!Fin de boucle sur Teta2 (I2)
+ 4       CONTINUE	!End of loop on Teta2 (I2)
  
- 3    CONTINUE	!Fin de boucle sur Teta1 (I1)
+ 3    CONTINUE	!End of loop on Teta1 (I1)
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       GOTO 9999
       
 
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C------------------------------------------------------
   921 WRITE(6,*) 'Erreur d''écriture sur le fichier trace Surface'
       IER=-1
@@ -578,7 +578,7 @@ C------------------------------------------------------
 
  9999 CONTINUE
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(30)
 
@@ -588,34 +588,34 @@ C--------
      &2hG:,1X,E11.4)    
            
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_GSF_RONDEAUX_BREON
+      END         !END OF PROCEDURE SOS_GSF_RONDEAUX_BREON
 
 
 
 C==============================================================================
 C PROCEDURE: SOS_F21SF_NADAL
 C ==========
-C      Cette procédure realise la decomposition en series de Fourier
-C      (sur phi) de la fonction F(Teta1,Teta2,phi) :
+C      This procedure performs the Fourier series decomposition
+C      (on phi) of the function F(Teta1,Teta2,phi):
 C
 C	 F(Teta1,Teta2,phi) = F12nadal(Teta1,Teta2,phi) 
 C                            / F12fresnel(Teta1,Teta2,phi)
-C	 avec Teta1 : angle zenithal d'incidence : tetas  (0 < Teta1 < PI/2),
-C             Teta2 : angle zenithal de reflexion : tetav (0 < Teta2 < PI/2),
-C             phi   : angle azimutal relatif entre les directions
-C                     d'incidence et de reflexion selon la convention 
-C                     des OS (0 <= phi <= PI),
+C	 with Teta1 : incidence zenith angle: tetas  (0 < Teta1 < PI/2),
+C             Teta2 : reflection zenith angle: tetav (0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                     of incidence and reflection with the convention
+C                     of the OS (0 <= phi <= PI),
 C			
 C             F12fresnel = 0.5 * (RR*RR - RL*RL) 
-C             selon la convention de signe du modèle de Nadal.
+C             with the sign convention of the Nadal model.
 C
-C                avec RL le coefficient de reflexion parallele,
-C                calcules en fonction de l'indice de réfraction de la surface
-C                et de l'angle de reflexion teta :
+C                with RL the parallel reflection coefficient,
+C                computed from the refractive index of the surface
+C                and the reflection angle teta:
 C                RL(teta) = [ IND**2 * cos(teta) - SQRT(IND**2 - sin(teta)**2) ]
 C                         / [ IND**2 * cos(teta) + SQRT(IND**2 - sin(teta)**2) ]
 C
-C                RR le coefficient de reflexion perpendiculaire :
+C                RR the perpendicular reflection coefficient:
 C                RR(teta) = [ cos(teta) - SQRT(IND**2 - sin(teta)**2) ]
 C                         / [ cos(teta) + SQRT(IND**2 - sin(teta)**2) ]
 C
@@ -624,62 +624,62 @@ C
 C             F12nadal = alpha * 
 C                  [ 1 -exp(-beta*F12fresnel / (cosTeta1 + cosTeta2) ) ]
 C
-C                 avec alpha et beta les paramètres du modèle de Nadal.
+C                 with alpha and beta the parameters of the Nadal model.
 C
-C      La BPDF du modèle de Nadal est convertie de reflectance polarisee 
-C      en une grandeur utile pour les OS : luminance normalisée * cos(Teta2),
-C      c'est a dire : BPDF * cos(Teta1) * cos(Teta2).			
+C      The BPDF of the Nadal model is converted from polarised reflectance
+C      into a quantity useful for the OS: normalised radiance * cos(Teta2),
+C      i.e.: BPDF * cos(Teta1) * cos(Teta2).
 C
 C
-C      La procédure enregistre les resultats dans le fichier "RES_MAT_REFLEX" 
-C      sous la forme:
-C         Fonction F decomposee pour (Teta1,Teta2) : (E(IS),IS=0,OS_NB)
+C      The procedure stores the results in the file "RES_MAT_REFLEX"
+C      as:
+C         Decomposed function F for (Teta1,Teta2) : (E(IS),IS=0,OS_NB)
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C      LUM_NBMU (I4) (E) : Nombre d'angles (positifs) effectivement utiles.
-C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)	 (E) Tableau des mu de Gauss.
-C      IND     (double)  (E) : Indice de réfraction de la surface.      	
-C      ALPHA   (double)  (E) : Paramètre alpha du modèle de Nadal.         	
-C      BETA    (double)  (E) : Paramètre beta du modèle de Nadal.   
-C      OS_NB (I4) (E) : Ordre des développements des fonctions de phase 
-C		          en Polynomes de Legendre a utiliser.     	
-C      TRACE    (logical) (E) = vrai,si écriture dans le fichier trace
-C      IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon 
+C      LUM_NBMU (I4) (I) : Number of actually useful (positive) angles.
+C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)	 (I) Array of the Gauss mu.
+C      IND     (double)  (I) : Refractive index of the surface.
+C      ALPHA   (double)  (I) : Parameter alpha of the Nadal model.
+C      BETA    (double)  (I) : Parameter beta of the Nadal model.
+C      OS_NB (I4) (I) : Order of the expansions of the phase functions
+C		           in Legendre polynomials to be used.
+C      TRACE    (logical) (I) = true if writing in the trace file
+C       IER  (I4)   (O) : error code =0 if no error, =-1 otherwise
 C
-C Autre resultat fourni par la procédure
+C Other result provided by the procedure
 C -------------------------------------
-C      Fichier temporaire RES_MAT_REFLEX
+C      Temporary file RES_MAT_REFLEX
 C
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
 C
-C   -->Contenu du fichier temporaire RES_MAT_REFLEX
-C       Fichier binaire non formatte,
-C       Fichier cree dans le repertoire de lancement du programme
-C       Si un fichier de meme nom existe deja, il est ecrase
-C       Enregistrement pour chaque couple (Teta1, Teta2) de la 
-C       decomposition en series de Fourier de fonction F21 du modèle 
-C       de Nadal.
+C   -->Content of the temporary file RES_MAT_REFLEX
+C       Unformatted binary file,
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Record for each pair (Teta1, Teta2) of the
+C       Fourier series decomposition of the function F21 of the Nadal
+C       model.
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C     
-C  Routines utilises par la procédure:
+C  Routines used by the procedure:
 C ------------------------------------
-C  Ce programme fait appel aux routines:
+C  This program calls the routines:
 C        - SOS_CALC_F21_NADAL_SUR_FRESNEL
 C
 C==============================================================================
@@ -688,87 +688,87 @@ C==============================================================================
  	
       IMPLICIT NONE
 
-C* Definition des variables    
+C* Definition of variables
 C*-------------------------------------------------------------------
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Tableau des mu de Gauss
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Array of the Gauss mu
 
-      DOUBLE PRECISION IND	 ! Indice de réfraction surface / air
-      DOUBLE PRECISION ALPHA !Paramètre alpha du modèle de Nadal.
-      DOUBLE PRECISION BETA	 !Paramètre beta du modèle de Nadal.
+      DOUBLE PRECISION IND	 ! Refractive index surface / air
+      DOUBLE PRECISION ALPHA !Parameter alpha of the Nadal model.
+      DOUBLE PRECISION BETA	 !Parameter beta of the Nadal model.
       
-      DOUBLE PRECISION E(0:CTE_OS_NB_MAX) ! Resultat de la decomposition en 
-      				              ! series de Fourier de la fonction F.
+      DOUBLE PRECISION E(0:CTE_OS_NB_MAX) ! Result of the decomposition in
+      				              ! Fourier series of the function F.
 	
-      DOUBLE PRECISION PHI	! Azimut relatif pour la convention OS (radians).
+      DOUBLE PRECISION PHI	! Relative azimuth for the OS convention (radians).
 
       DOUBLE PRECISION C1	! Cos(Teta1).
       DOUBLE PRECISION S1	! Sin(Teta1).
       DOUBLE PRECISION C2	! Cos(Teta2).
       DOUBLE PRECISION S2	! Sin(Teta2).
 
-      DOUBLE PRECISION F	! Valeur de la fonction F(phi).
-      DOUBLE PRECISION FMIN	! Valeur minimale retenue pour la fonction 
-      				! F(phi) pour Theta1 et Theta2 fixes.
-      DOUBLE PRECISION FMAX	! Valeur maximale de la fonction F(phi).
+      DOUBLE PRECISION F	! Value of the function F(phi).
+      DOUBLE PRECISION FMIN	! Minimum value kept for the function
+      				! F(phi) for fixed Theta1 and Theta2.
+      DOUBLE PRECISION FMAX	! Maximum value of the function F(phi).
 
-      DOUBLE PRECISION U(0:CTE_PH_NU)  ! Fonction F(phi) entre 0 et PI
-      			                  ! pour Theta1 et Theta2 fixes.
+      DOUBLE PRECISION U(0:CTE_PH_NU)  ! Function F(phi) between 0 and PI
+      			                  ! for fixed Theta1 and Theta2.
 
-      DOUBLE PRECISION Q	! Pas en phi.
+      DOUBLE PRECISION Q	! Step in phi.
 
-      DOUBLE PRECISION T1	! Recombinaison de la fonction F(phi) a 
-      				! partir de E(IS).
+      DOUBLE PRECISION T1	! Recombination of the function F(phi) from
+      				! E(IS).
 
       DOUBLE PRECISION Y
-      DOUBLE PRECISION B1	! Valeur test pour l'arret de la decomposition
-      				! en series de Fourier.
-      DOUBLE PRECISION B1_PREC  ! Valeur de B1 pour l'ordre IS-1.
+      DOUBLE PRECISION B1	! Test value to stop the decomposition
+      				! in Fourier series.
+      DOUBLE PRECISION B1_PREC  ! Value of B1 for order IS-1.
       
-      DOUBLE PRECISION PHIFMIN	!Azimut relatif donnant Fmin (selon la convention OS).
-      DOUBLE PRECISION PHIFMAX	!Azimut relatif donnant Fmax (selon la convention OS).
+      DOUBLE PRECISION PHIFMIN	!Relative azimuth giving Fmin (OS convention).
+      DOUBLE PRECISION PHIFMAX	!Relative azimuth giving Fmax (OS convention).
      
 	
-      DOUBLE PRECISION FRECOMB	! Valeur de la fonction F recombinee à partir de sa
-      				       ! decomposition en series de Fourier.
-      DOUBLE PRECISION ECART	! Ecart relatif entre la valeur exacte de F  
-      				       ! et celle recombinee.			
-      DOUBLE PRECISION ECARTMAX ! Ecart relatif maximal entre la valeur exacte de F  
-      				    ! et celle recombinee 
-				    !=> pour tous les couples (Teta1, Teta2).
+      DOUBLE PRECISION FRECOMB	! Value of the function F recombined from its
+      				       ! Fourier series decomposition.
+      DOUBLE PRECISION ECART	! Relative difference between the exact value of F
+      				       ! and the recombined one.
+      DOUBLE PRECISION ECARTMAX ! Maximum relative difference between the exact value of F
+      				    ! and the recombined one
+				    !=> for all the pairs (Teta1, Teta2).
       
-      DOUBLE PRECISION PHIECARTMAX ! Angle azimutal pour la configuration donnant ECARTMAX.
-      DOUBLE PRECISION TVECARTMAX  ! Angle zenithal de visee pour ECARTMAX.	
-      DOUBLE PRECISION TSECARTMAX  ! Angle zenithal solaire pour ECARTMAX.	 
-      DOUBLE PRECISION F_ECARTMAX  ! Valeur exacte de F donnant ECARTMAX.
-      DOUBLE PRECISION FRECOMB_ECARTMAX  ! Valeur recombinee de F donnant ECARTMAX.
-      DOUBLE PRECISION SOMECART	! Sommation des ecarts relatifs.
+      DOUBLE PRECISION PHIECARTMAX ! Azimuth angle of the configuration giving ECARTMAX.
+      DOUBLE PRECISION TVECARTMAX  ! Viewing zenith angle for ECARTMAX.
+      DOUBLE PRECISION TSECARTMAX  ! Solar zenith angle for ECARTMAX.
+      DOUBLE PRECISION F_ECARTMAX  ! Exact value of F giving ECARTMAX.
+      DOUBLE PRECISION FRECOMB_ECARTMAX  ! Recombined value of F giving ECARTMAX.
+      DOUBLE PRECISION SOMECART	! Sum of the relative differences.
 
-      DOUBLE PRECISION ECARTMAX_C1C2 ! Ecart relatif maximal entre la valeur exacte de F  
-      				         ! et celle recombinee 
-				         !=> pour le couple (Teta1, Teta2) en cours.
-      DOUBLE PRECISION PHIECARTMAX_C1C2 ! Angle azimutal pour ECARTMAX_C1C2.
-      DOUBLE PRECISION F_ECARTMAX_C1C2  ! Valeur exacte de F donnant ECARTMAX_C1C2.
-      DOUBLE PRECISION FRECOMB_ECARTMAX_C1C2  ! Valeur recombinee de F donnant ECARTMAX_C1C2.      
+      DOUBLE PRECISION ECARTMAX_C1C2 ! Maximum relative difference between the exact value of F
+      				         ! and the recombined one
+				         !=> for the current pair (Teta1, Teta2).
+      DOUBLE PRECISION PHIECARTMAX_C1C2 ! Azimuth angle for ECARTMAX_C1C2.
+      DOUBLE PRECISION F_ECARTMAX_C1C2  ! Exact value of F giving ECARTMAX_C1C2.
+      DOUBLE PRECISION FRECOMB_ECARTMAX_C1C2  ! Recombined value of F giving ECARTMAX_C1C2.
       
       LOGICAL TRACE
 
-      INTEGER*4 OS_NB ! Ordre des développements des fonctions de phase 
-			 ! en Polynomes de Legendre.
+      INTEGER*4 OS_NB ! Order of the expansions of the phase functions
+			 ! in Legendre polynomials.
 				
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
       	    
-      INTEGER*4 J	! Indice de tableau.
-      INTEGER*4 IL	! Ordre maximale utile pour la fonction E.
-      INTEGER*4 I1	! Indice de numéro d'angle Teta1.
-      INTEGER*4 I2	! Indice de numéro d'angle Teta2.
-      INTEGER*4 IS	! Ordre IS de la decomposition en series de Fourier.
-      INTEGER*4 IS2	! Ordre IS de la decomposition en series de Fourier.
-      INTEGER*4 IER  ! code d'erreur =0 si pas d'erreur, =-1 sinon  
+      INTEGER*4 J	! Array index.
+      INTEGER*4 IL	! Maximum useful order for the function E.
+      INTEGER*4 I1	! Index of the angle number Teta1.
+      INTEGER*4 I2	! Index of the angle number Teta2.
+      INTEGER*4 IS	! Order IS of the Fourier series decomposition.
+      INTEGER*4 IS2	! Order IS of the Fourier series decomposition.
+      INTEGER*4 IER  ! error code =0 if no error, =-1 otherwise
       INTEGER*4 I
-      INTEGER*4 COMPT	! Nombre de configurations pour la sommation des ecarts relatifs.
+      INTEGER*4 COMPT	! Number of configurations for the sum of the relative differences.
      
-      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Nom du fichier RES_GSF
-                                        ! avec arborescence complète      
+      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Name of the file RES_GSF
+                                        ! with complete directory tree
 	
 C* Initialisation
 C---------------------------------------------------------	
@@ -777,29 +777,29 @@ C---------------------------------------------------------
       COMPT = 0
       
      
-C* Creation du fichier resultat de SOS_MAT_REFLEXION
+C* Creation of the result file of SOS_MAT_REFLEXION
 C---------------------------------------------------------
       OPEN(UNIT=30,FILE=FIC_RES_GSF,FORM='UNFORMATTED',ERR=991)
 
-C* Boucle sur l'angle Teta1 > 0.
+C* Loop on the angle Teta1 > 0.
 C---------------------------------
       DO  3 I1=1 ,LUM_NBMU
 
-C* Cosinus et sinus de Teta1 : angle d'incidence
+C* Cosine and sine of Teta1: incidence angle
 C---------------------------------
          C1=RMU(I1)
          S1=DSQRT(1-C1*C1)
 
-C*   Boucle sur l'angle teta2 > 0.
+C*   Loop on the angle teta2 > 0.
 C---------------------------------
          DO 4 I2=1 ,LUM_NBMU	
 
-C*   Cosinus et sinus de Teta2 : angle de reflexion
+C*   Cosine and sine of Teta2: reflection angle
 C---------------------------------
            C2=RMU(I2)
            S2=DSQRT(1-C2*C2)
 
-C*   Determination de F pour phi = 0 a PI par pas PI/CTE_PH_NU
+C*   Determination of F for phi = 0 to PI with step PI/CTE_PH_NU
 C-------------------------------------------------------------
           
            Q=INCTE_PI/CTE_PH_NU
@@ -813,8 +813,8 @@ C-------------------------------------------------------------
  6         CONTINUE
 
 		
-C*   Determination des valeurs min et max de F
-C*   pour I1 et I2 fixes mais PHI variant.
+C*   Determination of the min and max values of F
+C*   for fixed I1 and I2 but varying PHI.
 C----------------------------------------------
 	   IF (TRACE) THEN
 	       FMAX=-1.D+300
@@ -837,8 +837,8 @@ C----------------------------------------------
            ENDIF  !trace
 	      
 	 
-C*   Realisation de la decomposition en serie de Fourier.
-C*   Boucle sur l'ordre de la serie.                     
+C*   Fourier series decomposition.
+C*   Loop on the order of the series.
 C--------------------------------------------------------------------
 
 C--------- Initialisations 
@@ -850,12 +850,12 @@ C--------------------------------
 	   B1_PREC = 1.D+300		
 
 
-C--------- Boucle sur l'ordre IS 
+C--------- Loop on the order IS
 C-------------------------------- 	   
 	   DO 13 IS=0,OS_NB
               
 
-C--------- Determination de E(IS) 
+C--------- Determination of E(IS)
 C--------------------------------      
 	      Y = 0.D+00      
 	      DO I=0,CTE_PH_NU
@@ -864,7 +864,7 @@ C--------------------------------
 	      ENDDO
 	      E(IS) = Y*Q / INCTE_PI
 	      
-C--------- Determination de l'ecart maximal entre F exact et recombine : B1
+C--------- Determination of the maximum difference between exact and recombined F: B1
 C---------------------------------------------------------------------      
 	      B1=0.D+00			!initialisation
 	      DO I=0,CTE_PH_NU
@@ -872,47 +872,47 @@ C---------------------------------------------------------------------
 	         CALL SOS_CALC_F21_NADAL_SUR_FRESNEL(IND,ALPHA,BETA,
      &	                                          C1,S1,C2,S2,PHI,F)
 
-C-------------- Calcul de F recombine à partir de la fonction E(IS) pour PHI fixe. 
+C-------------- Computation of the recombined F from the function E(IS) for fixed PHI.
                 T1=E(0)	
 		  DO IS2 = 1, IS		  
 	              T1=T1+2.*E(IS2)*DCOS(IS2*PHI)	!Azimuth convention OS          		     
-		  ENDDO !Fin boucle sur IS2
+		  ENDDO !End of loop on IS2
        
                 B1=MAX( DABS((T1-F)/F) , B1)
 		 		 
-	      ENDDO !Fin boucle sur I (phi = 0 a PI)
+	      ENDDO !End of loop on I (phi = 0 to PI)
 	           	     
 
-C--------- Test d'arret de la decomposition :
-C---------    * Arret si l'ecart relatif maximal entre F exacte et recombinee est
-C---------      inferieur au seuil CTE_SEUIL_SF_NADAL
-C---------      ou s'il augmente par rapport a l'ordre precedent.
-C---------    * Poursuite de la boucle sur IS sinon.
+C--------- Stop test of the decomposition:
+C---------    * Stop if the maximum relative difference between exact and recombined F
+C---------      below the threshold CTE_SEUIL_SF_NADAL
+C---------      or if it increases with respect to the previous order.
+C---------    * Otherwise the loop on IS goes on.
 C-------------------------------------------------------------------------------- 		
               IF (B1.GT.CTE_SEUIL_SF_NADAL) GOTO 14
               IL=IS	      
-              GOTO 17	!Sortie de boucle sur IS
+              GOTO 17	!Exit of the loop on IS
 	      
  14           IF(B1.LT.B1_PREC) GOTO 141
               IL=IS-1
-	      GOTO 17	!Sortie de boucle sur IS
+	      GOTO 17	!Exit of the loop on IS
 	      
  141	      B1_PREC=B1	        
- 13        CONTINUE	!Fin de boucle sur IS     
+ 13        CONTINUE	!End of loop on IS
 	   IL=OS_NB
 
 
 
-C* Enregistrement pour le couple (Teta1, Teta2) de la decomposition
-C* en series de Fourier de BPDF (convertie en luminance normalisée
-C* et adaptee au code des OS).
+C* Recording for the pair (Teta1, Teta2) of the decomposition
+C* in Fourier series of the BPDF (converted into normalised radiance
+C* and adapted to the OS code).
 C-----------------------------------------------------------------
  17        WRITE(30,err=992)I1,I2,IL,(E(J),J=0,IL)
 
 
-C* Fichier Trace : Calculs de paramètres d'analyse de qualite
-C*                 de la decomposition en series de Fourier
-C*                 et enregistrements.
+C* Trace file: Computation of quality analysis parameters
+C*                 of the Fourier series decomposition
+C*                 and recordings.
 C-----------------------------------------------------------------
            IF (TRACE) THEN
 
@@ -932,7 +932,7 @@ C-----------------------------------------------------------------
 	         IF(F.NE.0.D+00) THEN
 	            ECART = DABS((FRECOMB-F)/F)  
 		    
-C*       Analyse pour tous les azimuts du couple courant (Teta1, Teta2)	
+C*       Analysis for all the azimuths of the current pair (Teta1, Teta2)
 		     IF(ECART.GT.ECARTMAX_C1C2) THEN
 		        ECARTMAX_C1C2 = ECART
 		        PHIECARTMAX_C1C2 = PHI*180./INCTE_PI	!Azimuth convention OS
@@ -940,7 +940,7 @@ C*       Analyse pour tous les azimuts du couple courant (Teta1, Teta2)
 	               FRECOMB_ECARTMAX_C1C2 = FRECOMB
 		     ENDIF 
 		    
-C*       Analyse pour tous les azimuts et tous les couples (Teta1, Teta2)		    
+C*       Analysis for all the azimuths and all the pairs (Teta1, Teta2)
 	            IF(ECART.GT.ECARTMAX) THEN
 	               ECARTMAX = ECART
 	               PHIECARTMAX = PHI*180./INCTE_PI	!Azimuth convention OS
@@ -953,7 +953,7 @@ C*       Analyse pour tous les azimuts et tous les couples (Teta1, Teta2)
 	            SOMECART=SOMECART + ECART
 	            COMPT = COMPT + 1
 		 ENDIF
-	      ENDDO !Fin boucle sur I (phi)
+	      ENDDO !End of loop on I (phi)
          	
 
 	      IF(F_ECARTMAX_C1C2.NE.0.D+00) THEN	 
@@ -969,19 +969,19 @@ C*       Analyse pour tous les azimuts et tous les couples (Teta1, Teta2)
 	      WRITE(99,*,err=921)   	       
                  
 	      
-           END IF !Fin Trace
+           END IF !End of Trace
       
       	
 		                            
- 4       CONTINUE	!Fin de boucle sur Teta2 (I2)
+ 4       CONTINUE	!End of loop on Teta2 (I2)
  
- 3    CONTINUE	!Fin de boucle sur Teta1 (I1)
+ 3    CONTINUE	!End of loop on Teta1 (I1)
  
  
 
 
-C* Fichier Trace : Enregistrements des paramètres d'analyse de qualite
-C*                 de la decomposition en series de Fourier.
+C* Trace file: Recording of the quality analysis parameters
+C*                 of the Fourier series decomposition.
 C----------------------------------------------------------------- 
       IF (TRACE) THEN
          WRITE(99,*,err=921)
@@ -1025,12 +1025,12 @@ C-----------------------------------------------------------------
       
      
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       goto 9999
       
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C------------------------------------------------------
   921 WRITE(6,*) 'Erreur d''écriture sur le fichier trace Surface'
       IER=-1
@@ -1046,7 +1046,7 @@ C------------------------------------------------------
  9999 CONTINUE
 
 
-C* Fermeture fichier :'RES_MAT_REFLEX'
+C* File closing: 'RES_MAT_REFLEX'
 C-------------------------------------
       CLOSE(30)
  
@@ -1066,64 +1066,64 @@ C--------
      &1X,F6.2,3h, F:,1X,E11.4,2X,11h, F recomb:,1X,E11.4)         
                            
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_F21SF_NADAL
+      END         !END OF PROCEDURE SOS_F21SF_NADAL
 
 
 
 C==============================================================================
 C PROCEDURE: SOS_CALC_F21_NADAL_SUR_FRESNEL
 C		
-C      Cette procédure calcule la fonction G(Teta1, Teta2, phi) pour le
-C      modèle de Nadal :
+C      This procedure computes the function G(Teta1, Teta2, phi) for the
+C      Nadal model:
 C
 C      G(Teta1, Teta2, phi) 
 C        =  F21Nadal(Teta1, Teta2, phi) / F21Fresnel(Teta1, Teta2, phi)
 C
-C        avec F21Nadal(Teta1, Teta2, phi)
+C        with F21Nadal(Teta1, Teta2, phi)
 C             = Alpha * [ 1 -exp(-Beta*F21Fresnel / ( cosTeta1+cosTeta2) ) ]
 C
-C        et F21Fresnel(Teta1, Teta2, phi) = 0.5 * (RR*RR - RL*RL) 
-C        selon la convention de signe du modèle de Nadal.
+C        and F21Fresnel(Teta1, Teta2, phi) = 0.5 * (RR*RR - RL*RL)
+C        with the sign convention of the Nadal model.
 C
-C            RL est le coefficient de reflexion parallele
+C            RL is the parallel reflection coefficient
 C
 C               RL(teta) = [ IND**2 * cos(teta) - SQRT(IND**2 - sin(teta)**2) ]
 C                        / [ IND**2 * cos(teta) + SQRT(IND**2 - sin(teta)**2) ]
 C
-C            RR est le coefficient de reflexion perpendiculaire
+C            RR is the perpendicular reflection coefficient
 C
 C               RR(teta) = [ cos(teta) - SQRT(IND**2 - sin(teta)**2) ]
 C                        / [ cos(teta) + SQRT(IND**2 - sin(teta)**2) ]
 C
-C            calcules en fonction de l'indice de réfraction de la surface
-C            de l'angle de reflexion teta.
+C            computed from the refractive index of the surface
+C            and the reflection angle teta.
 C
 C
 C
-C      La BPDF du modèle de Nadal est convertie de reflectance polarisee 
-C      en une grandeur utile pour les OS : luminance normalisée * cos(Teta2),
-C      c'est a dire : BPDF * cos(Teta1) * cos(Teta2).			
+C      The BPDF of the Nadal model is converted from polarised reflectance
+C      into a quantity useful for the OS: normalised radiance * cos(Teta2),
+C      i.e.: BPDF * cos(Teta1) * cos(Teta2).
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C       IND	(double)   (E) Indice de réfraction surface / air.
-C       ALPHA	(double)   (E) Paramètre alpha du modèle de Nadal.
-C       BETA	(double)   (E) Paramètre beta du modèle de Nadal.	
-C	 C1	(double)   (E) Cos(Teta1).
-C	 S1	(double)   (E) Sin(Teta1).
-C	 C2	(double)   (E) Cos(Teta2).
-C	 S2	(double)   (E) Sin(Teta2).
-C       PHI   (double)   (E) Azimut relatif pour la convention OS (radians).
-C 	 F	(double)   (S) Valeur de F(Teta1,Teta2,phi).
+C       IND	(double)   (I) Refractive index surface / air.
+C       ALPHA	(double)   (I) Parameter alpha of the Nadal model.
+C       BETA	(double)   (I) Parameter beta of the Nadal model.
+C	 C1	(double)   (I) Cos(Teta1).
+C	 S1	(double)   (I) Sin(Teta1).
+C	 C2	(double)   (I) Cos(Teta2).
+C	 S2	(double)   (I) Sin(Teta2).
+C       PHI   (double)   (I) Relative azimuth for the OS convention (radians).
+C 	 F	(double)   (O) Value of F(Teta1,Teta2,phi).
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Aucun
+C None
 C
 C==============================================================================
       SUBROUTINE SOS_CALC_F21_NADAL_SUR_FRESNEL(IND,ALPHA,BETA,
@@ -1131,62 +1131,62 @@ C==============================================================================
 
       IMPLICIT NONE
 
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------------------------------------
-      DOUBLE PRECISION IND	! (E)  Indice de réfraction surface / air
-      DOUBLE PRECISION ALPHA! (E)  Paramètre alpha du modèle de Nadal.
-      DOUBLE PRECISION BETA	! (E)  Paramètre beta du modèle de Nadal.
-      DOUBLE PRECISION C1	! (E)  Cos(Teta1).
-      DOUBLE PRECISION S1	! (E)  Sin(Teta1).
-      DOUBLE PRECISION C2	! (E)  Cos(Teta2).
-      DOUBLE PRECISION S2	! (E)  Sin(Teta2).
-      DOUBLE PRECISION PHI	! (E)  Azimut relatif pour la convention 
+      DOUBLE PRECISION IND	! (I)  Refractive index surface / air
+      DOUBLE PRECISION ALPHA! (I)  Parameter alpha of the Nadal model.
+      DOUBLE PRECISION BETA	! (I)  Parameter beta of the Nadal model.
+      DOUBLE PRECISION C1	! (I)  Cos(Teta1).
+      DOUBLE PRECISION S1	! (I)  Sin(Teta1).
+      DOUBLE PRECISION C2	! (I)  Cos(Teta2).
+      DOUBLE PRECISION S2	! (I)  Sin(Teta2).
+      DOUBLE PRECISION PHI	! (I) Relative azimuth for the convention
       				!      OS (radians).
             
-      DOUBLE PRECISION F	! (S) Valeur de la fonction F21nadal/F21fresnel
-      				! pour la geometrie d'observation
-				! (convertie en luminance normalisée * cos(teta2).	
+      DOUBLE PRECISION F	! (O) Value of the function F21nadal/F21fresnel
+      				! for the observation geometry
+				! (converted into normalised radiance * cos(teta2).
       
-      DOUBLE PRECISION F21FRESNEL	! Valeur de la fonction F21 de Fresnel.
-      DOUBLE PRECISION F21NADAL	! Valeur de la fonction F21 de Nadal.
+      DOUBLE PRECISION F21FRESNEL	! Value of the Fresnel F21 function.
+      DOUBLE PRECISION F21NADAL	! Value of the Nadal F21 function.
       
       DOUBLE PRECISION COEF
 
-      DOUBLE PRECISION COSDIF	! Cosinus de l'angle de diffusion.      
-      DOUBLE PRECISION COSW	! Cosinus de l'angle de reflexion W
-      				! (angle d'incidence par rapport a la 
-				!  normale du dioptre)
+      DOUBLE PRECISION COSDIF	! Cosine of the scattering angle.
+      DOUBLE PRECISION COSW	! Cosine of the reflection angle W
+      				! (incidence angle with respect to the
+				!  normal of the interface)
       
-      DOUBLE PRECISION V	! Sinus carre de W.
+      DOUBLE PRECISION V	! Square sine of W.
       DOUBLE PRECISION X	! 
 
-      DOUBLE PRECISION IND2	! Carre de l'indice de réfraction surface / air      
-      DOUBLE PRECISION RL	! Coefficient de reflexion parallele.
-      DOUBLE PRECISION RR	! Coefficient de reflexion perpendiculaire.
+      DOUBLE PRECISION IND2	! Square of the refractive index surface / air
+      DOUBLE PRECISION RL	! Parallel reflection coefficient.
+      DOUBLE PRECISION RR	! Perpendicular reflection coefficient.
 
-      DOUBLE PRECISION PI	! Valeur de PI
+      DOUBLE PRECISION PI	! Value of PI
       
 
-C* Traitements
+C* Processing
 C---------------------------------    
       PI=4.D+00*DATAN(1.D+00)
 
       COEF = 4.*C1*PI
 	
-C*   Calcul du cosinus de l'angle de diffusion                
+C*   Computation of the cosine of the scattering angle
 C---------------------------------------------------------     	
       COSDIF=-C1*C2+DSQRT(1.-C1*C1)*DSQRT(1.-C2*C2)*DCOS(PHI)
 
-C*   Calcul du cosinus de l'angle de reflexion                
+C*   Computation of the cosine of the reflection angle
 C---------------------------------------------------------   
       COSW=DSQRT(.5*(1-COSDIF))
       
-C*   Calcul du sinus au carre de l'angle de reflexion                
+C*   Computation of the square sine of the reflection angle
 C--------------------------------------------------------- 
       V=.5*(1+COSDIF)  
      
-C*   Calcul des coefficients de reflexion parallele et
-C*   perpendiculaire selon la theorie de Fresnel                
+C*   Computation of the parallel and perpendicular reflection
+C*   coefficients with the Fresnel theory
 C---------------------------------------------------------         
       IND2=IND*IND         
       X=DSQRT(IND2-V)     
@@ -1194,33 +1194,33 @@ C---------------------------------------------------------
       RR=(COSW-X)/(COSW+X)
     
 
-C*   Calcul de F21 de Fresnel (convention de signe de Nadal)                
+C*   Computation of the Fresnel F21 (Nadal sign convention)
 C--------------------------------------------------------- 
       F21FRESNEL = 0.5D+00 * (RR*RR-RL*RL)      
       
-C*   Calcul de F21 de Nadal                 
+C*   Computation of the Nadal F21
 C--------------------------------------------------------- 
       F21NADAL = -BETA * F21FRESNEL / (C1 + C2)     
       F21NADAL = ALPHA * ( 1.D+00 - DEXP(F21NADAL) )
 
-C*   Calcul de F               
+C*   Computation of F
 C---------------------------------------------------------            
-      IF(F21FRESNEL.LT.1.0D-10) THEN  !Développement limité au voisinage 
-      					   !de 0 pour F21Fresnel
+      IF(F21FRESNEL.LT.1.0D-10) THEN  !Limited expansion in the neighbourhood
+      					   !of 0 for F21Fresnel
          F = ALPHA*BETA / (C1 + C2)
       ELSE	 
          F = F21NADAL / F21FRESNEL
       ENDIF
 
 
-C*   Conversion reflectance -> luminance normalisée (*C1)
-C*   et adaptation aux OS -> *C2.  
+C*   Conversion reflectance -> normalised radiance (*C1)
+C*   and adaptation to the OS -> *C2.
 C--------------------------------------------------------- 
       F = F*COEF*C2*C1		
 
       RETURN
       
-      END         !FIN DE LA PROCEDURE SOS_CALC_F21_NADAL_SUR_FRESNEL
+      END         !END OF PROCEDURE SOS_CALC_F21_NADAL_SUR_FRESNEL
 
 
 
@@ -1229,76 +1229,76 @@ C---------------------------------------------------------
 
 
 C==============================================================================
-C procédure: SOS_GSF_MAIGNAN
+C PROCEDURE: SOS_GSF_MAIGNAN
 C ==========
 C
-C      Cette procédure realise la décomposition en séries de Fourier
-C      (sur phi) de la fonction G(Teta1,Teta2,phi) :
+C      This procedure performs the Fourier series decomposition
+C      (on phi) of the function G(Teta1,Teta2,phi):
 C
 C	 G(Teta1,Teta2,phi) = SIG * exp [-tan(TetaN)] / [ 4 * (cosTeta1+cosTeta2) ]
 C
-C	 avec  Teta1 : angle zénithal d'incidence  (0 < Teta1 < PI/2),
-C             Teta2 : angle zénithal de réflexion (0 < Teta2 < PI/2),
-C             phi   : angle azimutal relatif entre les directions
-C                     d'incidence et de réflexion,
+C	 with  Teta1 : incidence zenith angle  (0 < Teta1 < PI/2),
+C             Teta2 : reflection zenith angle (0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                     of incidence and reflection,
 C
-C	       TetaN : angle zénithal de la normale à la facette de vague,
-C                     calcule à partir de Teta1, Teta2 et phi.
+C	       TetaN : zenith angle of the normal to the wave facet,
+C                     computed from Teta1, Teta2 and phi.
 C			
-C             SIG   : carre du paramètre Sigma de la théorie de Cox et Munck.
+C             SIG   : square of the parameter Sigma of the Cox and Munk theory.
 C
 C
-C      Enregistre les résultats dans le fichier "RES_GSF" sous la forme:
-C	   Numéro d'angle Teta1 : I1,
-C         Numéro d'angle Teta2 : I2,
-C         Ordre maximal utile de la décomposition: IL,
-C         Fonction G décomposée pour (Teta1,Teta2) : (E(J),J=0,IL)
+C      Stores the results in the file "RES_GSF" as:
+C	   Number of the angle Teta1 : I1,
+C         Number of the angle Teta2 : I2,
+C         Maximum useful order of the decomposition: IL,
+C         Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C      LUM_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles.
-C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double) : (E) Tableau des mu de Gauss.
-C      OS_NM (I4) : (E) Ordre maximal du développement en séries de Fourier  
-C                       de la fonction G des calculs de matrice de réflexion.
-C      FIC_RES_GSF  (CHARACTER)  : (E) Nom du fichier temporaire RES_GSF
-C                                      avec arborescence complète.
+C      LUM_NBMU (I4) : (I) Number of actually useful (positive) angles.
+C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double) : (I) Array of the Gauss mu.
+C       OS_NM (I4) : (I) Maximum order of the expansion in Fourier series
+C                                of the G function of the reflection matrix computations.
+C      FIC_RES_GSF  (CHARACTER)  : (I) Name of the temporary file RES_GSF
+C                                            with complete directory tree.
 C
-C      IER  (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon 
+C     IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C
-C Autre résultat fourni par la procédure
+C Other result provided by the procedure
 C -------------------------------------
-C      Fichier temporaire RES_GSF
+C      Temporary file RES_GSF
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier temporaire RES_GSF
-C       Fichier binaire non formatte, créé par SOS_GSF
-C       Fichier créé dans le répertoire de lancement du programme
-C       Si un fichier de même nom existe déjà, il est écrasé
-C       Chaque enregistrement contient :
-C           -numéro d'angle Teta1 (valeur entière)
-C           -numéro d'angle Teta2 (valeur entière)
-C           -ordre maximale utile de la decompositon : IL  (valeur entière)
-C           -Fonction G décomposée pour (Teta1,Teta2) : (E(J),J=0,IL)
-C            (IL+1 valeurs double précision)
+C   -->Content of the temporary file RES_GSF
+C       Unformatted binary file, created by SOS_GSF
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Each record contains:
+C           -number of the angle Teta1 (integer value)
+C           -number of the angle Teta2 (integer value)
+C           -maximum useful order of the decomposition: IL  (integer value)
+C           -Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
+C            (IL+1 double precision values)
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C     
-C  Routines utilises par la procédure:
+C  Routines used by the procedure:
 C ------------------------------------
-C  Ce programme fait appel a la routine:
+C  This program calls the routine:
 C        - SOS_CALCG_MAIGNAN
 C
 C==============================================================================
@@ -1306,18 +1306,18 @@ C==============================================================================
      &                           FIC_RES_GSF,IER)
       IMPLICIT NONE
 
-C* Definition des variables    
+C* Definition of variables
 C*-------------------------------------------------------------------
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Tableau des mu de Gauss
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Array of the Gauss mu
 
-      DOUBLE PRECISION COEF_C	! Coefficient C du modèle de BPDF de Maignan
+      DOUBLE PRECISION COEF_C	! Coefficient C of the Maignan BPDF model
 
-      DOUBLE PRECISION E(0:CTE_OS_NM_MAX) ! Resultat de la décomposition en 
-      				              ! séries de Fourier de la fonction G.
+      DOUBLE PRECISION E(0:CTE_OS_NM_MAX) ! Result of the decomposition in
+      				              ! Fourier series of the function G.
 
-      DOUBLE PRECISION PHI	! Azimut relatif (radians).
+      DOUBLE PRECISION PHI	! Relative azimuth (radians).
 
-      DOUBLE PRECISION G	! Valeur de la fonction G(phi).
+      DOUBLE PRECISION G	! Value of the function G(phi).
 
       DOUBLE PRECISION C1	! Cos(Teta1).
       DOUBLE PRECISION S1	! Sin(Teta1).
@@ -1325,78 +1325,78 @@ C*-------------------------------------------------------------------
       DOUBLE PRECISION S2	! Sin(Teta2).
       DOUBLE PRECISION S12	! Sin(Teta1) * Sin(Teta2).
 
-      DOUBLE PRECISION GMIN	! Valeur minimale retenue pour la fonction 
-      				! G(phi) pour Theta1 et Theta2 fixes.
-      DOUBLE PRECISION GMAX	! Valeur maximale de la fonction G(phi) = G(0).
+      DOUBLE PRECISION GMIN	! Minimum value kept for the function
+      				! G(phi) for fixed Theta1 and Theta2.
+      DOUBLE PRECISION GMAX	! Maximum value of the function G(phi) = G(0).
 
-      DOUBLE PRECISION PHIB	! Angle azimutal phi maximal pour la 
-      				! description de la fonction G(phi).
+      DOUBLE PRECISION PHIB	! Maximum azimuth angle phi for the
+      				! description of the function G(phi).
 			
-      DOUBLE PRECISION PHI1	! Angle intermediaire pour le calcul de PHIB.
-      DOUBLE PRECISION PHI2	! Angle intermediaire pour le calcul de PHIB.
+      DOUBLE PRECISION PHI1	! Intermediate angle for the computation of PHIB.
+      DOUBLE PRECISION PHI2	! Intermediate angle for the computation of PHIB.
 						
-      DOUBLE PRECISION U(0:CTE_PH_NU)  ! Fonction G(phi) entre 0 et PHIB
-      			                  ! pour Theta1 et Theta2 fixes.
+      DOUBLE PRECISION U(0:CTE_PH_NU)  ! Function G(phi) between 0 and PHIB
+      			                  ! for fixed Theta1 and Theta2.
 
-      DOUBLE PRECISION Q	! Pas en phi.
+      DOUBLE PRECISION Q	! Step in phi.
 
-      DOUBLE PRECISION T2	! Recombinaison de la fonction G(phi) a 
-      				! partir de E(IS).
-      DOUBLE PRECISION T1	! Sommation des E(IS).
+      DOUBLE PRECISION T2	! Recombination of the function G(phi) from
+      				! E(IS).
+      DOUBLE PRECISION T1	! Sum of the E(IS).
 
       DOUBLE PRECISION X,Y,Z
       DOUBLE PRECISION XT,B1
 
-      INTEGER*4 OS_NM  ! Ordre maximal du développement en séries de Fourier  
-			  ! de la fonction G des calculs de matrice de réflexion.
+      INTEGER*4 OS_NM  ! Maximum order of the expansion in Fourier series
+			  ! of the G function of the reflection matrix computations.
 			 
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
       
-      INTEGER*4 IL	! Ordre maximale utile pour la fonction E.
-      INTEGER*4 I1	! Indice de numéro d'angle Teta1.
-      INTEGER*4 I2	! Indice de numéro d'angle Teta2.
-      INTEGER*4 IS	! Ordre IS de la décomposition en séries de Fourier.
-      INTEGER*4 IER  ! code d'erreur =0 si pas d'erreur, =-1 sinon  
+      INTEGER*4 IL	! Maximum useful order for the function E.
+      INTEGER*4 I1	! Index of the angle number Teta1.
+      INTEGER*4 I2	! Index of the angle number Teta2.
+      INTEGER*4 IS	! Order IS of the Fourier series decomposition.
+      INTEGER*4 IER  ! error code =0 if no error, =-1 otherwise
 
       INTEGER*4 I
       INTEGER*4 IA,IP,K,J
       
-      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Nom du fichier RES_GSF
-                                        ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Name of the file RES_GSF
+                                        ! with complete directory tree
 
 
 
-C* Ouverture du fichier résultat
+C* Opening of the result file
 C--------------------------------
       OPEN(UNIT=30,FILE=FIC_RES_GSF,FORM='UNFORMATTED',ERR=991)
 
-C* Boucle sur l'angle Teta1 > 0.
+C* Loop on the angle Teta1 > 0.
 C---------------------------------
       DO  3 I1=1 ,LUM_NBMU
 
-C* Cosinus et sinus de Teta1
+C* Cosine and sine of Teta1
 C---------------------------------
          C1=RMU(I1)
          S1=DSQRT(1-C1*C1)
 
-C*   Boucle sur l'angle teta2 > 0.
+C*   Loop on the angle teta2 > 0.
 C---------------------------------
          DO 4 I2=1 ,I1
 
-C*   Cosinus et sinus de Teta2
+C*   Cosine and sine of Teta2
 C---------------------------------
            C2=RMU(I2)
            S2=DSQRT(1-C2*C2)
            S12=S1*S2
 
-C*   Determination de G pour phi = 0.
+C*   Determination of G for phi = 0.
 C-------------------------------------
            PHI=0.0
            CALL SOS_CALCG_MAIGNAN(C1,C2,S12,PHI,COEF_C,G)
            U(0)=G
            GMAX=G
 
-C*   Determination de G pour phi = INCTE_PI.
+C*   Determination of G for phi = INCTE_PI.
 C-----------------------------------------
            PHI=INCTE_PI
            CALL SOS_CALCG_MAIGNAN(C1,C2,S12,PHI,COEF_C,G)
@@ -1404,19 +1404,19 @@ C-----------------------------------------
            GMIN=G
 		
 
-C*   Evaluation de l'importance de l'ecart entre Gmin et Gmax.
-C*      1er cas: L'ecart est modere.
-C*               Pour Teta1 et Teta2 fixes, on definit la fonction
-C*               G(phi) entre 0 et PI par pas de PI/CTE_PH_NU.
-C*      2nd cas: L'ecart est important.
-C*               La fonction G(phi) devient insignifiante devant Gmax
-C*		   à partir d'un angle PHIB a determiner.
-C*               Pour Teta1 et Teta2 fixes, on definit la fonction
-C*               G(phi) entre 0 et PHIB par pas de PHIB/CTE_PH_NU.
+C*   Evaluation of the difference between Gmin and Gmax.
+C*      1st case: The difference is moderate.
+C*               For fixed Teta1 and Teta2, the function
+C*               G(phi) is defined between 0 and PI with a step of PI/CTE_PH_NU.
+C*      2nd case: The difference is large.
+C*               The function G(phi) becomes negligible compared with Gmax
+C*		   beyond an angle PHIB to be determined.
+C*               For fixed Teta1 and Teta2, the function
+C*               G(phi) is defined between 0 and PHIB with a step of PHIB/CTE_PH_NU.
 C----------------------------------------------------------------------
            X=CTE_PH_TEST*GMIN
            IF(X.GE.GMAX) THEN
-C* 1er cas: L'ecart entre Gmin et Gmax est modere.
+C* 1st case: The difference between Gmin and Gmax is moderate.
 C--------------------------------------------------
               PHIB=INCTE_PI
 
@@ -1428,40 +1428,40 @@ C--------------------------------------------------
  6            CONTINUE
 
            ELSE
-C* 2eme cas: L'ecart entre Gmin et Gmax est important.
-C*          On recherche l'angle PHIB au dela duquel G(phi) devient
-C*          insignifiante devant Gmax.
+C* 2nd case: The difference between Gmin and Gmax is large.
+C*          Search for the angle PHIB beyond which G(phi) becomes
+C*          negligible compared with Gmax.
 C------------------------------------------------------------------
-C*      Initialisation
+C* Initialisation
               PHI1=0
               PHI2=INCTE_PI
 	
-C*      Estimation de PHIB
-C* (boucle sur l'etiquette 9)
+C*      Estimation of PHIB
+C* (loop on label 9)
 C---------------------------	
  9            PHIB=.5*(PHI1+PHI2)
 
-C*      Calcul de G(PHIB)
+C*      Computation of G(PHIB)
 C---------------------------
               CALL SOS_CALCG_MAIGNAN(C1,C2,S12,PHIB,COEF_C,G)
 	
-C*      Controle de l'importance de l'ecart entre G(PHIB) et Gmax.
-C*      Cas 2A: L'ecart reste important.
-C*              PHIB doit etre re-estime.
-C*              On resserre PHI1 ou PHI2, selon le signe de l'ecart.
-C*              On estime a nouveau PHIB comme la moyenne de PHI1 et PHI2
-C*              et on calcule la nouvelle valeur G(PHIB).
-C*      Cas 2B: L'ecart est modere.
-C*              PHIB est une estimation satisfaisante de la valeur de
-C*              l'angle phi jusqu'à laquelle G(phi) reste significative
-C*              devant Gmax. La fonction G(phi) est decrite entre 0 et 
-C*              PHIB par pas de PHIB/CTE_PH_NU.	
+C*      Check of the difference between G(PHIB) and Gmax.
+C*      Case 2A: The difference is still large.
+C*              PHIB must be re-estimated.
+C*              PHI1 or PHI2 is narrowed, according to the sign of the difference.
+C*              PHIB is estimated again as the mean of PHI1 and PHI2
+C*              and the new value G(PHIB) is computed.
+C*      Case 2B: The difference is moderate.
+C*              PHIB is a satisfactory estimate of the value of the
+C*              angle phi up to which G(phi) remains significant
+C*              compared with Gmax. The function G(phi) is described between 0 and
+C*              PHIB with a step of PHIB/CTE_PH_NU.
 C-------------------------------------------------------------------
               X=CTE_PH_TEST*G
               IF (DABS(X-GMAX).LT..01*GMAX) GOTO 8
 	
-C*      Cas 2A: L'ecart entre G(PHIB) et GMAX reste important.
-C*              On affine la valeur de PHIB.
+C*      Case 2A: The difference between G(PHIB) and GMAX is still large.
+C*              The value of PHIB is refined.
 C-------------------------------------------------------------
               IF (X.LE.GMAX) GOTO 88
               PHI1=PHIB
@@ -1469,11 +1469,11 @@ C-------------------------------------------------------------
  88           PHI2=PHIB
               GOTO 9
 	
-C*      Cas 2B: L'ecart entre G(PHIB) et GMAX est modere.
-C*              L'estimation de PHIB est satisfaisante.
-C*              On definit G(phi) entre 0 et PHIB par pas de 
+C*      Case 2B: The difference between G(PHIB) and GMAX is moderate.
+C*              The estimate of PHIB is satisfactory.
+C*              G(phi) is defined between 0 and PHIB with a step of
 C*              PHIB/CTE_PH_NU.
-C*              Gmin devient G(PHIB).	
+C*              Gmin becomes G(PHIB).
 C--------------------------------------------------------------------
  8            Q=PHIB/CTE_PH_NU
 
@@ -1488,8 +1488,8 @@ C--------------------------------------------------------------------
            ENDIF
 
 
-C*   Realisation de la décomposition en serie de Fourier.
-C*   Boucle sur l'ordre de la serie.                     	
+C*   Fourier series decomposition.
+C*   Loop on the order of the series.
 C--------------------------------------------------------------------
            DO 13 IS=0,OS_NM
               Z=.5*(GMAX+GMIN*DCOS(IS*PHIB))
@@ -1519,29 +1519,29 @@ C--------------------------------------------------------------------
  133          T1=T1+2*E(IS)
               T2=T2+2*DCOS(IS*PHIB*.5)*E(IS)
 
-C*   Test d'arret de la décomposition - poursuite de la boucle sur IS sinon.
+C*   Stop test of the decomposition - otherwise the loop on IS goes on.
 C---------------------------------------------------------------------------
               B1=DABS(T1-GMAX)/GMAX
               IF (B1.GT..001) GOTO 13
               IL=IS
-              GOTO 17	!Sortie de boucle
- 13        CONTINUE	!Fin de boucle sur IS
+              GOTO 17	!Exit of the loop
+ 13        CONTINUE	!End of loop on IS
            IL=OS_NM
 
-C*   Enregistrement des résultats
+C*   Recording of the results
 C---------------------------------
  17        WRITE(30,err=992)I1,I2,IL,(E(J),J=0,IL)
 
- 4       CONTINUE	!Fin de boucle sur Teta2 (I2)
+ 4       CONTINUE	!End of loop on Teta2 (I2)
  
- 3    CONTINUE	!Fin de boucle sur Teta1 (I1)
+ 3    CONTINUE	!End of loop on Teta1 (I1)
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       GOTO 9999
       
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C------------------------------------------------------
   991 WRITE(6,*) 'SOS_GSF Erreur a l''ouverture d''un fichier'
       IER=-1
@@ -1553,12 +1553,12 @@ C------------------------------------------------------
 
  9999 CONTINUE
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(30)
       
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_GSF_MAIGNAN
+      END         !END OF PROCEDURE SOS_GSF_MAIGNAN
 
 
 
@@ -1567,70 +1567,70 @@ C-------------------
 C==============================================================================
 C PROCEDURE: SOS_CALCG_MAIGNAN
 C ==========
-C       La fonction de pondération de la matrice de Fresnel pour le modèle
-C       de BPDF de Maignan est :
+C       The weighting function of the Fresnel matrix for the Maignan
+C       BPDF model is:
 C	 G(Teta1,Teta2,phi) = C * exp [-tan(TetaI)] / [ 4 * (cosTeta1+cosTeta2) ]
 C
-C	 avec Teta1 : angle zénithal d'incidence  (0 < Teta1 < PI/2),
-C            Teta2 : angle zénithal de réflexion (0 < Teta2 < PI/2),
-C            phi   : angle azimutal relatif entre les directions
-C                    d'incidence et de réflexion,
+C	 with  Teta1 : incidence zenith angle  (0 < Teta1 < PI/2),
+C            Teta2 : reflection zenith angle (0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                    of incidence and reflection,
 C
-C	      TetaI : angle d'incidence par rapport à la normale à la facette de surface,
-C                    calculé à partir de Teta1, Teta2 et phi.
+C	      TetaI : incidence angle with respect to the normal of the surface facet,
+C                    computed from Teta1, Teta2 and phi.
 C
-C	      C : coefficient du site (indépendant de la géométrie d'observation).	
+C	      C : site coefficient (independent of the observation geometry).
 C
-C      Cette procédure calcule : G*4*cosTeta1*cosTeta2 
-C      soit C * exp [-tan(TetaI)] / [ 1/cosTeta1 + 1/cosTeta2) ]
+C      This procedure computes: G*4*cosTeta1*cosTeta2
+C      i.e. C * exp [-tan(TetaI)] / [ 1/cosTeta1 + 1/cosTeta2) ]
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C	C1	(double)   (E) Cos(Teta1).
-C	C2	(double)   (E) Cos(Teta2).
-C	S12	(double)   (E) Sin(Teta1) * Sin(Teta2).
-C	PHI	(double)   (E) Azimut relatif (radians).
-C	COEF_C	(double)   (E) Coefficient C du modèle de Maignan.
-C 	G	(double)   (S) Valeur de G(TetaN).
+C	 C1	(double)   (I) Cos(Teta1).
+C	 C2	(double)   (I) Cos(Teta2).
+C	S12	(double)   (I) Sin(Teta1) * Sin(Teta2).
+C	PHI	(double)   (I) Relative azimuth (radians).
+C	COEF_C	(double)   (I) Coefficient C of the Maignan model.
+C 	G	(double)   (O) Value of G(TetaN).
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Aucun
+C None
 C
 C==============================================================================
       SUBROUTINE SOS_CALCG_MAIGNAN(C1,C2,S12,PHI,COEF_C,G)
 
       IMPLICIT NONE
 
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------------------------------------
-      DOUBLE PRECISION PHI	! Azimut relatif (radians).
+      DOUBLE PRECISION PHI	! Relative azimuth (radians).
 
       DOUBLE PRECISION C1	! Cos(Teta1).
       DOUBLE PRECISION C2	! Cos(Teta2).
       DOUBLE PRECISION S12	! Sin(Teta1) * Sin(Teta2).      
-      DOUBLE PRECISION COS_2I  ! Cosinus de deux fois l'angle d'incidence.
-      DOUBLE PRECISION TAN2_I  ! Carré de la tangente de l'angle d'incidence.
-      DOUBLE PRECISION COEF_C ! Coefficient C du modèle de BPDF de Maignan
-      DOUBLE PRECISION G	! Valeur de G(Teta1,Teta2,phi).	
+      DOUBLE PRECISION COS_2I  ! Cosine of twice the incidence angle.
+      DOUBLE PRECISION TAN2_I  ! Square of the tangent of the incidence angle.
+      DOUBLE PRECISION COEF_C ! Coefficient C of the Maignan BPDF model
+      DOUBLE PRECISION G	! Value of G(Teta1,Teta2,phi).
 
-C* Calcul
+C* Computation
 C---------------------------------
       COS_2I = C1*C2-S12*DCOS(PHI)
       TAN2_I = (1-COS_2I) / (1+COS_2I)
 
-      !Gestion du cas d'erreur d'arrondis numériques (tangente carrée négative impossible).
+      !Management of the case of numerical rounding errors (negative square tangent impossible).
       IF (TAN2_I.LT.0.D+00) TAN2_I=0.D+00
 
       G= COEF_C *DEXP(-DSQRT(TAN2_I)) / (1./C1 + 1./C2)
 
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_CALCG_MAIGNAN
+      END         !END OF PROCEDURE SOS_CALCG_MAIGNAN
 
 
 

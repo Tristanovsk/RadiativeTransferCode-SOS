@@ -19,109 +19,109 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_PROFIL.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Definition du profil atmosphérique.
+C* FILE: SOS_PROFIL.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: Definition of the atmospheric profile.
 C*
-C* AUTEUR: 
-C*   Code initial: Laboratoire d'Optique atmosphérique (LOA, Villeneuve d'Ascq).
-C*   Reprise du codage et développement : CS GROUP France, B.Lafrance, X.Lenot
+C* AUTHOR:
+C*   Initial code: Laboratoire d'Optique atmosphérique (LOA, Villeneuve d'Ascq).
+C*   Code rework and development: CS GROUP France, B.Lafrance, X.Lenot
 C* DATE: 30/04/02
 C* 
-C* MOD:VERSION:1.0: Mise a niveau du code des OS du LOA
-C*             2.0: Correction d'une application de couche moléculaire sous-jacente 
-C*                  pour un profil a 2 couches (iprofil=2 et Zmin=0) : NBSC_C3.
+C* MOD:VERSION:1.0: Upgrade of the LOA OS code
+C*             2.0: Correction of the application of an underlying molecular layer
+C*                  for a 2-layer profile (iprofil=2 and Zmin=0): NBSC_C3.
 C*             2.1: 07/07/2008 
-C*                  Modification du format de lecture des paramètres HR et HA
-C*                  pour correction d'une erreur de dï¿œcodage si valeur entière.
-C*		      HR et HA passent de F9.5 en F9
+C*                  Change of the reading format of the parameters HR and HA
+C*                  to correct a decoding error for integer values.
+C*		      HR and HA changed from F9.5 to F9
 C*
 C* MOD:VERSION:3.0: 19/11/2009 
-C*       - Modification du passage des arguments : 
-C*           - passage par couples (mot clef, valeur). 
-C*           - adaptation de la gestion des cas d'erreurs. 
-C*       - Conversion des messages d'erreurs en anglais.
+C*       - Change of the argument passing:
+C*           - passing by pairs (keyword, value).
+C*           - adaptation of the error case management.
+C*       - Error messages converted to English.
 C*
 C* MOD:VERSION:6.0: 06/06/2013
-C*   - Prise en compte de l'absorption (cas 3: diffusion moléculaire et aérosols)
+C*   - Absorption taken into account (case 3: molecular and aerosol scattering)
 C*
-C*   - Modification de CTE_DISC pour prendre en compte l'épaisseur optique d'absorption
+C*   - Change of CTE_DISC to take the absorption optical thickness into account
 C*
-C*   - Modification du calcul des épaisseurs optiques des couches (calcul vrai N - (N-1))
-C*     au lieu du calcul par derivees
+C*   - Change of the computation of the layer optical thicknesses (true computation N - (N-1))
+C*     instead of the computation by derivatives
 C*
-C*   - Les paramètres d'entrée sont fournis sous la forme de liste de paramètres
-C*     et non plus sous la forme de couples avec mot cle associe => tous les
-C*	paramètres deviennent donc obligatoires
+C*   - The input parameters are given as a list of parameters
+C*     and no longer as pairs with associated keyword => all
+C*	parameters are therefore mandatory
 C*
 C*
 C* MOD:VERSION:6.1: 19/02/2016
-C*   -  Calcul de l'altitude à chaque niveau du profil:
-C*      Initialisation de l'altitude du profil à ZPROF(0)=300.D+00
-C*      pour éviter un résultat en Inf qui pose souci à la lecture du fichier. 
+C*   -  Computation of the altitude at each level of the profile:
+C*      Initialisation of the profile altitude to ZPROF(0)=300.D+00
+C*      to avoid an Inf result that is a problem when reading the file.
 C*
-C*   -  Ajout d'un test sur la valeur de TA (AOT) par rapport aux nombres
-C*      de couches aérosols pour les CAS 2 (profil aérosols seuls) et CAS 4
-C*      (profil aérosols homogène entre deux niveaux), pour s'assurer qu'il
-C*      est possible de définir un profil AOT variable d'un niveau à l'autre,
-C*      par rapport à la précision en 0.00001 du profil d'épaisseurs optiques.
+C*   -  Added test on the value of TA (AOT) with respect to the number
+C*      of aerosol layers for CASE 2 (aerosol profile only) and CASE 4
+C*      (homogeneous aerosol profile between two levels), to make sure that
+C*      a variable AOT profile can be defined from one level to the next,
+C*      given the 0.00001 precision of the optical thickness profile.
 C*
 C* MOD:VERSION:6.2: 29/05/2020
-C*   -  Modification du format du fichier de profil atmosphérique pour améliorer 
-C*      la précision du profil (étiquette de format 20)
+C*   -  Change of the format of the atmospheric profile file to improve
+C*      the precision of the profile (format label 20)
 C*
 C* MOD:VERSION:7.0: 28/09/2020
-C*   -  Adaptation pour optimiser la définition du profil en fonction de 
-C*      l'épaisseur optique d'absorption. 
-C*      Utilisation d'un seuil limite (CTE_SEUIL_TAUABS) jusqu'auquel le profil
-C*      est défini par couches fines (d'épaisseur CTE_TCOUCHE).
+C*   -  Adaptation to optimise the definition of the profile according to
+C*      the absorption optical thickness.
+C*      Use of a threshold (CTE_SEUIL_TAUABS) up to which the profile
+C*      is defined by thin layers (of thickness CTE_TCOUCHE).
 C*
 C* MOD:VERSION:7.1: 31/08/2022
-C*    - Renommage des constantes de SOS_* en CTE_*
-C*    - Conversion des traces en Anglais.
+C*    - Constants renamed from SOS_* to CTE_*
+C*    - Traces converted to English.
 C*
 C* MOD:VERSION:7.2: 05/04/2023
-C*    - Usage de la constante CTE_TOA_ALT pour définir l'altitude max (TOA)
+C*    - Use of the constant CTE_TOA_ALT to define the max altitude (TOA)
 C*
 C*
 C* MOD:VERSION:8.0: 27/07/2023
-C*    - Refonte complète de la routine pour permettre de gérer les cas de faible
-C*      épaisseur optique de diffusion devant celle d'absorption gazeuse.
-C*    - Introduction des constantes CTE_OS_NT_MIN et CTE_TOA_FIRST_LAYER_OPT_THICKNESS
-C*      (définies dans SOS.h)
+C*    - Complete rewrite of the routine to handle the cases of small
+C*      scattering optical thickness compared with the gaseous absorption.
+C*    - Introduction of the constants CTE_OS_NT_MIN and CTE_TOA_FIRST_LAYER_OPT_THICKNESS
+C*      (defined in SOS.h)
 C*
 C* MOD:VERSION:8.1: 26/09/2023
-C*    - Modification de la syntaxe du test sur (TI-TZMOY) dans la routine SOS_DISC pour
-C*      compatibilité avec Fortran 2018 pour compilateur gcc/10.2.0
+C*    - Change of the syntax of the test on (TI-TZMOY) in routine SOS_DISC for
+C*      compatibility with Fortran 2018 for the gcc/10.2.0 compiler
 C*
 C* MOD:VERSION:8.2: 12/10/2023
-C*    - Correction d'une erreur d'affectation des valeurs d'altitude du profil
-C*      pour un profil simulant une couche de mélange d’aérosols et molécules, 
-C*      entre deux couches moléculaires pures (cas IPROFIL =  2), 
-C*    - Correction du test de proximité de l'altitude du dernier niveau calculé
-C*      à l'altitude limite (ZLIM) du profil, visant à supprimer ce niveau si très voisin de ZLIM.
+C*    - Correction of an error in the assignment of the altitude values of the profile
+C*      for a profile simulating a mixed layer of aerosols and molecules
+C*      between two pure molecular layers (case IPROFIL =  2),
+C*    - Correction of the proximity test between the altitude of the last computed level
+C*      and the limit altitude (ZLIM) of the profile, to remove this level if very close to ZLIM.
 C*     
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Definition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisées :
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_OS_NT : Nombre max de couches du profil atmosphérique. 
-C    CTE_OS_NT_MIN : Nombre min de couches du profil atmosphérique. 
-C    CTE_TOA_ALT : Altitude du TOA (en km).
-C    CTE_TOA_FIRST_LAYER_OPT_THICKNESS : Epaisseur optique de la première couche atmosphérique, sous TOA.
-C    CTE_DELTA_Z : Pas en altitude (en km) pour la recherche du premier niveau 
-C                  d'épaisseur optique CTE_TOA_FIRST_LAYER_OPT_THICKNESS.
-C    CTE_THRESHOLD_DZ : Seuil (en km) pour la comparaison des altitudes lors de la définition du profil.
-C    CTE_ABS_NBLEV : Nombre de niveaux du profil initial en absorption.    
-C    CTE_TCOUCHE : Epaisseur optique maximale d'une couche du profil atmosphérique.
-C    CTE_THRESHOLD_TAUABS : Seuil sur l'épaisseur optique d'absorption pour optimisation 
-C                           du profil atmosphérique.  
-C    CTE_DZTRANSI : Epaisseur d'une couche de transition (en km).
-C    CTE_PROFIL_MIN_NBC : Nombre minimal de sous-couches des couches 1 et 3
-C                         pour un profil d'aérosols entre deux altitudes.       
+C Constants used:
+C    CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_OS_NT : Max number of layers of the atmospheric profile.
+C    CTE_OS_NT_MIN : Min number of layers of the atmospheric profile.
+C    CTE_TOA_ALT : Altitude of the TOA (in km).
+C    CTE_TOA_FIRST_LAYER_OPT_THICKNESS : Optical thickness of the first atmospheric layer, below TOA.
+C    CTE_DELTA_Z : Altitude step (in km) for the search of the first level
+C                  of optical thickness CTE_TOA_FIRST_LAYER_OPT_THICKNESS.
+C    CTE_THRESHOLD_DZ : Threshold (in km) for the comparison of altitudes when defining the profile.
+C    CTE_ABS_NBLEV : Number of levels of the initial absorption profile.
+C    CTE_TCOUCHE : Maximum optical thickness of a layer of the atmospheric profile.
+C    CTE_THRESHOLD_TAUABS : Threshold on the absorption optical thickness to optimise
+C                           the atmospheric profile.
+C    CTE_DZTRANSI : Thickness of a transition layer (in km).
+C    CTE_PROFIL_MIN_NBC : Minimum number of sub-layers of layers 1 and 3
+C                         for an aerosol profile between two altitudes.
 C----------------------------------------------------------------------------
 #include "SOS.h"
  
@@ -129,94 +129,94 @@ C----------------------------------------------------------------------------
 
 
 C==============================================================================
-C PROGRAMME: SOS_PROFIL
+C PROGRAM: SOS_PROFIL
 C ==========
-C      Ce programme definit le profil atmosphérique en épaisseur optique
-C      et en proportion de diffusants (molécules , aérosols) en fonction
-C      du niveau, avec prise en compte de l'absorption atmosphérique. 
-C      Il est également possible de définir le profil en trois
-C      couches: molécules, molécules + aérosols (mélange homogène) et 
-C      molécules. La couche intermediaire est repérée par ses altitudes 
-C      minimale et maximale.  
+C      This program defines the atmospheric profile in optical thickness
+C      and in proportion of scatterers (molecules, aerosols) versus
+C      the level, taking the atmospheric absorption into account.
+C      The profile can also be defined in three
+C      layers: molecules, molecules + aerosols (homogeneous mixture) and
+C      molecules. The intermediate layer is located by its minimum and
+C      maximum altitudes.
 C      
-C      NB : Le profil n'est pas ajusté pour une troncature de la fonction
-C           de phase. Il le sera par le code des OS.
+C      NB: The profile is not adjusted for a truncation of the phase
+C           function. This is done by the OS code.
 C
 C
-C Donnees en entrée du programme
+C Input data of the program
 C ------------------------------
-C     -->Les paramètres/arguments du programme
+C     -->Parameters/arguments of the program
 C
 C
-C      IPROFIL (I2) : (E) Type de profil des aérosols simulé.
-C      		       1 : Profil d'aérosols selon une decroissance exponentielle 
-C				    par l'echelle de hauteur
-C				2 : Couche homogene d'aérosols entre deux altitudes
+C      IPROFIL (I2) : (I) Type of the simulated aerosol profile.
+C      		       1 : Aerosol profile with an exponential decrease
+C				    given by the scale height
+C				2 : Homogeneous aerosol layer between two altitudes
 C
-C      TR (DOUBLE) : (E) Epaisseur optique rayleigh.
+C      TR (DOUBLE) : (I) Rayleigh optical thickness.
 C	       
-C      HR (DOUBLE) : (E) Echelle de hauteur moléculaire (km).
-C                          Associée a TR >= 0.
+C      HR (DOUBLE) : (I) Molecular scale height (km).
+C                          Associated with TR >= 0.
 C  
-C      TA (DOUBLE) : (E) Epaisseur optique aérosols (non tronquée).
+C      TA (DOUBLE) : (I) Aerosol optical thickness (not truncated).
 C	       	       
-C      HA (DOUBLE) : (E) Echelle de hauteur du profil d'aérosols (km).
-C                          Associée a TA >= 0. et  IPROFIL = 1
+C      HA (DOUBLE) : (I) Scale height of the aerosol profile (km).
+C                          Associated with TA >= 0. and IPROFIL = 1
 C 
-C      ZMIN (DOUBLE) : (E) Altitude minimale de la couche d'aérosols (km).
-C                          Associée a IPROFIL = 2
+C      ZMIN (DOUBLE) : (I) Minimum altitude of the aerosol layer (km).
+C                          Associated with IPROFIL = 2
 C 	   	 
-C      ZMAX (DOUBLE) : (E) Altitude maximale de la couche d'aérosols (km).
-C                          Associée a IPROFIL = 2
+C      ZMAX (DOUBLE) : (I) Maximum altitude of the aerosol layer (km).
+C                          Associated with IPROFIL = 2
 C
-C      ABSPROFIL (I2) : (E) Type de profil atmosphérique pour l'absorption
+C      ABSPROFIL (I2) : (I) Type of atmospheric profile for absorption
 C			         0:User, 1:TROPICAL, 2:MLS, 3:MLW, 4:SAS, 5:SAW,
-C                             6:USST62, 7:Pas d'absorption 	 	 
+C                             6:USST62, 7:No absorption
 C
-C      ALTABS (double) : (E)  Tableau de (CTE_ABS_NBLEV) contenant les niveaux d'altitude du profil
+C      ALTABS (double) : (I)  Array of (CTE_ABS_NBLEV) containing the altitude levels of the profile
 C
-C      TABS (double) : (E) Tableau de (CTE_ABS_NBLEV-1) contenant les épaisseurs optiques
-C			      d'absorption (continumm + CKD) pour chaque couche atmosphérique
+C      TABS (double) : (I) Array of (CTE_ABS_NBLEV-1) containing the absorption optical
+C			      thicknesses (continuum + CKD) for each atmospheric layer
 C
-C	TRACE (LOGICAL) : (E) Si vrai => écriture des fichiers trace
+C	TRACE (LOGICAL) : (I) If true => trace files are written
 C
-C	IDLOG (I4) : (E) Identifiant du fichier log
+C	IDLOG (I4) : (I) Identifier of the log file
 C
-C      FICPROFIL (CHARACTER) : nom complet du fichier resultat PROFIL
-C                              (répertoire + nom fichier + extension)
+C      FICPROFIL (CHARACTER) : complete name of the PROFIL result file
+C                              (directory + file name + extension)
 C
-C      NT (I4) : (S) Nombre de couches dans le profil atmosphérique
+C      NT (I4) : (O) Number of layers in the atmospheric profile
 C
-C      IER (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+C      IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C
 C
-C Resultats fournis par le programme
+C Results provided by the program
 C ----------------------------------
-C   Fichier resultat PROFIL contenant :
-C	- l'indice du niveau
-C	- l'épaisseur optique molécules + aérosols pour chaque niveau
-C      - l'épaisseur optique d'absorption pour chaque niveau
-C      - l'épaisseur optique totale pour chaque niveau
-C	- le pourcentage d'aérosols par niveau
-C	- le pourcentage de molécules par niveau.
+C   PROFIL result file containing:
+C	- the level index
+C	- the molecules + aerosols optical thickness for each level
+C      - the absorption optical thickness for each level
+C      - the total optical thickness for each level
+C	- the percentage of aerosols per level
+C	- the percentage of molecules per level.
 C
-C   Le nombre de niveaux dans le profil 
+C   The number of levels in the profile
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C     None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Lecture ou écriture dans un fichier
-C     -Paramètres non valables
+C     -Reading or writing in a file
+C     -Invalid parameters
 C
-C     Affichage d'un message à l'écran, arret du programme et
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Ce programme fait appel aux routines:
+C  This program calls the routines:
 C     - SOS_DISC
 C
 C==============================================================================
@@ -229,131 +229,131 @@ C==============================================================================
       IMPLICIT NONE
 
 
-C* Definition des variables                                                 
+C* Definition of variables
 C--------------------------------------------
 
 
-C*   Profils
-      INTEGER*2 IPROFIL	 ! (E) Type du profil d'aérosol
-      DOUBLE PRECISION TTOT  ! épaisseur optique totale .
-      INTEGER*4 NT           ! Nombre de couches dans le profil
-      INTEGER*4 NT_NG        ! Nombre de couches dans le profil sans absorption gazeuse
+C*   Profiles
+      INTEGER*2 IPROFIL	 ! (I) Type of the aerosol profile
+      DOUBLE PRECISION TTOT  ! total optical thickness.
+      INTEGER*4 NT           ! Number of layers in the profile
+      INTEGER*4 NT_NG        ! Number of layers in the profile without gaseous absorption
       
-C*   molécules :
-      DOUBLE PRECISION TR    ! (E) Epaisseur optique rayleigh.
-      DOUBLE PRECISION HR    ! (E) Echelle de hauteur du profil moléculaire (km).
+C*   molecules:
+      DOUBLE PRECISION TR    ! (I) Rayleigh optical thickness.
+      DOUBLE PRECISION HR    ! (I) Scale height of the molecular profile (km).
 
-C*   Aérosols :
-      DOUBLE PRECISION TA    ! (E) Epaisseur optique des aérosols (non tronquée).
-      DOUBLE PRECISION HA    ! (E) Echelle de hauteur du profil d'aérosols (km).
-      DOUBLE PRECISION ZMIN  ! (E) Altitude minimale de la couche molécules + aérosols.
-      DOUBLE PRECISION ZMAX  ! (E) Altitude maximale de la couche molécules + aérosols.
+C*   Aerosols:
+      DOUBLE PRECISION TA    ! (I) Aerosol optical thickness (not truncated).
+      DOUBLE PRECISION HA    ! (I) Scale height of the aerosol profile (km).
+      DOUBLE PRECISION ZMIN  ! (I) Minimum altitude of the molecules + aerosols layer.
+      DOUBLE PRECISION ZMAX  ! (I) Maximum altitude of the molecules + aerosols layer.
       
-      DOUBLE PRECISION H(0:CTE_OS_NT)     ! Epaisseur optique à chaque niveau.
-      DOUBLE PRECISION PCAER(0:CTE_OS_NT) ! Pourcentage d'aérosols par niveau.
-      DOUBLE PRECISION PCMOL(0:CTE_OS_NT) ! Pourcentage de molécules par niveau.
+      DOUBLE PRECISION H(0:CTE_OS_NT)     ! Optical thickness at each level.
+      DOUBLE PRECISION PCAER(0:CTE_OS_NT) ! Percentage of aerosols per level.
+      DOUBLE PRECISION PCMOL(0:CTE_OS_NT) ! Percentage of molecules per level.
 
-      DOUBLE PRECISION H_NG(0:CTE_OS_NT)     ! Epaisseur optique à chaque niveau du profil sans absorption gazeuse.
-      DOUBLE PRECISION PCAER_NG(0:CTE_OS_NT) ! Pourcentage d'aérosols par niveau du profil sans absorption gazeuse.
-      DOUBLE PRECISION PCMOL_NG(0:CTE_OS_NT) ! Pourcentage de molécules par niveau du profil sans absorption gazeuse.
+      DOUBLE PRECISION H_NG(0:CTE_OS_NT)     ! Optical thickness at each level of the profile without gaseous absorption.
+      DOUBLE PRECISION PCAER_NG(0:CTE_OS_NT) ! Percentage of aerosols per level of the profile without gaseous absorption.
+      DOUBLE PRECISION PCMOL_NG(0:CTE_OS_NT) ! Percentage of molecules per level of the profile without gaseous absorption.
       	
-C*   Absorption gazeuse
-      DOUBLE PRECISION TABS(1:CTE_ABS_NBLEV)     ! Epaisseur optique absorption
-      DOUBLE PRECISION ALTABS(1:CTE_ABS_NBLEV)   ! Altitudes du profil d'absorption
-      DOUBLE PRECISION ZLIM    ! Valeur minimale d'altitude de définition du profil (non nulle si épaisseur optique d'absorption très forte).
-      DOUBLE PRECISION TG_ZLIM ! Epaisseur optique d'absorption à l'altitude ZLIM
-      DOUBLE PRECISION ALIN, BLIN ! Coefficients d'interpolation linéaire de l'ep opt gazeuse sur l'altitude
-      INTEGER*2 ABSPROFIL    ! (E) Type du profil en absorption
+C*   Gaseous absorption
+      DOUBLE PRECISION TABS(1:CTE_ABS_NBLEV)     ! Absorption optical thickness
+      DOUBLE PRECISION ALTABS(1:CTE_ABS_NBLEV)   ! Altitudes of the absorption profile
+      DOUBLE PRECISION ZLIM    ! Minimum altitude of definition of the profile (not null if very strong absorption optical thickness).
+      DOUBLE PRECISION TG_ZLIM ! Absorption optical thickness at altitude ZLIM
+      DOUBLE PRECISION ALIN, BLIN ! Linear interpolation coefficients of the gaseous optical thickness on altitude
+      INTEGER*2 ABSPROFIL    ! (I) Type of the absorption profile
 
 
-      DOUBLE PRECISION TTOT_ZLIM ! Epaisseur optique totale à l'altitude ZLIM
+      DOUBLE PRECISION TTOT_ZLIM ! Total optical thickness at altitude ZLIM
       
-C*   Variables specifiques au profil pour une couche d'aérosols entre deux altitudes :     
-      DOUBLE PRECISION VR_C1	! Epaisseur optique moléculaire de la couche 1.	
-      DOUBLE PRECISION VR_C2	! Epaisseur optique moléculaire de la couche 2.
-      DOUBLE PRECISION VR_C3	! Epaisseur optique moléculaire de la couche 3.
-      DOUBLE PRECISION VR_SC	! Epaisseur optique moléculaire entre deux niveaux.
+C*   Variables specific to the profile with an aerosol layer between two altitudes:
+      DOUBLE PRECISION VR_C1	! Molecular optical thickness of layer 1.
+      DOUBLE PRECISION VR_C2	! Molecular optical thickness of layer 2.
+      DOUBLE PRECISION VR_C3	! Molecular optical thickness of layer 3.
+      DOUBLE PRECISION VR_SC	! Molecular optical thickness between two levels.
 
-      INTEGER*4 NBSC_C1		! Nombre de sous couches dans la couche 1
-      INTEGER*4 NBSC_C2		! Nombre de sous couches dans la couche 2
-      INTEGER*4 NBSC_C3 	       ! Nombre de sous couches dans la couche 3
-      INTEGER*4 NB_TR	 	! Nombre de couches de transition
+      INTEGER*4 NBSC_C1		! Number of sub-layers in layer 1
+      INTEGER*4 NBSC_C2		! Number of sub-layers in layer 2
+      INTEGER*4 NBSC_C3 	       ! Number of sub-layers in layer 3
+      INTEGER*4 NB_TR	 	! Number of transition layers
 
 
-      DOUBLE PRECISION DELTA_Z	! Ecart d'altitude entre deux niveaux (en km).
+      DOUBLE PRECISION DELTA_Z	! Altitude difference between two levels (in km).
       
-C*   Autres variables 
-      DOUBLE PRECISION Z 		! Altitude d'un niveau (en km).
+C*   Other variables
+      DOUBLE PRECISION Z 		! Altitude of a level (in km).
              
-      DOUBLE PRECISION Hmol(0:CTE_OS_NT)   ! Profil d'épaisseur optique moléculaire.
-      DOUBLE PRECISION Haer(0:CTE_OS_NT)   ! Profil d'épaisseur optique des aérosols.
-      DOUBLE PRECISION Habs(0:CTE_OS_NT)   ! Profil d'épaisseur optique des gaz absorbants
+      DOUBLE PRECISION Hmol(0:CTE_OS_NT)   ! Molecular optical thickness profile.
+      DOUBLE PRECISION Haer(0:CTE_OS_NT)   ! Aerosol optical thickness profile.
+      DOUBLE PRECISION Habs(0:CTE_OS_NT)   ! Optical thickness profile of the absorbing gases
 
-      DOUBLE PRECISION Hmol_NG(0:CTE_OS_NT)   ! Profil d'épaisseur optique moléculaire sans absorption gazeuse.
-      DOUBLE PRECISION Haer_NG(0:CTE_OS_NT)   ! Profil d'épaisseur optique des aérosols sans absorption gazeuse.
+      DOUBLE PRECISION Hmol_NG(0:CTE_OS_NT)   ! Molecular optical thickness profile without gaseous absorption.
+      DOUBLE PRECISION Haer_NG(0:CTE_OS_NT)   ! Aerosol optical thickness profile without gaseous absorption.
 
       
-      DOUBLE PRECISION ZPROF(0:CTE_OS_NT)  ! Altitudes des niveaux du profil (en km)
-      DOUBLE PRECISION ZPROF_NG(0:CTE_OS_NT)   ! Altitudes des niveaux du profil sans absorption gazeuse (en km)
-      DOUBLE PRECISION Zing			 ! Valeur d'altitude du profil sans gaz
-      INTEGER*4 ing                        ! Indice de ZPROF_NG donnant Zing
+      DOUBLE PRECISION ZPROF(0:CTE_OS_NT)  ! Altitudes of the profile levels (in km)
+      DOUBLE PRECISION ZPROF_NG(0:CTE_OS_NT)   ! Altitudes of the profile levels without gaseous absorption (in km)
+      DOUBLE PRECISION Zing			 ! Altitude value of the profile without gas
+      INTEGER*4 ing                        ! Index of ZPROF_NG giving Zing
 
       DOUBLE PRECISION VA,VR,VG
             
-      DOUBLE PRECISION  ZZ  ! Coefficient d'interpolation linéaire entre 2 altitudes	    
-      INTEGER*4 I,J  	! Niveau.
-      INTEGER*4 II          ! Indice de niveau
-      INTEGER*4 K  		! Eléments du profil.en gaz absorbants
+      DOUBLE PRECISION  ZZ  ! Linear interpolation coefficient between 2 altitudes
+      INTEGER*4 I,J  	! Level.
+      INTEGER*4 II          ! Level index
+      INTEGER*4 K  		! Elements of the absorbing gas profile
       
-      INTEGER*4 IER     	! code d'erreur =0 si pas d'erreur, =-1 sinon     
+      INTEGER*4 IER     	! error code =0 if no error, =-1 otherwise
       
-      LOGICAL TRACE        	! = vrai,si écriture dans le fichier trace
+      LOGICAL TRACE        	! = true if writing in the trace file
 
-      INTEGER*4 IDLOG	! Numéro identifiant du fichier Trace	    
+      INTEGER*4 IDLOG	! Identifier number of the trace file
 
-      CHARACTER*CTE_LENFIC2 FICPROFIL       ! chemin et nom du fichier resultat PROFIL 
+      CHARACTER*CTE_LENFIC2 FICPROFIL       ! path and name of the PROFIL result file
 
-      DOUBLE PRECISION DTAU			!Epaisseur optique du TOA à une altitude donnée
+      DOUBLE PRECISION DTAU			!Optical thickness from TOA to a given altitude
 
-      DOUBLE PRECISION T_FIRST_LAYER 	!Epaisseur optique de la première couche au TOA
-      DOUBLE PRECISION T_LAYER 		!Epaisseur optique des couches hors première
+      DOUBLE PRECISION T_FIRST_LAYER 	!Optical thickness of the first layer at TOA
+      DOUBLE PRECISION T_LAYER 		!Optical thickness of the layers other than the first
 
-      DOUBLE PRECISION T_FIRST_LAYER_NG 	!Epaisseur optique de la couche au TOA (sans absorption gazeuse)
-      DOUBLE PRECISION T_LAYER_NG 		!Epaisseur optique des couches hors première (sans absorption gazeuse)
+      DOUBLE PRECISION T_FIRST_LAYER_NG 	!Optical thickness of the layer at TOA (without gaseous absorption)
+      DOUBLE PRECISION T_LAYER_NG 		!Optical thickness of the layers other than the first (without gaseous absorption)
 
-      CHARACTER*100 CAS_TXT_NG		!Texte précisant le cas sans gaz retenu
-      CHARACTER*100 CAS_TXT 		!Texte précisant le cas avec gaz retenu
-      INTEGER*2 LTXT				!Longueur chaine de caractères
+      CHARACTER*100 CAS_TXT_NG		!Text specifying the case kept without gas
+      CHARACTER*100 CAS_TXT 		!Text specifying the case kept with gas
+      INTEGER*2 LTXT				!Length of the character string
 
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0
   
       IF((IPROFIL.NE.1).AND.(IPROFIL.NE.2)) GOTO 940
                
-      IF(IPROFIL.EQ.2) GOTO 1000	!On passe les traitements ci-dessous du CAS IPROFIL=1
+      IF(IPROFIL.EQ.2) GOTO 1000	!The processing below of CASE IPROFIL=1 is skipped
 
 
 C===============================================================================
-C Etape 1 : Calcul du profil SANS absorption gazeuse 
-C ==> Il est calculé également si on définit un profil avec absorption
-C ==> On estime les profils: ZPROF_NG, Hmol_NG, Haer_NG
+C Step 1: Computation of the profile WITHOUT gaseous absorption
+C ==> It is also computed when a profile with absorption is defined
+C ==> Estimation of the profiles: ZPROF_NG, Hmol_NG, Haer_NG
 C===============================================================================
      
       !-------------------------------------------------------------------------
-      ! Détermination du nombre de couches et des épaisseurs optiques:     
-      !  - Cas sans absorption gazeuse : NT_NG  
-      !  - Estimation de l'ep. opt. de la première couche au TOA : T_FIRST_LAYER_NG 
-      !  - Estimation de l'ep. opt. des couches sous jacentes : T_LAYER_NG
+      ! Determination of the number of layers and of the optical thicknesses:
+      !  - Case without gaseous absorption: NT_NG
+      !  - Estimation of the opt. thick. of the first layer at TOA: T_FIRST_LAYER_NG
+      !  - Estimation of the opt. thick. of the underlying layers: T_LAYER_NG
       !-------------------------------------------------------------------------
       IF (CTE_TOA_FIRST_LAYER_OPT_THICKNESS.GT.CTE_TCOUCHE) GOTO 950
 
-      ! Sans absorption gazeuse
+      ! Without gaseous absorption
       ! =======================
       TTOT = TR+TA
       IF ((TTOT/CTE_OS_NT_MIN).LE. 
      &     CTE_TOA_FIRST_LAYER_OPT_THICKNESS) THEN
-         !Cas d'un milieu très peu diffusant: toutes les couches sont prises à même ep. opt même la première  
+         !Case of a very weakly scattering medium: all the layers have the same opt. thick., even the first one
          CAS_TXT_NG = 
      &   "NO GAS case 1: very low scattering optical thickness"      
          NT_NG = CTE_OS_NT_MIN
@@ -362,18 +362,18 @@ C===============================================================================
          
       ELSE
          IF ((TTOT/CTE_OS_NT_MIN).LT.CTE_TCOUCHE) THEN
-            !Cas d'un milieu peu diffusant: 
-            !    on garde la première couche distincte avec une ep. opt valant CTE_TOA_FIRST_LAYER_OPT_THICKNESS 
-            !    on prend CTE_OS_NT_MIN couches à même ep. opt en dessous (< CTE_TCOUCHE)
+            !Case of a weakly scattering medium:
+            !    the first layer is kept separate with an opt. thick. of CTE_TOA_FIRST_LAYER_OPT_THICKNESS
+            !    CTE_OS_NT_MIN layers of equal opt. thick. are taken below (< CTE_TCOUCHE)
             CAS_TXT_NG="NO GAS case 2: low scattering optical thickness"  
             NT_NG = CTE_OS_NT_MIN + 1
             T_FIRST_LAYER_NG = CTE_TOA_FIRST_LAYER_OPT_THICKNESS
             T_LAYER_NG = (TTOT-T_FIRST_LAYER_NG) / CTE_OS_NT_MIN
             
          ELSE
-            !Cas TTOT/CTE_TCOUCHE > CTE_OS_NT_MIN
-            !    on définit une première couche distincte avec une ep. opt valant CTE_TOA_FIRST_LAYER_OPT_THICKNESS 
-            !    on prend (NT_NG-1) couches à même ep. opt en dessous, T_LAYER_NG (proche de CTE_TCOUCHE)
+            !Case TTOT/CTE_TCOUCHE > CTE_OS_NT_MIN
+            !    a separate first layer is defined with an opt. thick. of CTE_TOA_FIRST_LAYER_OPT_THICKNESS
+            !    (NT_NG-1) layers of equal opt. thick. are taken below, T_LAYER_NG (close to CTE_TCOUCHE)
             CAS_TXT_NG="NO GAS case 3: more layers than CTE_OS_NT_MIN-"
             LTXT=INDEX(CAS_TXT_NG,'-')-1 
             CAS_TXT_NG = 
@@ -381,32 +381,32 @@ C===============================================================================
             LTXT=INDEX(CAS_TXT_NG,'-')-1 
             CAS_TXT_NG =  CAS_TXT_NG(1:LTXT)//" CTE_TCOUCHE"    
 
-            T_FIRST_LAYER_NG = CTE_TOA_FIRST_LAYER_OPT_THICKNESS	!Ep. Opt de la 1ère couche
+            T_FIRST_LAYER_NG = CTE_TOA_FIRST_LAYER_OPT_THICKNESS	!Opt. thick. of the 1st layer
 
             NT_NG = INT((TTOT-T_FIRST_LAYER_NG)/CTE_TCOUCHE)
-            T_LAYER_NG =  (TTOT-T_FIRST_LAYER_NG) / NT_NG	!Ep. Opt des couches sous la couche ultra fine au TOA
+            T_LAYER_NG =  (TTOT-T_FIRST_LAYER_NG) / NT_NG	!Opt. thick. of the layers below the ultra-thin layer at TOA
 	
-            NT_NG = NT_NG + 1	!Ajout de la couche ultra fine au TOA
+            NT_NG = NT_NG + 1	!Addition of the ultra-thin layer at TOA
 
          ENDIF
       ENDIF
 
     
       !-------------------------------------------------------------------------
-      ! Calcul du profil sans absorption gazeuse 
-      ! ==> Il est calculé également si on définit un profil avec absorption
-      !     pour stocker le profil sans gaz ZPROF_NG qui sera utilisé 
-      !     pour la définition du profil avec gaz
-      ! ==> Sort le nombre de couches NT_NG 
-      !     et les profils Hmol_NG, Haer_NG, H_NG, ZPROF_NG, PCMOL_NG, PCAER_NG
+      ! Computation of the profile without gaseous absorption
+      ! ==> It is also computed when a profile with absorption is defined
+      !     to store the profile without gas ZPROF_NG that will be used
+      !     for the definition of the profile with gas
+      ! ==> Outputs the number of layers NT_NG
+      !     and the profiles Hmol_NG, Haer_NG, H_NG, ZPROF_NG, PCMOL_NG, PCAER_NG
       !-------------------------------------------------------------------------
 
       TTOT = TR+TA
 
       IF (TA.EQ.0.0D+00) THEN
           ! ---------------------------------------------------
-          ! CAS 1: Cas d'une couche sans diffusion aérosols : 
-          !        Pas d'absorption ==> le profil est homogène. 
+          ! CASE 1: Case of a layer without aerosol scattering:
+          !        No absorption ==> the profile is homogeneous.
           ! ---------------------------------------------------
   
           Hmol_NG(0) = 0.D+00
@@ -430,8 +430,8 @@ C===============================================================================
  
       ELSE
           ! ---------------------------------------------------
-          ! CAS 2: Cas d'une couche avec diffusion aérosols  
-          !        et molécules: Pas d'absorption 
+          ! CASE 2: Case of a layer with aerosol scattering
+          !        and molecules: No absorption
           ! ---------------------------------------------------
 
           ZPROF_NG(0) = CTE_TOA_ALT
@@ -439,7 +439,7 @@ C===============================================================================
           Haer_NG(0) = 0.D+00
           H_NG(0) = 0.D+00
 
-          !On cherche l'altitude pour le niveau 1 dont l'épaisseur optique (mol+aer) sera T_FIRST_LAYER_NG
+          !Search for the altitude of level 1 whose optical thickness (mol+aer) will be T_FIRST_LAYER_NG
           DTAU = 0.
           Z = CTE_TOA_ALT 
           DO WHILE(DTAU.LT.T_FIRST_LAYER_NG)
@@ -455,12 +455,12 @@ C===============================================================================
           PCMOL_NG(1) = VR/DTAU
           PCAER_NG(1) = VA/DTAU
 
-          !Duplication des proportions sur le niveau 0 au TOA (couche sous-jacente ultra fine)
+          !Duplication of the proportions on level 0 at TOA (ultra-thin underlying layer)
           PCMOL_NG(0) = PCMOL_NG(1)
           PCAER_NG(0) = PCAER_NG(1)
 
-          !On cherche l'altitude des niveaux 2 à NT_NG-1
-          !et calcule les paramètres de profil pour chaque niveau
+          !Search for the altitude of levels 2 to NT_NG-1
+          !and computation of the profile parameters for each level
           DO I=2,NT_NG-1
                CALL SOS_DISC(T_LAYER_NG,TA,HA,TR,HR,TABS,ALTABS,
      &                       H_NG(I-1),ZPROF_NG(1),0.D+00,0.D+00,Z)	
@@ -477,7 +477,7 @@ C===============================================================================
                PCAER_NG(I) = VA / (VR+VA)
 	   ENDDO 
  
-          !Gestion du niveau en surface (à NT_NG)
+          !Management of the surface level (at NT_NG)
           ZPROF_NG(NT_NG) = 0.D+00 
           Hmol_NG(NT_NG) = TR
           Haer_NG(NT_NG) = TA
@@ -488,12 +488,12 @@ C===============================================================================
           PCMOL_NG(NT_NG) = VR / (VR+VA)
           PCAER_NG(NT_NG) = VA / (VR+VA)
 
-      ENDIF !Fin test TA = 0.
+      ENDIF !End of test TA = 0.
 
 
       IF ((ABSPROFIL.EQ.7).OR.(TABS(CTE_ABS_NBLEV).EQ.0.D+00)) THEN
-	  !En absence d'absorption on stocke les resultats du profil sans gaz 
-         !en tant que résultats finaux
+	  !Without absorption, the results of the profile without gas are stored
+         !as final results
 
         NT = NT_NG
               
@@ -509,9 +509,9 @@ C===============================================================================
 
       ELSE
 C===============================================================================
-C Etape 2 : Calcul du profil AVEC absorption gazeuse 
-C ==> Si présence d'absorption gazeuse
-C ==> On estime les profils: ZPROF, Hmol, Haer, PCMOL, PCAER 
+C Step 2: Computation of the profile WITH gaseous absorption
+C ==> If gaseous absorption is present
+C ==> Estimation of the profiles: ZPROF, Hmol, Haer, PCMOL, PCAER
 C===============================================================================
        
 
@@ -519,22 +519,22 @@ C===============================================================================
          IF (CTE_TCOUCHE.GT.CTE_THRESHOLD_TAUABS) GOTO 960
     
          !-------------------------------------------------------------------------
-         ! Détermination des épaisseurs optiques avec absorption gazeuse:  
-         !  - Estimation de l'ep. opt. de la première couche au TOA : T_FIRST_LAYER 
-         !  - Estimation de l'ep. opt. des couches sous jacentes : T_LAYER
+         ! Determination of the optical thicknesses with gaseous absorption:
+         !  - Estimation of the opt. thick. of the first layer at TOA: T_FIRST_LAYER
+         !  - Estimation of the opt. thick. of the underlying layers: T_LAYER
          !-------------------------------------------------------------------------
   
-         ! Epaisseur optique totale sur le trajet
+         ! Total optical thickness along the path
          TTOT = TR + TA + TABS(CTE_ABS_NBLEV)
 
          IF (TABS(CTE_ABS_NBLEV).GT.CTE_THRESHOLD_TAUABS) THEN   
-            !Cas ep. opt. d'absorption forte > seuil limite 
-            !Le profil d'absorption est pris en compte jusqu'à l'altitude ZLIM à estimer
+            !Case of a strong absorption opt. thick. > threshold
+            !The absorption profile is taken into account down to the altitude ZLIM to be estimated
             CAS_TXT =  
      &      "WITH GAS case 0 : Strong absorption ==> Limit layer used"
  
-            !Détermination de l'altitude pour laquelle l'épaisseur optique d'absorption gazeuse
-            !dépasse la valeur seuil
+            !Determination of the altitude at which the gaseous absorption optical thickness
+            !exceeds the threshold
             I=1
             DO WHILE (TABS(I).LT.CTE_THRESHOLD_TAUABS) 
                I=I+1
@@ -550,13 +550,13 @@ C===============================================================================
             T_FIRST_LAYER = CTE_TOA_FIRST_LAYER_OPT_THICKNESS
 
             TTOT_ZLIM = TA*DEXP(-ZLIM/HA)+TR*DEXP(-ZLIM/HR)+TG_ZLIM 
-            T_LAYER  = (TTOT_ZLIM-T_FIRST_LAYER) / (CTE_OS_NT-NT_NG-2) !Nb max de couches - celles du profil sans gaz - celle TOA - celle sous limite ep. opt. 
+            T_LAYER  = (TTOT_ZLIM-T_FIRST_LAYER) / (CTE_OS_NT-NT_NG-2) !Max nb of layers - those of the profile without gas - the TOA one - the one below the opt. thick. limit
             T_LAYER  = MAX(T_LAYER, CTE_TCOUCHE)
  
 
          ELSE
-            !Cas ep. opt. d'absorption inférieure au seuil limite 
-            !Le profil d'absorption est pris en compte jusqu'au sol
+            !Case of an absorption opt. thick. below the threshold
+            !The absorption profile is taken into account down to the ground
 
             ZLIM = 0.		
             TG_ZLIM = TABS(CTE_ABS_NBLEV)
@@ -564,7 +564,7 @@ C===============================================================================
     
             IF ((TTOT/CTE_OS_NT_MIN).LE. 
      &           CTE_TOA_FIRST_LAYER_OPT_THICKNESS) THEN
-               !Cas d'un milieu à très faible ep. opt : toutes les couches sont prises à même ep. opt même la première  
+               !Case of a medium with very small opt. thick.: all the layers have the same opt. thick., even the first one
                CAS_TXT =  "WITH GAS case 1: No limit layer -"
                LTXT=INDEX(CAS_TXT,'-')-1 
                CAS_TXT = 
@@ -579,15 +579,15 @@ C===============================================================================
                   LTXT=INDEX(CAS_TXT,'-')-1 
                   CAS_TXT = CAS_TXT(1:LTXT)//" + low optical thickness"
 
-                  !Cas d'un milieu à faible ep. opt : 
-                  !      on garde la première couche distincte avec une ep. opt valant CTE_TOA_FIRST_LAYER_OPT_THICKNESS  
-                  !      on prend CTE_OS_NT_MIN couches à même ep. opt en dessous (< CTE_TCOUCHE)
+                  !Case of a medium with small opt. thick.:
+                  !      the first layer is kept separate with an opt. thick. of CTE_TOA_FIRST_LAYER_OPT_THICKNESS
+                  !      CTE_OS_NT_MIN layers of equal opt. thick. are taken below (< CTE_TCOUCHE)
                   NT = CTE_OS_NT_MIN + 1
                   T_FIRST_LAYER = CTE_TOA_FIRST_LAYER_OPT_THICKNESS
                   T_LAYER = (TTOT-T_FIRST_LAYER) / CTE_OS_NT_MIN
 
                ELSE
-                  !Cas TTOT/CTE_TCOUCHE > CTE_OS_NT_MIN
+                  !Case TTOT/CTE_TCOUCHE > CTE_OS_NT_MIN
                   CAS_TXT= 
      &            "WITH GAS case 3: more layers than CTE_OS_NT_MIN-"
                   LTXT=INDEX(CAS_TXT,'-')-1 
@@ -596,38 +596,38 @@ C===============================================================================
                   LTXT=INDEX(CAS_TXT,'-')-1 
                   CAS_TXT =  CAS_TXT(1:LTXT)//" CTE_TCOUCHE"
 
-                  T_FIRST_LAYER = CTE_TOA_FIRST_LAYER_OPT_THICKNESS	!Ep. Opt de la 1ère couche
+                  T_FIRST_LAYER = CTE_TOA_FIRST_LAYER_OPT_THICKNESS	!Opt. thick. of the 1st layer
 
                   NT = INT((TTOT-T_FIRST_LAYER)/CTE_TCOUCHE)	
-                  T_LAYER =  (TTOT-T_FIRST_LAYER) / NT		!Ep. Opt des couches sous la couche ultra fine au TOA
+                  T_LAYER =  (TTOT-T_FIRST_LAYER) / NT		!Opt. thick. of the layers below the ultra-thin layer at TOA
 
-                  NT = NT + 1	!+1 pour ajout de la couche ultra fine au TOA
+                  NT = NT + 1	!+1 to add the ultra-thin layer at TOA
 
                ENDIF
-            ENDIF ! Fin test sur valeur TTOT
+            ENDIF ! End of test on the value of TTOT
 
-         ENDIF !Fin test ep. opt. d'absorption  > seuil limite 
+         ENDIF !End of test absorption opt. thick. > threshold
 		 
 
     
          !-------------------------------------------------------------------------
-         ! Calcul du profil AVEC absorption gazeuse 
+         ! Computation of the profile WITH gaseous absorption
          !
-         !    Calcul des altitudes du profil ZPROF(I)
-         !    Calcul des épaisseurs optiques Hmol(I), Haer(I) et Habs(I) 
-         !    et des proportions de molécules et aérosols (PCMOL(I) et PCAER(I))
+         !    Computation of the profile altitudes ZPROF(I)
+         !    Computation of the optical thicknesses Hmol(I), Haer(I) and Habs(I)
+         !    and of the proportions of molecules and aerosols (PCMOL(I) and PCAER(I))
          !
-         !    Calcul du nombre de couches atmosphériques NT:
-         !       Nombre de couches max = CTE_OS_NT
-         !       Nombre de couches min = CTE_OS_NT_MIN
-         !       Nombre de couches dépendant d'un possible dépassement du seuil d'épaisseur optique d'absorption
+         !    Computation of the number of atmospheric layers NT:
+         !       Max number of layers = CTE_OS_NT
+         !       Min number of layers = CTE_OS_NT_MIN
+         !       Number of layers depending on a possible exceedance of the absorption optical thickness threshold
          !  ------------------------------------------
 
          !-------------------------------------------------------------------------
  
 
-         ! Calcul de l'épaisseur optique et de la contribution à la 
-         ! diffusion des molécules et des aérosols du TOA (300 km) au sol.
+         ! Computation of the optical thickness and of the scattering contribution
+         ! of molecules and aerosols from TOA (300 km) to the ground.
          ! ----------------------------------------------------------------
          NT = 1
          Z = CTE_TOA_ALT
@@ -644,20 +644,20 @@ C===============================================================================
  		
             I=NT
             IF (I.EQ.1) THEN
-               !On cherche l'altitude pour le niveau 1 dont l'épaisseur optique (mol+aer+gaz) sera T_FIRST_LAYER
+               !Search for the altitude of level 1 whose optical thickness (mol+aer+gas) will be T_FIRST_LAYER
 
                DTAU = 0.
                DO WHILE(DTAU.LT.T_FIRST_LAYER)
 
                   Z = Z - CTE_DELTA_Z
 
-                  !Recherche de l'indice J tel que ALTABS(J-1) > z >= (ALTABS(J)
+                  !Search for the index J such that ALTABS(J-1) > z >= (ALTABS(J)
 	           J=2
 	           DO WHILE(Z.LT.ALTABS(J))				
 		       J=J+1
 	           ENDDO
     
-                  ! Interpolation linéaire de l'épaisseur optique d'absorption gazeuse VG entre les deux niveaux du profil gaz
+                  ! Linear interpolation of the gaseous absorption optical thickness VG between the two levels of the gas profile
                   IF (Z.LE.ALTABS(1)) THEN
                      ZZ=(Z-ALTABS(J-1))/(ALTABS(J)-ALTABS(J-1))
 	              VG=(1-ZZ)*TABS(J-1)+ZZ*TABS(J)
@@ -666,11 +666,11 @@ C===============================================================================
 	           ENDIF
  
 
-                  ! Epaisseur optique moléculaire et aérosols 
+                  ! Molecular and aerosol optical thickness
                   VR=TR*DEXP(-Z/HR)
                   VA=TA*DEXP(-Z/HA)       
 
-                  ! Epaisseur optique totale   
+                  ! Total optical thickness
 	           DTAU = VR + VA + VG
  
 	        ENDDO
@@ -678,23 +678,23 @@ C===============================================================================
                H(1) = DTAU
                ing = 1
          
-            ELSE ! Détermination de l'altitude pour l'épaisseur optique au niveau I (pour I > 2)
+            ELSE ! Determination of the altitude for the optical thickness at level I (for I > 2)
 
                CALL SOS_DISC(T_LAYER,TA,HA,TR,HR,TABS,ALTABS,H(I-1),
      &                       ZPROF(1),TG_ZLIM,ZLIM,Z)	      
 
 
-            ENDIF !Fin distinction cas I=1 ou I>1
+            ENDIF !End of distinction between cases I=1 and I>1
 
 
 	     IF (Z.LE.Zing) THEN
-                 Z=Zing	        !Si Z est sous un niveau Zing du profil sans gaz : on force son introduction dans le profil avec gaz
-                 ing = ing + 1      !On considère ensuite le niveau Zing suivant (plus bas)
+                 Z=Zing	        !If Z is below a level Zing of the profile without gas: it is forced into the profile with gas
+                 ing = ing + 1      !The next (lower) level Zing is then considered
                  Zing = ZPROF_NG(ing) 
             ELSE
                 IF ((Z-Zing).LE.CTE_THRESHOLD_DZ) THEN
-                   ing = ing + 1           !Z très proche de Zing, on ne va pas forcer Z suivant à valeur Zing: 
-                   Zing = ZPROF_NG(ing)    !on modifie Zing en prenant la valeur suivante (plus basse)
+                   ing = ing + 1           !Z very close to Zing, the next Z is not forced to the value Zing:
+                   Zing = ZPROF_NG(ing)    !Zing is changed by taking the next (lower) value
                 ENDIF               
             ENDIF  
 
@@ -702,17 +702,17 @@ C===============================================================================
 
             ZPROF(I)=Z
 
-            ! Calcul de l'épaisseur optique d'absorption par interpolation linéaire
-            ! Recherche des niveaux d'altitude du profil en absorption entourant l'altitude Z
+            ! Computation of the absorption optical thickness by linear interpolation
+            ! Search for the altitude levels of the absorption profile around the altitude Z
 	     J=2
 	     DO WHILE(Z.LT.ALTABS(J))
 		 J=J+1
 	     ENDDO
  
-            ! Interpolation linéaire entre les deux couches
+            ! Linear interpolation between the two layers
             IF (Z.GT.ALTABS(1)) THEN
-               ! Gestion du cas ou Z est en dehors du profil (Z > 120 km)
-		 !print*,"!!!Cas Z=",Z," > 	ALTABS(1) =",ALTABS(1)     
+               ! Management of the case where Z is outside the profile (Z > 120 km)
+		 !print*,"!!!Case Z=",Z," > 	ALTABS(1) =",ALTABS(1)
 	        VG=TABS(J-1)
 	     ELSE
 	        ZZ=(Z-ALTABS(J-1))/(ALTABS(J)-ALTABS(J-1))
@@ -720,7 +720,7 @@ C===============================================================================
 	     ENDIF
 
 	    
-            ! Calcul des proportions moléculaires et aérosols.
+            ! Computation of the molecular and aerosol proportions.
             VR=TR*DEXP(-Z/HR)
             VA=TA*DEXP(-Z/HA)
 	     Hmol(I)=VR
@@ -736,11 +736,11 @@ C===============================================================================
 
             NT = NT + 1
 
-         ENDDO !Fin boucle estimation du niveau Z tant que Z > T_LAYER 
+         ENDDO !End of loop estimating the level Z while Z > T_LAYER
 
-         !Gestion du niveau limite de profondeur (ZLIM!=0. ou surface)
+         !Management of the limit depth level (ZLIM!=0. or surface)
          IF ((ZPROF(NT-1)-ZLIM).LE.CTE_THRESHOLD_DZ) THEN
-            NT=NT-1	!Si l'écart est faible entre Z et ZLIM, on ne tient pas compte du dernier niveau calculé
+            NT=NT-1	!If the difference between Z and ZLIM is small, the last computed level is ignored
          ENDIF
          ZPROF(NT) = ZLIM  
          VR = TR*DEXP(-ZLIM /HR)
@@ -757,7 +757,7 @@ C===============================================================================
 	  PCAER(NT)=VA/(VA+VR+VG)
          PCMOL(NT)=VR/(VA+VR+VG)
 
-	  ! Définition des valeurs du profil au TOA 
+	  ! Definition of the profile values at TOA
          ZPROF(0)= CTE_TOA_ALT
          PCAER(0) = PCAER(1)
          PCMOL(0) = PCMOL(1)
@@ -769,10 +769,10 @@ C===============================================================================
 	  
 
          IF (TABS(CTE_ABS_NBLEV).GT.CTE_THRESHOLD_TAUABS) THEN   
-            !On complète le profil du niveau dont l'épaisseur optique gazeuse atteint le seuil
-            !au sol en ajoutant une couche supplémentaire.
-            !On affecte à cette dernière couche (du niveau limite au sol) la totalité des contenus sous le niveau limite.
-            !==> suppose une atténuation telle que cette couche n'est pas visible.
+            !The profile is completed from the level where the gaseous optical thickness reaches the threshold
+            !down to the ground by adding an extra layer.
+            !This last layer (from the limit level to the ground) is given all the contents below the limit level.
+            !==> assumes an attenuation such that this layer is not visible.
             NT = NT + 1
             Hmol(NT)=TR
             Haer(NT)=TA
@@ -790,53 +790,53 @@ C===============================================================================
 
          ENDIF
 
-      ENDIF !Fin test cas sans/avec absorption gazeuse
+      ENDIF !End of test case without/with gaseous absorption
 
 
-      GOTO 7777 !On passe le cas IPROFIL=2
+      GOTO 7777 !Case IPROFIL=2 is skipped
 
 
 
      
 1000  CONTINUE
 C======================================================
-C* CAS IPROFIL=2 : 
-C*   Diffusion des aérosols et des molécules.
-C*   Couche uniforme d'aérosols entre deux altitudes
-C*   Cas sans absorption gazeuse.
+C* CASE IPROFIL=2 :
+C*   Aerosol and molecular scattering.
+C*   Uniform aerosol layer between two altitudes
+C*   Case without gaseous absorption.
 C======================================================
 C*      
 C*		T O A
 C*	___________________________ 
 C*
-C*		couche 1
+C*		layer 1
 C*	--------------------------- Zmax+DZtransi
 C*	___________________________ Zmax
 C*
 C*
-C*		couche 2
+C*		layer 2
 C*
 C*	___________________________ Zmin	
 C*	--------------------------- Zmin-DZtransi
 C*
-C*		couche 3
+C*		layer 3
 C*	___________________________
 
 	         
 	 
-C* Controle de la validite des arguments 
+C* Validity check of the arguments
 C---------------------------------------
       IF ((ZMIN.LT.0.D-00).OR.(ZMAX.LE.ZMIN)) GOTO 1010
 
 
-C* Nombre de couches du profil 
+C* Number of layers of the profile
 C---------------------------------------
       TTOT = TR + TA 
       NT = int(TTOT / CTE_TCOUCHE) 
       IF (NT.GT.CTE_OS_NT) NT = CTE_OS_NT
           
  
-C* Epaisseur optique moléculaire des couches
+C* Molecular optical thickness of the layers
 C  -----------------------------------------
       VR_C1=TR*DEXP(-(ZMAX+CTE_DZTRANSI)/HR)
       VR_C2=TR*( DEXP(-ZMIN/HR)-DEXP(-(ZMAX+CTE_DZTRANSI)/HR) )
@@ -848,7 +848,7 @@ C  -----------------------------------------
 	  NB_TR = 2     
       ENDIF 
 	   
-C* Nombre de sous-couches dans chaque couche
+C* Number of sub-layers in each layer
 C  -----------------------------------------
 
       NBSC_C1 = (NT-NB_TR)*VR_C1/(TR+TA) 
@@ -865,7 +865,7 @@ C  -----------------------------------------
 
       IF((TA/NBSC_C2).LT.0.00001) GOTO 1020
 
-C* Profil moléculaire : couche 1
+C* Molecular profile: layer 1
 C  -----------------------------
       VR_SC=VR_C1/NBSC_C1
 
@@ -874,14 +874,14 @@ C  -----------------------------
 	  Haer(I)=0.
       ENDDO
 	       
-C* Transition : ZMAX+CTE_DZTRANSI -> ZMAX
+C* Transition: ZMAX+CTE_DZTRANSI -> ZMAX
 C  -------------------------------------
       I=NBSC_C1+1
       Hmol(I)=TR*DEXP(-ZMAX/HR)
       VR_SC=Hmol(I)-Hmol(I-1)
       Haer(I)=Haer(I-1)+(TA*VR_SC/VR_C2)
 	      	       
-C* Melange homogène: aérosols + molécules: couche 2
+C* Homogeneous mixture: aerosols + molecules: layer 2
 C  ------------------------------------------------
       DELTA_Z=(ZMAX-ZMIN)/NBSC_C2
 	       
@@ -900,13 +900,13 @@ C  ------------------------------------------------
 	
       IF (ZMIN.NE.0.D+00) THEN       	       
 	    
-C* Transition : ZMIN -> ZMIN-CTE_DZTRANSI
+C* Transition: ZMIN -> ZMIN-CTE_DZTRANSI
 C  -------------------------------------
 	  I=NBSC_C1+NBSC_C2+2
 	  Hmol(I)=TR*DEXP(-(ZMIN-CTE_DZTRANSI)/HR)
 	  Haer(I)=Haer(I-1)  
 
-C* Profil moléculaire : couche 3
+C* Molecular profile: layer 3
 C  -----------------------------
 	       
 	  VR_SC=VR_C3/NBSC_C3
@@ -920,7 +920,7 @@ C  -----------------------------
 
 
 	       	       	       
-C* Calcul de H, PCAER, PCMOL
+C* Computation of H, PCAER, PCMOL
 C  -----------------------	
       ZPROF(0)=CTE_TOA_ALT
       Hmol(0)=TR*DEXP(-CTE_TOA_ALT/HR)
@@ -945,13 +945,13 @@ C  -----------------------
 		    
       ENDDO
 	    
-C FIN DU CAS IPROFIL = 2   
+C END OF CASE IPROFIL = 2
 C------------------------------------------------------ 
  7777 CONTINUE
 
 
 
-C* Ecriture du fichier trace
+C* Writing of the trace file
 C-------------------------------------------
       
       IF (TRACE) THEN      
@@ -1034,11 +1034,11 @@ C-------------------------------------------
      &               I,ZPROF(I),Hmol(I),Haer(I),Habs(I), 
      &               H(I),PCAER(I),PCMOL(I)
 	        ENDDO
-            ENDIF !Fin cas avec absorption gazeuse
+            ENDIF !End of case with gaseous absorption
 
 
 
-         ELSE !Cas IPROFIL=2
+         ELSE !Case IPROFIL=2
 
 	     WRITE(IDLOG,*,err=921)     
      &      '  Profile for a variable altitude of the aerosol layer'
@@ -1076,7 +1076,7 @@ C-------------------------------------------
 
 
       
-C* Enregistrement des paramètres du profil atmosphérique dans un fichier
+C* Recording of the atmospheric profile parameters in a file
 C  ---------------------------------------------------------------------
       OPEN(2,FILE=FICPROFIL,ERR=991)
       
@@ -1084,15 +1084,15 @@ C  ---------------------------------------------------------------------
          WRITE(2,20,err=992)I,ZPROF(I),H(I),PCAER(I),PCMOL(I)
       ENDDO
 
-C* Fermeture fichier
+C* File closing
 C-------------------
-      CLOSE(2)		! Fermeture du fichier resultat PROFIL
+      CLOSE(2)		! Closing of the PROFIL result file
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
 
   940 WRITE(6,*) '  ERROR 940 in SOS_PROFIL :'
@@ -1153,7 +1153,7 @@ c   10 FORMAT(5X,A1,4X,A3,7X,A7,10X,A7,10X,A7,10X,A4,12X,2(A7,11X))
    35 FORMAT(2X,I5,6(F10.5))
    
  9999 RETURN
-      END	!FIN DU PROGRAMME SOS_PROFIL
+      END	!END OF PROGRAM SOS_PROFIL
 
 
 
@@ -1161,50 +1161,50 @@ c   10 FORMAT(5X,A1,4X,A3,7X,A7,10X,A7,10X,A7,10X,A4,12X,2(A7,11X))
 C==============================================================================
 C PROCEDURE: SOS_DISC
 C ==========
-C      Cette procédure estime l'altitude à attribuer au niveau I du profil
-C      atmosphérique.
+C      This procedure estimates the altitude to be assigned to level I of the
+C      atmospheric profile.
 C
-C      A) On estime l'épaisseur optique du niveau I en fonction de celle du niveau I-1 
-C         et du pas en épaisseur optique.
+C      A) The optical thickness of level I is estimated from that of level I-1
+C         and the optical thickness step.
 C
-C      B) On évalue l'altitude correspondante à ce niveau I par une méthode de
-C         dichotomie, avec le calcul de l'épaisseur optique d'absorption gazeuse et
-C         de celles moléculaires et aérosols pour les altitudes Z testées.
-C         On sort de la boucle quand l'épaisseur optique de l'altitude Z 
-C         est très proche de celle souhaitée au niveau I.
+C      B) The corresponding altitude of level I is evaluated by a
+C         bisection method, computing the gaseous absorption optical thickness and
+C         the molecular and aerosol ones for the tested altitudes Z.
+C         The loop is left when the optical thickness at altitude Z
+C         is very close to the one wanted at level I.
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C   molécules :
-C      TR  (double)  (E)   Epaisseur optique rayleigh.
-C      HR  (double)  (E)   Echelle de hauteur du profil moléculaire (km).
+C   molecules:
+C      TR  (double)  (I)   Rayleigh optical thickness.
+C      HR  (double)  (I)   Scale height of the molecular profile (km).
 C
-C   Aérosols :
-C      TA  (double)  (E)   Epaisseur optique des aérosols.
-C      HA  (double)  (E)   Echelle de hauteur du profil d'aérosols (km).
+C   Aerosols:
+C      TA  (double)  (I)   Aerosol optical thickness.
+C      HA  (double)  (I)   Scale height of the aerosol profile (km).
 C
-C   Gaz :
-C      TABS(1:CTE_ABS_NBLEV)   (double)  (E)   Profil initial en altitude de l'épaisseur optique absorption
-C      ALTABS(1:CTE_ABS_NBLEV) (double)  (E)   Altitudes du profil d'absorption initial
-C      TG_ZLIM (double)  (E) Epaisseur optique d'absorption à l'altitude ZLIM
-C      ZLIM (double)  (E) Valeur minimale d'altitude à considérer (en km).
-C      ZMAX_INIT  (double)  (E)  Altitude max à considérer (en km).
+C   Gas:
+C      TABS(1:CTE_ABS_NBLEV)   (double)  (I)   Initial altitude profile of the absorption optical thickness
+C      ALTABS(1:CTE_ABS_NBLEV) (double)  (I)   Altitudes of the initial absorption profile
+C      TG_ZLIM (double)  (I) Absorption optical thickness at altitude ZLIM
+C      ZLIM (double)  (I) Minimum altitude to consider (in km).
+C      ZMAX_INIT  (double)  (I)  Max altitude to consider (in km).
 C
-C   Informations sur le niveau I-1 :
-C      I     (I4)      (E)  Numéro du niveau traite.
-C      TIM1  (double)  (E)  Epaisseur optique totale du niveau I-1.
-C      DT    (double)  (E)  Pas en épaisseur optique
+C   Information on level I-1:
+C      I     (I4)      (I)  Number of the processed level.
+C      TIM1  (double)  (I)  Total optical thickness of level I-1.
+C      DT    (double)  (I)  Optical thickness step
 C
-C      ZX    (double)  (S)  Altitude estimée pour le niveau I.
+C      ZX    (double)  (O)  Estimated altitude of level I.
 C 
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C     None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Aucun
+C     None
 C
 C==============================================================================
       SUBROUTINE SOS_DISC(DT,TA,HA,TR,HR,TABS,ALTABS,TIM1,
@@ -1212,59 +1212,59 @@ C==============================================================================
 
       IMPLICIT NONE
 
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------
 
 
-C*   molécules :
-      DOUBLE PRECISION TR	! Epaisseur optique rayleigh.
-      DOUBLE PRECISION HR	! Echelle de hauteur du profil moléculaire.
+C*   molecules:
+      DOUBLE PRECISION TR	! Rayleigh optical thickness.
+      DOUBLE PRECISION HR	! Scale height of the molecular profile.
 
-C*   Aérosols :
-      DOUBLE PRECISION TA	! Epaisseur optique des aérosols (non tronquée).
-      DOUBLE PRECISION HA	! Echelle de hauteur du profil d'aérosols.
+C*   Aerosols:
+      DOUBLE PRECISION TA	! Aerosol optical thickness (not truncated).
+      DOUBLE PRECISION HA	! Scale height of the aerosol profile.
 
-C*   Gaz absorbants
-      DOUBLE PRECISION TABS(1:CTE_ABS_NBLEV)   ! Profil en altitude de l'épaisseur optique absorption
-      DOUBLE PRECISION ALTABS(1:CTE_ABS_NBLEV) ! Altitudes du profil d'absorption
-      DOUBLE PRECISION TG      ! Epaisseur optique d'absorption
-      DOUBLE PRECISION ZLIM    ! Valeur minimale d'altitude pour la recherche dichotomique.
-      DOUBLE PRECISION TG_ZLIM ! Epaisseur optique d'absorption à l'altitude ZLIM
+C*   Absorbing gases
+      DOUBLE PRECISION TABS(1:CTE_ABS_NBLEV)   ! Altitude profile of the absorption optical thickness
+      DOUBLE PRECISION ALTABS(1:CTE_ABS_NBLEV) ! Altitudes of the absorption profile
+      DOUBLE PRECISION TG      ! Absorption optical thickness
+      DOUBLE PRECISION ZLIM    ! Minimum altitude for the bisection search.
+      DOUBLE PRECISION TG_ZLIM ! Absorption optical thickness at altitude ZLIM
 
        
-C*   Informations sur le niveau I-1 :
-      DOUBLE PRECISION TIM1	! Epaisseur optique totale du niveau I-1.
+C*   Information on level I-1:
+      DOUBLE PRECISION TIM1	! Total optical thickness of level I-1.
 
-      DOUBLE PRECISION ZX	! Altitude estimée pour le niveau I.
+      DOUBLE PRECISION ZX	! Estimated altitude of level I.
       	
-      DOUBLE PRECISION ZZ	! Coefficient d'interpolation linéaire entre 2 altitudes
+      DOUBLE PRECISION ZZ	! Linear interpolation coefficient between 2 altitudes
       	
-      DOUBLE PRECISION DT	! Pas en épaisseur optique.
-      DOUBLE PRECISION TI	! Epaisseur optique estimee au niveau I.
+      DOUBLE PRECISION DT	! Optical thickness step.
+      DOUBLE PRECISION TI	! Estimated optical thickness at level I.
       DOUBLE PRECISION ZMAX	! Altitude (km).
       DOUBLE PRECISION ZMAX_INIT	! Altitude (km).
       DOUBLE PRECISION ZMIN
 
 
-      DOUBLE PRECISION ZMOY	! Altitude moyenne.
-      DOUBLE PRECISION TZMOY ! Epaisseur optique totale pour l'altitude Zmoy.
-      DOUBLE PRECISION XD	! Ecart absolu.
+      DOUBLE PRECISION ZMOY	! Mean altitude.
+      DOUBLE PRECISION TZMOY ! Total optical thickness for the altitude Zmoy.
+      DOUBLE PRECISION XD	! Absolute difference.
       
-      INTEGER*4 J		 ! Numéro du niveau traité.
+      INTEGER*4 J		 ! Number of the processed level.
 
 
 C------------------------------------------------------
-C* A) Estimation de l'épaisseur optique du niveau I en fonction
-C*    de celle du niveau I-1 et du pas DT.
+C* A) Estimation of the optical thickness of level I from
+C*    that of level I-1 and the step DT.
 C------------------------------------------------------     
       TI=TIM1+DT
 
 C------------------------------------------------------
-C* B) Estimation de l'altitude correspondant à l'épaisseur 
-C*    optique TI du niveau I-1.
+C* B) Estimation of the altitude corresponding to the optical
+C*    thickness TI of level I-1.
 C------------------------------------------------------
 
-C*   Initialisation des altitudes .
+C*   Initialisation of the altitudes.
 C--------------------------------------
       ZMAX=ZMAX_INIT
       ZMIN=ZLIM
@@ -1274,7 +1274,7 @@ C---------------------------
   706 ZMOY=(ZMAX+ZMIN)/2.
      
 
-C*   Calcul de l'épaisseur optique d'absorption à l'altitude ZMOY
+C*   Computation of the absorption optical thickness at altitude ZMOY
 C-----------------------------------------------------------------
       IF (TG_ZLIM.GT.0.0D+00) THEN
          J=2
@@ -1282,8 +1282,8 @@ C-----------------------------------------------------------------
 	     J=J+1
          ENDDO
 	    
-         ! Interpolation linéaire entre les deux couches
-         IF (ZMOY.GT.ALTABS(1)) THEN !Gestion du cas ou Z est en dehors du profil (Z > 120 km)	    
+         ! Linear interpolation between the two layers
+         IF (ZMOY.GT.ALTABS(1)) THEN !Management of the case where Z is outside the profile (Z > 120 km)
 	     ZZ=0
          ELSE
 	     ZZ=(ZMOY-ALTABS(J-1))/(ALTABS(J)-ALTABS(J-1))
@@ -1296,21 +1296,21 @@ C-----------------------------------------------------------------
 
 	
   
-C*   Epaisseur optique totale pour l'altitude Zmoy.
+C*   Total optical thickness for the altitude Zmoy.
 C----------------------------------------------------
       TZMOY=TA*DEXP(-ZMOY/HA)+TR*DEXP(-ZMOY/HR)+TG
  
 	        
-C*   Ecart absolu avec l'épaisseur optique estimee du niveau I.
+C*   Absolute difference with the estimated optical thickness of level I.
 C-------------------------------------------------------------
       XD=DABS(TI-TZMOY)
   
-C*   Test de sortie si Zmoy correspond au niveau I.
+C*   Exit test if Zmoy corresponds to level I.
 C------------------------------------------------------
       IF(XD.LT..000001) GOTO 705
       IF(ZMOY.EQ..00D+00) GOTO 705
       
-C*   Affinage de l'encadrement de l'altitude du niveau I.
+C*   Refinement of the bounds of the altitude of level I.
 C------------------------------------------------------
       IF( (TI-TZMOY).LT.0.D+00 ) THEN
          ZMIN=ZMOY
@@ -1320,13 +1320,13 @@ C------------------------------------------------------
       
       GOTO 706    
        
-C*   Affectation du résultat
+C*   Assignment of the result
 C------------------------------------------------------
  705  ZX=ZMOY
  
  
       RETURN
-      END	!FIN DE LA PROCEDURE SOS_DISC
+      END	!END OF PROCEDURE SOS_DISC
 
 
 

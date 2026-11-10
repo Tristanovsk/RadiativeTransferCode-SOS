@@ -19,303 +19,303 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_PREPA_OS.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Module principal du code des OS
-C*           - lit les paramètres de granulométries aérosols,
-C*           - lit les paramètres angulaires 
+C* FILE: SOS_PREPA_OS.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: Main module of the OS code
+C*           - reads the parameters of the aerosol size distributions,
+C*           - reads the angular parameters
 C*
-C* AUTEUR: 
-C*   Code initial: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
-C*   Reprise du codage et développement : CS GROUP France, B.Lafrance, X.Lenot
+C* AUTHOR:
+C*   Initial code: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
+C*   Code rework and development: CS GROUP France, B.Lafrance, X.Lenot
 C*
 C* DATE: 24/06/2013
-C* MOD:VERSION:1.0: Creation du fichier par separation de la fonction SOS.F en 3
-C*		      sous fonctions : SOS.F, SOS_PREPA_OS.F et SOS_FIN_OS.F
+C* MOD:VERSION:1.0: File created by splitting the SOS.F function into 3
+C*		      sub-functions: SOS.F, SOS_PREPA_OS.F and SOS_FIN_OS.F
 C*
 C* MOD:VERSION:1.1: 24/02/2016 
-C*    - Ajustements mineurs pour le respect strict des 72 colonnes 
+C*    - Minor adjustments to strictly respect the 72 columns
 C*
-C*    - Changement de la manière de lire les fichiers formatés (Angles, Aérosols)
-C*      pour être compatible avec le compilateur gfortran.
+C*    - Change of the way the formatted files are read (Angles, Aerosols)
+C*      to be compatible with the gfortran compiler.
 C*
 C* MOD:VERSION:1.2: 17/07/2020 
-C*    - Ajustements pour introduire le modèle de Maignan.
+C*    - Adjustments to introduce the Maignan model.
 C*
 C* MOD:VERSION:1.3: 07/07/2022
-C*    - Renommage des constantes de SOS_* en CTE_*
+C*    - Constants renamed from SOS_* to CTE_*
 C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Definition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisees :
-C    CTE_LENDIR : Longueur des noms de répertoires.
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_OS_NBMU_MAX : Nombre maximal d'angles positifs pour la résolution de l'ETR
-C    CTE_OS_NB_MAX :  Valeur maximale pour l'ordre limite du développement en 
-C                     polynomes de Legendre.
+C Constants used:
+C    CTE_LENDIR : Length of directory names.
+C    CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_OS_NBMU_MAX : Maximum number of positive angles for solving the RTE
+C    CTE_OS_NB_MAX :  Maximum value of the limit order of the expansion in
+C                     Legendre polynomials.
 C
-C Constantes spécifiques :
-C    LENLINE  : Longueur maximale d'une ligne de données lue dans un fichier
+C Specific constants:
+C    LENLINE  : Maximum length of a data line read in a file
 C----------------------------------------------------------------------------
 #include "SOS.h"
 #define INCTE_PI DACOS(-1.D+00)
 #define LENLINE 1000
 
 C==============================================================================
-C PROGRAMME: SOS_PREPA_OS
+C PROGRAM: SOS_PREPA_OS
 C ==========      
-C      Programme qui initie les variables pour le calcul des OS : lecture des
-C      fichiers d'angles et d'aérosols. Identification du mode de calcul
-C      de la réflectance de surface et du fichier associé.
+C      Program initialising the variables for the OS computation: reading of the
+C      angle and aerosol files. Identification of the computation mode
+C      of the surface reflectance and of the associated file.
 C
-C Données en entrée du programme 
+C Input data of the program
 C ------------------------------
-C    -->Les paramètres/arguments du programme
+C    -->Parameters/arguments of the program
 C
-C            FICANGLES (CHARACTER) : (E) nom complet du fichier des angles utilisés 
-C                                      pour les calculs de luminance et BRDF
-C                 		           (répertoire + nom fichier + extension)
+C            FICANGLES (CHARACTER) : (I) complete name of the file of the angles used
+C                                      for the radiance and BRDF computations
+C                 		           (directory + file name + extension)
 C
-C	      FICGRANU (CHARACTER) : (E) nom complet du fichier résultat de GRANU
-C                                      (répertoire + nom fichier + extension)
+C	      FICGRANU (CHARACTER) : (I) complete name of the GRANU result file
+C                                      (directory + file name + extension)
 C
-C            ISURF  (I4)    : (E) Type de surface ISURF 
-C			            (format de décodage en entier I4)
-C      		0 :surface lambertienne d'albédo RHO.
-C			1 :surface lambertienne + glitter.
-C			2 :surface lambertienne + réflexion de Fresnel.
-C		       3 :surface lambertienne + BRDF de Roujean.
-C			4 :surface lambertienne + BRDF de Roujean + BPDF de Rondeaux.
-C			5 :surface lambertienne + BRDF de Roujean + BPDF de Breon.
-C			6 :surface lambertienne + BRDF de Roujean + BPDF de Nadal.		 	
+C            ISURF  (I4)    : (I) Surface type ISURF
+C			            (decoding format: integer I4)
+C      		0 :Lambertian surface of albedo RHO.
+C			1 :Lambertian surface + glitter.
+C			2 :Lambertian surface + Fresnel reflection.
+C		       3 :Lambertian surface + Roujean BRDF.
+C			4 :Lambertian surface + Roujean BRDF + Rondeaux BPDF.
+C			5 :Lambertian surface + Roujean BRDF + Breon BPDF.
+C			6 :Lambertian surface + Roujean BRDF + Nadal BPDF.
 C
-C            IND_SURF (I4) : (E) Indice de réfraction de la surface / air.		 	
+C            IND_SURF (I4) : (I) Refractive index surface / air.
 C
-C            WIND (DOUBLE) : (E) ==> Associé à : ISURF = 1
-C 	      		       Vitesse du vent en m/s.	
+C            WIND (DOUBLE) : (I) ==> Associated with: ISURF = 1
+C 	      		       Wind speed in m/s.
 C		
-C            K0_ROUJEAN (DOUBLE) : (E) ==> Associé à : ISURF >= 3
-C 	       		      Paramètre k0 du modèle de BRDF de Roujean.       	
+C            K0_ROUJEAN (DOUBLE) : (I) ==> Associated with: ISURF >= 3
+C 	       		      Parameter k0 of the Roujean BRDF model.
 C		
-C            K1_ROUJEAN (DOUBLE) : (E) ==> Associé à : ISURF >= 3
-C 	      			     Paramètre k1 du modèle de BRDF de Roujean.       	
+C            K1_ROUJEAN (DOUBLE) : (I) ==> Associated with: ISURF >= 3
+C 	      			     Parameter k1 of the Roujean BRDF model.
 C		
-C            K2_ROUJEAN (DOUBLE) : (E) ==> Associé à : ISURF >= 3
-C 	      			     Paramètre k2 du modèle de BRDF de Roujean.       	
+C            K2_ROUJEAN (DOUBLE) : (I) ==> Associated with: ISURF >= 3
+C 	      			     Parameter k2 of the Roujean BRDF model.
 C
-C            ALPHA_NADAL (DOUBLE) : (E) ==> Associé à : ISURF = 6
-C 	      			     Paramètre alpha du modèle de BPDF de Nadal.       	
+C            ALPHA_NADAL (DOUBLE) : (I) ==> Associated with: ISURF = 6
+C 	      			     Parameter alpha of the Nadal BPDF model.
 C
-C            BETA_NADAL (DOUBLE) : (E) ==> Associé à : ISURF = 6
-C 	      			     Paramètre beta du modèle de BPDF de Nadal.       	
+C            BETA_NADAL (DOUBLE) : (I) ==> Associated with: ISURF = 6
+C 	      			     Parameter beta of the Nadal BPDF model.
 C
-C            COEF_C_MAIGNAN (DOUBLE) : (E) ==> Associé à : ISURF = 7
-C 	      		            Paramètre C*exp(-NDVI) du modèle de BPDF de Maignan.  	
+C            COEF_C_MAIGNAN (DOUBLE) : (I) ==> Associated with: ISURF = 7
+C 	      		            Parameter C*exp(-NDVI) of the Maignan BPDF model.
 C
 C
-C            REPSURF (CHARACTER) : (E) ==> Associé à : ISURF= 1 3 4 5 ou 6 et FICSURF= "DEFAULT"
-C             			     Répertoire de stockage des fichiers de matrice de réflexion 
-C                   		            de surface (fichier Glitter ou autres BRDF/BPDF).
+C            REPSURF (CHARACTER) : (I) ==> Associated with: ISURF= 1 3 4 5 or 6 and FICSURF= "DEFAULT"
+C             			     Storage directory of the surface reflection matrix
+C                   		            files (Glitter file or other BRDF/BPDF).
 C
-C            FICSURF (CHARACTER) : (E) ==> Associé à : ISURF= 1 3 4 5 ou 6 
-C             			    nom complet du fichier contenant la matrice de réflexion 
-C                   		           de surface  (fichier Glitter ou autres BRDF/BPDF).
-C                   		           (répertoire + nom fichier + extension)
-C                    		    => DEFAULT si on utilise un fichier de la base des BRDF / BPDF.	 
+C            FICSURF (CHARACTER) : (I) ==> Associated with: ISURF= 1 3 4 5 or 6
+C             			    complete name of the file containing the surface
+C                   		           reflection matrix (Glitter file or other BRDF/BPDF).
+C                   		           (directory + file name + extension)
+C                    		    => DEFAULT if a file of the BRDF / BPDF database is used.
 C
-C            TRACE (LOGICAL) : (E) Si vrai => écriture des fichiers trace
+C            TRACE (LOGICAL) : (I) If true => trace files are written
 C
-C	      IDLOG (I4) : (E) Identifiant du fichier log
+C	      IDLOG (I4) : (I) Identifier of the log file
 C
-C            LUM_NBMU (I4) : (S) Nombre d'angles effectifs pour les calculs de luminances      			               
+C            LUM_NBMU (I4) : (O) Number of actual angles for the radiance computations
 C
-C            N0 (I4) : (S) Numéro de mu de Gauss pour l'angle zénithal solaire.      			
-C			     (angle complémentaire : mus = -rmu(N0))
-C			     (N0 > 0 => pour en tenir compte).
+C            N0 (I4) : (O) Number of the Gauss mu for the solar zenith angle.
+C			     (complementary angle: mus = -rmu(N0))
+C			     (N0 > 0 => to take it into account).
 C
-C            PIZ (DOUBLE) : (S) Albédo de simple diffusion.
+C            PIZ (DOUBLE) : (O) Single scattering albedo.
 C
-C            PIZTR (DOUBLE) : (S) Albédo de simple diffusion.après troncature
+C            PIZTR (DOUBLE) : (O) Single scattering albedo after truncation
 C
-C            A (DOUBLE) : (S) Coefficient de troncature
+C            A (DOUBLE) : (O) Truncation coefficient
 C
-C            RMU (DOUBLE) : (S) Tableau 1D de 2*CTE_OS_NBMU_MAX + 1 éléments
-C			           contenant le cosinus des angles de Gauss et des
-C			           angles fournis par l'utilisateur
+C            RMU (DOUBLE) : (O) 1D array of 2*CTE_OS_NBMU_MAX + 1 elements
+C			           containing the cosine of the Gauss angles and of the
+C			           angles provided by the user
 C
-C            GA (DOUBLE) : (S) Tableau 1D de 2*CTE_OS_NBMU_MAX + 1 éléments
-C			          contenant le poids associé à chaque angle de Gauss et chaque
-C			          angle fourni par l'utilisateur
+C            GA (DOUBLE) : (O) 1D array of 2*CTE_OS_NBMU_MAX + 1 elements
+C			          containing the weight associated with each Gauss angle and each
+C			          angle provided by the user
 C 
-C            OS_NB (I4) : (S) Ordre des développements des fonctions de phase 
-C			         en Polynomes de Legendre.      			               
+C            OS_NB (I4) : (O) Order of the expansions of the phase functions
+C			         in Legendre polynomials.
 C
-C            IMAT_SURF (I4) :(S) Indice précisant si les simulations
-C      			     utilisent un modèle de réflexion BRDF ou BPDF :
-C			            1 : pour calcul de BRDF ou BPDF (il faut utiliser N0 > 0).
-C			            sinon : pas de simulation de BRDF ou BPDF. 	
+C            IMAT_SURF (I4) :(O) Index specifying whether the simulations
+C      			     use a BRDF or BPDF reflection model:
+C			            1 : for BRDF or BPDF computation (N0 > 0 must be used).
+C			            otherwise : no BRDF or BPDF simulation.
 C
-C            IFRESNEL (I4) : (S) Indice précisant si les simulations
-C      			     introduisent la réflexion de Fresnel sur mer plate :
-C			      1 : pour un calcul de la réflexion de Fresnel.
-C			      Sinon : pas de prise en compte.    
+C            IFRESNEL (I4) : (O) Index specifying whether the simulations
+C      			     include the Fresnel reflection on a flat sea:
+C			      1 : for a computation of the Fresnel reflection.
+C			      Otherwise : not taken into account.
 C
-C            IGLI (I4) : (S) Indice précisant si les simulations introduisent le Glitter
-C			        1 : pour un calcul de Glitter
-C			        Sinon : pas de prise en compte.    
+C            IGLI (I4) : (O) Index specifying whether the simulations include the Glitter
+C			        1 : for a Glitter computation
+C			        Otherwise : not taken into account.
 C 
-C            IROUJEAN (I4) : (S) Indice précisant si les simulations
-C      			     introduisent le modèle de réflexion de Roujean :
-C			            1 : pour un calcul dde BRDF Roujean (il faut utiliser N0 > 0).
-C			            Sinon : pas de prise en compte.    
+C            IROUJEAN (I4) : (O) Index specifying whether the simulations
+C      			     include the Roujean reflection model:
+C			            1 : for a Roujean BRDF computation (N0 > 0 must be used).
+C			            Otherwise : not taken into account.
 C
-C            IRONDEAUX (I4) : (S) Indice précisant si les simulations
-C      			      introduisent le modèle de réflexion de Rondeaux - Herman :
-C			             1 : pour un calcul dde BRDF Rondeaux - Herman (il faut utiliser N0 > 0).
-C			             Sinon : pas de prise en compte.    
+C            IRONDEAUX (I4) : (O) Index specifying whether the simulations
+C      			      include the Rondeaux - Herman reflection model:
+C			             1 : for a Rondeaux - Herman BRDF computation (N0 > 0 must be used).
+C			             Otherwise : not taken into account.
 C
-C            IBREON (I4) : (S) Indice précisant si les simulations
-C      			   introduisent le modèle de réflexion de Breon :
-C			          1 : pour un calcul dde BRDF Breon (il faut utiliser N0 > 0).
-C			          Sinon : pas de prise en compte.    
+C            IBREON (I4) : (O) Index specifying whether the simulations
+C      			   include the Breon reflection model:
+C			          1 : for a Breon BRDF computation (N0 > 0 must be used).
+C			          Otherwise : not taken into account.
 C
-C            IMAIGNAN (I4) : (S) Indice précisant si les simulations
-C      			     introduisent le modèle de réflexion de Maignan :
-C			            1 : pour un calcul dde BRDF Maignan (il faut utiliser N0 > 0).
-C			            Sinon : pas de prise en compte.    
+C            IMAIGNAN (I4) : (O) Index specifying whether the simulations
+C      			     include the Maignan reflection model:
+C			            1 : for a Maignan BRDF computation (N0 > 0 must be used).
+C			            Otherwise : not taken into account.
 C
-C            INADAL (I4) : (S) Indice précisant si les simulations
-C      			   introduisent le modèle de réflexion de Nadal :
-C			          1 : pour un calcul dde BRDF Nadal (il faut utiliser N0 > 0).
-C			          Sinon : pas de prise en compte.    
+C            INADAL (I4) : (O) Index specifying whether the simulations
+C      			   include the Nadal reflection model:
+C			          1 : for a Nadal BRDF computation (N0 > 0 must be used).
+C			          Otherwise : not taken into account.
 C
-C            ALPHA (DOUBLE) : (S) Tableau 1D de CTE_OS_NB_MAX + 1 éléments    
-C				      contenant les coefficients Alpha de la décomposition en fonctions 
-C				      de Legendre des éléments Pij de la fonction de phase  			               
+C            ALPHA (DOUBLE) : (O) 1D array of CTE_OS_NB_MAX + 1 elements
+C				      containing the Alpha coefficients of the decomposition in Legendre
+C				      functions of the elements Pij of the phase function
 C
-C            BETA (DOUBLE) : (S) Tableau 1D de CTE_OS_NB_MAX + 1 éléments    
-C				     contenant les coefficients Beta de la décomposition en fonctions 
-C				     de Legendre des éléments Pij de la fonction de phase  			               
+C            BETA (DOUBLE) : (O) 1D array of CTE_OS_NB_MAX + 1 elements
+C				     containing the Beta coefficients of the decomposition in Legendre
+C				     functions of the elements Pij of the phase function
 C
-C            GAMMA (DOUBLE) : (S) Tableau 1D de CTE_OS_NB_MAX + 1 éléments    
-C				      contenant les coefficients Gamma de la décomposition en fonctions 
-C				      de Legendre des éléments Pij de la fonction de phase  			               
+C            GAMMA (DOUBLE) : (O) 1D array of CTE_OS_NB_MAX + 1 elements
+C				      containing the Gamma coefficients of the decomposition in Legendre
+C				      functions of the elements Pij of the phase function
 C
-C            ZETA (DOUBLE) : (S) Tableau 1D de CTE_OS_NB_MAX + 1 éléments    
-C				     contenant les coefficients Zeta de la décomposition en fonctions 
-C				     de Legendre des éléments Pij de la fonction de phase  			               
+C            ZETA (DOUBLE) : (O) 1D array of CTE_OS_NB_MAX + 1 elements
+C				     containing the Zeta coefficients of the decomposition in Legendre
+C				     functions of the elements Pij of the phase function
 C
-C            IND_ANGOUT_FIN (DOUBLE) : (S) Indices des tableaux d'angles pour lesquels il doit y avoir  
-C                                      une sortie dans le fichier résultat des angles utilisateur
-C      				    (1 : pour une sortie requise)
-C                                      Indices à partir de 0 pour passage à Python.
+C            IND_ANGOUT_FIN (DOUBLE) : (O) Indices of the angle arrays for which there must be
+C                                      an output in the result file of the user angles
+C      				    (1: output required)
+C                                      Indices starting from 0 for Python.
 C				 				
-C            IER (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+C            IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C 
 C
-C    -->Fichiers
-C       Le fichier des angles et paramètres internes pour les limites des développements.
-C       Le fichier Matrice de réflexion de surface
-C       Le fichier Aérosols
+C    -->Files
+C       The file of angles and internal parameters for the expansion limits.
+C       The surface reflection matrix file
+C       The Aerosols file
 C
 C
-C Résultats fournis par le programme
+C Results provided by the program
 C ----------------------------------
-C   Contenu du fichier des angles
-C   Contenu du fichier aérosols       
-C   Type de modelisation de la réflexion de surface
-C   Nom du fichier de surface
-C   Fichier de trace (optionnel)
-C              (No d'unite logique du fichier trace =IDLOG)
+C   Content of the angle file
+C   Content of the aerosol file
+C   Type of modelling of the surface reflection
+C   Name of the surface file
+C   Trace file (optional)
+C              (logical unit number of the trace file =IDLOG)
 C
 C
 C
 C 
-C Description des fichiers utilisés
+C Description of the files used
 C ---------------------------------
 C
-C   -->Contenu du fichier BRDF/BPDF
-C       Fichier binaire non formatté, créé par SOS_SURFACE
-C       Il contient la matrice de réflexion de surface 
-C       (fichier Glitter ou autres BRDF/BPDF):
-C       c'est à dire les éléments Pij de la matrice de réflexion :
-C              P11(LUM_NBMU,LUM_NBMU) (réel),
-C              P12(LUM_NBMU,LUM_NBMU) (réel),
-C              P13(LUM_NBMU,LUM_NBMU) (réel),
-C              P21(LUM_NBMU,LUM_NBMU) (réel),
-C              P22(LUM_NBMU,LUM_NBMU) (réel),
-C              P23(LUM_NBMU,LUM_NBMU) (réel),
-C              P31(LUM_NBMU,LUM_NBMU) (réel),
-C              P32(LUM_NBMU,LUM_NBMU) (réel),
-C              P33(LUM_NBMU,LUM_NBMU) (réel)
+C   -->Content of the BRDF/BPDF file
+C       Unformatted binary file, created by SOS_SURFACE
+C       It contains the surface reflection matrix
+C       (Glitter file or other BRDF/BPDF):
+C       i.e. the elements Pij of the reflection matrix:
+C              P11(LUM_NBMU,LUM_NBMU) (real),
+C              P12(LUM_NBMU,LUM_NBMU) (real),
+C              P13(LUM_NBMU,LUM_NBMU) (real),
+C              P21(LUM_NBMU,LUM_NBMU) (real),
+C              P22(LUM_NBMU,LUM_NBMU) (real),
+C              P23(LUM_NBMU,LUM_NBMU) (real),
+C              P31(LUM_NBMU,LUM_NBMU) (real),
+C              P32(LUM_NBMU,LUM_NBMU) (real),
+C              P33(LUM_NBMU,LUM_NBMU) (real)
 C
-C        --> Enregistrements sur le domaine limite aux angles utiles
+C        --> Records on the domain limited to the useful angles
 C                                   --------------------------------
 C
 C
-C    -->Contenu du fichier des angles:
-C       Fichier ascii formatté, créé par SOS_ANGLES.
-C       Il contient l'information sur les angles à utiliser 
-C       et sur les ordres des développements adaptes : 
-C		NB_TOTAL_ANGLES :    nb d'angles total à utiliser
-C             NB_GAUSS_ANGLES :    nb d'angles de Gauss
-C             ANGLES_USERFILE :    Nom du fichier des angles utilisateur
-C	       SOLAR ZENITH ANGLE : Angle zénithal solaire (degrés)
-C		INTERNAL_IMUS :      Numéro d'indice de table correspondant
-C             INTERNAL_OS_NB :   Ordre des développements des fonctions de phase 
-C				     en Polynomes de Legendre à utiliser.
-C             INTERNAL_OS_NS :   Ordre maximal à utiliser pour le développement en
-C                                polynomes de Legendre des éléments de la matrice de Fresnel 
-C                                et en séries de Fourier des calculs de luminance.
-C                                (non utilisé dans ce programme)
-C             INTERNAL_OS_NM :   Ordre maximal du développement en séries de Fourier  
-C                                de la fonction G des calculs de matrice de réflexion.
-C                                (non utilisé dans ce programme)
-C             INDEX COS_ANGLE WEIGHT OUTPUT: lignes donnant le numéro d'angle, son cosinus 
-C                                            et son poids, s'il est donné en sortie "utilisateur"
-C                                            au format I4,1X,2D21.14,1X,I4
+C    -->Content of the angle file:
+C       Formatted ascii file, created by SOS_ANGLES.
+C       It contains the information on the angles to be used
+C       and on the adapted expansion orders:
+C		NB_TOTAL_ANGLES :    total nb of angles to be used
+C             NB_GAUSS_ANGLES :    nb of Gauss angles
+C             ANGLES_USERFILE :    Name of the user angles file
+C	       SOLAR ZENITH ANGLE : Solar zenith angle (degrees)
+C		INTERNAL_IMUS :      Corresponding array index number
+C             INTERNAL_OS_NB :   Order of the expansions of the phase functions
+C				     in Legendre polynomials to be used.
+C             INTERNAL_OS_NS :   Maximum order to be used for the expansion in
+C                                Legendre polynomials of the Fresnel matrix elements
+C                                and in Fourier series of the radiance computations.
+C                                (not used in this program)
+C             INTERNAL_OS_NM :   Maximum order of the expansion in Fourier series
+C                                of the G function of the reflection matrix computations.
+C                                (not used in this program)
+C             INDEX COS_ANGLE WEIGHT OUTPUT: lines giving the angle number, its cosine
+C                                            and its weight, and whether it is a "user" output
+C                                            with format I4,1X,2D21.14,1X,I4
 C         
-C   -->Contenu du fichier de MIE
-C       Fichier binaire non formatté, créé par SOS_MIE
-C       1 enregistrement d'entête avec
-C                Indice de réfraction (partie réelle)
-C                Indice de réfraction (partie imaginaire)
-C                Paramètre de taille limite
-C                Nombre d'angles de Gauss positifs
+C   -->Content of the MIE file
+C       Unformatted binary file, created by SOS_MIE
+C       1 header record with
+C                Refractive index (real part)
+C                Refractive index (imaginary part)
+C                Limit size parameter
+C                Number of positive Gauss angles
 C
-C      1 enregistrement pour chaque valeur du paramètre de taille avec:
-C        - Paramètre de taille (réel),
-C        - Coefficient d'efficacite en extinction (réel),
-C        - Coefficient d'efficacite en diffusion (réel),
-C        - Facteur d'anisotropie (double précision),
-C        - Tableau de la fonction de phase Mie(mu) (réel),
-C        - Tableau de la fonction de phase polarisee Qmie(mu) (réel),
-C        - Tableau de la fonction de phase polarisee Umie(mu) (réel).
+C      1 record for each value of the size parameter with:
+C        - Size parameter (real),
+C        - Extinction efficiency factor (real),
+C        - Scattering efficiency factor (real),
+C        - Asymmetry factor (double precision),
+C        - Array of the phase function Mie(mu) (real),
+C        - Array of the polarised phase function Qmie(mu) (real),
+C        - Array of the polarised phase function Umie(mu) (real).
 C
-C    --> Les tableaux ont une taille utile limitée à MIE_NBMU : 
-C        ils sont créés et lus avec cette limitation.
+C    --> The arrays have a useful size limited to MIE_NBMU:
+C        they are created and read with this limitation.
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C  None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------        
-C     -Décodage des paramètres incorrect
-C     -Erreur dans un sous-programme
-C     -Erreur à l'ouverture du fichier Trace
-C     -Paramètres non valables
+C     -Incorrect decoding of parameters
+C     -Error in a subroutine
+C     -Error when opening the trace file
+C     -Invalid parameters
 C
-C     Affichage d'un message à l'écran, arrêt du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C   
 C
-C  Sous programmes utilisés:
+C  Subroutines used:
 C --------------------------
 C   - SOS_NOM_FICGLITTER
 C   - SOS_NOM_FICROUJ
@@ -336,141 +336,141 @@ C============================================================================
       
       IMPLICIT NONE
 
-C* Définition des variables                         
+C* Definition of variables
 C*-----------------------------------------------------------------
       DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-                                   !Cosinus des angles de Gauss (et utilisateur).
+                                   !Cosines of the Gauss (and user) angles.
       DOUBLE PRECISION GA(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-                                   !Poids des angles de Gauss (et utilisateur).				
+                                   !Weights of the Gauss (and user) angles.
  
  
-      DOUBLE PRECISION TETAS	! Angle zénithal solaire en degrés (0 < tetas < 90).
-      				       ! (angle complémentaire : mus= -cos(tetas))
+      DOUBLE PRECISION TETAS	! Solar zenith angle in degrees (0 < tetas < 90).
+      				       ! (complementary angle: mus= -cos(tetas))
       
-      DOUBLE PRECISION IND_SURF   ! Indice de réfraction de la surface / air.
+      DOUBLE PRECISION IND_SURF   ! Refractive index surface / air.
       
-      DOUBLE PRECISION WIND       ! Vitesse du vent en m/s.
+      DOUBLE PRECISION WIND       ! Wind speed in m/s.
       
-      DOUBLE PRECISION K0_ROUJEAN ! Paramètre k0 du modèle de BRDF de Roujean.
-      DOUBLE PRECISION K1_ROUJEAN ! Paramètre k1 du modèle de BRDF de Roujean.
-      DOUBLE PRECISION K2_ROUJEAN ! Paramètre k2 du modèle de BRDF de Roujean.
+      DOUBLE PRECISION K0_ROUJEAN ! Parameter k0 of the Roujean BRDF model.
+      DOUBLE PRECISION K1_ROUJEAN ! Parameter k1 of the Roujean BRDF model.
+      DOUBLE PRECISION K2_ROUJEAN ! Parameter k2 of the Roujean BRDF model.
       
-      DOUBLE PRECISION ALPHA_NADAL ! Paramètre alpha du modèle de BPDF de Nadal.
-      DOUBLE PRECISION BETA_NADAL  ! Paramètre beta du modèle de BPDF de Nadal.
+      DOUBLE PRECISION ALPHA_NADAL ! Parameter alpha of the Nadal BPDF model.
+      DOUBLE PRECISION BETA_NADAL  ! Parameter beta of the Nadal BPDF model.
 
-      DOUBLE PRECISION COEF_C_MAIGNAN !Paramètre C*exp(-NDVI) du modèle de Maignan.
+      DOUBLE PRECISION COEF_C_MAIGNAN !Parameter C*exp(-NDVI) of the Maignan model.
             
-      DOUBLE PRECISION A	! Coefficient de troncature.
-      DOUBLE PRECISION PIZ	! Albédo de simple diffusion.
-      DOUBLE PRECISION PIZTR	! Albédo de simple diffusion après troncature.
+      DOUBLE PRECISION A	! Truncation coefficient.
+      DOUBLE PRECISION PIZ	! Single scattering albedo.
+      DOUBLE PRECISION PIZTR	! Single scattering albedo after truncation.
 
-      DOUBLE PRECISION ALPHA(0:CTE_OS_NB_MAX)	! Paramètres alpha(k).
-      DOUBLE PRECISION BETA(0:CTE_OS_NB_MAX)	! Paramètres beta(k).
-      DOUBLE PRECISION GAMMA(0:CTE_OS_NB_MAX)	! Paramètres gamma(k).
-      DOUBLE PRECISION ZETA(0:CTE_OS_NB_MAX)	! Paramètres zeta(k).
+      DOUBLE PRECISION ALPHA(0:CTE_OS_NB_MAX)	! Parameters alpha(k).
+      DOUBLE PRECISION BETA(0:CTE_OS_NB_MAX)	! Parameters beta(k).
+      DOUBLE PRECISION GAMMA(0:CTE_OS_NB_MAX)	! Parameters gamma(k).
+      DOUBLE PRECISION ZETA(0:CTE_OS_NB_MAX)	! Parameters zeta(k).
 								               
      
-      INTEGER*4 N0	! Numéro de mu de Gauss pour l'angle
-      			! zénithal solaire.
-			! (angle complémentaire : mus = -rmu(N0))
-			! (N0 > 0 => pour en tenir compte).
+      INTEGER*4 N0	! Number of the Gauss mu for the solar
+      			! zenith angle.
+			! (complementary angle: mus = -rmu(N0))
+			! (N0 > 0 => to take it into account).
 
-      INTEGER*2 ISURF	! Type de surface :
-			       ! 0 :surface lambertienne d'albédo RHO.
-			       ! 1 :surface lambertienne + glitter.
-			       ! 2 :surface lambertienne + réflexion de Fresnel.
-			       ! 3 :surface lambertienne + BRDF de Roujean.
-			       ! 4 :surface lambertienne + BRDF de Roujean + BPDF de Rondeaux.
-			       ! 5 :surface lambertienne + BRDF de Roujean + BPDF de Breon.
-			       ! 6 :surface lambertienne + BRDF de Roujean + BPDF de Nadal.
+      INTEGER*2 ISURF	! Surface type:
+			       ! 0 :Lambertian surface of albedo RHO.
+			       ! 1 :Lambertian surface + glitter.
+			       ! 2 :Lambertian surface + Fresnel reflection.
+			       ! 3 :Lambertian surface + Roujean BRDF.
+			       ! 4 :Lambertian surface + Roujean BRDF + Rondeaux BPDF.
+			       ! 5 :Lambertian surface + Roujean BRDF + Breon BPDF.
+			       ! 6 :Lambertian surface + Roujean BRDF + Nadal BPDF.
 				
-      INTEGER*4 IGLI	! Indice précisant si les simulations
-      			! introduisent le Glitter :
-			!    1 => pour calcul du Glitter (il faut alors utiliser N0 > 0).
-			!    Sinon => pas de simulation du Glitter.            
+      INTEGER*4 IGLI	! Index specifying whether the simulations
+      			! include the Glitter:
+			!    1 => for Glitter computation (N0 > 0 must then be used).
+			!    Otherwise => no Glitter simulation.
 	
-      INTEGER*4 IFRESNEL ! Indice précisant si les simulations
-      			    ! introduisent la réflexion de Fresnel sur mer plate :
-			    !    1 => pour un calcul de la réflexion de Fresnel.
-			    !    Sinon => pas de prise en compte.            
+      INTEGER*4 IFRESNEL ! Index specifying whether the simulations
+      			    ! include the Fresnel reflection on a flat sea:
+			    !    1 => for a computation of the Fresnel reflection.
+			    !    Otherwise => not taken into account.
 	
-      INTEGER*4 IROUJEAN ! Indice précisant si les simulations
-      			    ! utilisent le modèle de réflexion de Roujean :
-			    !    1 => pour calcul de BRDF Roujean (il faut utiliser N0 > 0).
-			    !    Sinon => pas de simulation de BRDF Roujean. 
+      INTEGER*4 IROUJEAN ! Index specifying whether the simulations
+      			    ! use the Roujean reflection model:
+			    !    1 => for Roujean BRDF computation (N0 > 0 must be used).
+			    !    Otherwise => no Roujean BRDF simulation.
 			 
-      INTEGER*4 IRONDEAUX ! Indice précisant si les simulations
-      			     ! utilisent le modèle de réflexion de Rondeaux - Herman :
-			     !    1 => pour calcul de BPDF RH (il faut utiliser N0 > 0).
-			     !    Sinon => pas de simulation de BPDF RH. 			 
+      INTEGER*4 IRONDEAUX ! Index specifying whether the simulations
+      			     ! use the Rondeaux - Herman reflection model:
+			     !    1 => for RH BPDF computation (N0 > 0 must be used).
+			     !    Otherwise => no RH BPDF simulation.
 			
-      INTEGER*4 IBREON   ! Indice précisant si les simulations
-      			    ! utilisent le modèle de réflexion de Breon :
-			    !    1 => pour calcul de BPDF Breon (il faut utiliser N0 > 0).
-			    !    Sinon => pas de simulation de BPDF Breon. 
+      INTEGER*4 IBREON   ! Index specifying whether the simulations
+      			    ! use the Breon reflection model:
+			    !    1 => for Breon BPDF computation (N0 > 0 must be used).
+			    !    Otherwise => no Breon BPDF simulation.
 
-      INTEGER*4 INADAL   ! Indice précisant si les simulations
-      		           ! utilisent le modèle de réflexion de Nadal :
-		           !    1 => pour calcul de BPDF Nadal (il faut utiliser N0 > 0).
-			    !    Sinon => pas de simulation de BPDF Nadal. 	
+      INTEGER*4 INADAL   ! Index specifying whether the simulations
+      		           ! use the Nadal reflection model:
+		           !    1 => for Nadal BPDF computation (N0 > 0 must be used).
+			    !    Otherwise => no Nadal BPDF simulation.
 
-      INTEGER*4 IMAIGNAN ! Indice précisant si les simulations
-      		           ! utilisent le modèle de réflexion de Maignan :
-		           !    1 => pour calcul de BPDF Nadal (il faut utiliser N0 > 0).
-			    !    Sinon => pas de simulation de BPDF Maignan. 
+      INTEGER*4 IMAIGNAN ! Index specifying whether the simulations
+      		           ! use the Maignan reflection model:
+		           !    1 => for Maignan BPDF computation (N0 > 0 must be used).
+			    !    Otherwise => no Maignan BPDF simulation.
 			 
 	
-      INTEGER*4 IMAT_SURF ! Indice précisant si les simulations
-      			     ! utilisent un modèle de réflexion BRDF ou BPDF :
-			     !    1 => pour calcul de BRDF ou BPDF (il faut utiliser N0 > 0).
-			     !    Sinon => pas de simulation de BRDF ou BPDF. 	
+      INTEGER*4 IMAT_SURF ! Index specifying whether the simulations
+      			     ! use a BRDF or BPDF reflection model:
+			     !    1 => for BRDF or BPDF computation (N0 > 0 must be used).
+			     !    Otherwise => no BRDF or BPDF simulation.
 			  			  			 											
 
-      INTEGER*4 IER     ! code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 IER     ! error code =0 if no error, =-1 otherwise
 
-      INTEGER*4 K       ! Indice de tableau
-      INTEGER*4 I,J     ! Indice de tableau
+      INTEGER*4 K       ! Array index
+      INTEGER*4 I,J     ! Array index
       
-      INTEGER*4 LDIRSURF ! longueur de la chaine de caractère REPSURF.
-      INTEGER*4 LFICSURF ! longueur de la chaine de caractère FICSURF.
+      INTEGER*4 LDIRSURF ! length of the character string REPSURF.
+      INTEGER*4 LFICSURF ! length of the character string FICSURF.
       
-      INTEGER*4 NBMU_GAUSS   ! Nombre d'angles de Gauss utilisés       
-      INTEGER*4 LUM_NBMU     ! Nombre d'angles effectifs des simulations
-      INTEGER*4 OS_NB 	 ! Ordre des développements des fonctions de phase 
-			        ! en Polynomes de Legendre.      
+      INTEGER*4 NBMU_GAUSS   ! Number of Gauss angles used
+      INTEGER*4 LUM_NBMU     ! Number of actual angles of the simulations
+      INTEGER*4 OS_NB 	 ! Order of the expansions of the phase functions
+			        ! in Legendre polynomials.
 
       INTEGER*4 IND_ANGOUT(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-                            ! Indices des tableaux d'angles pour lesquels il doit y avoir 
-      				! une sortie dans le fichier résultat des angles utilisateur 
-				! (1 : pour une sortie requise)	
+                            ! Indices of the angle arrays for which there must be
+      				! an output in the result file of the user angles
+				! (1: output required)
 			
       INTEGER*4 IND_ANGOUT_FIN(0:CTE_OS_NBMU_MAX)  
-                            ! Indices des tableaux d'angles pour lesquels il doit y avoir une sortie dans le fichier résultat des angles utilisateur 
-                            ! ==> 1 : pour une sortie requise
+                            ! Indices of the angle arrays for which there must be an output in the result file of the user angles
+                            ! ==> 1: output required
 
-      INTEGER*4 IFIN        ! Nb de caractères significatifs d'une chaine. 
+      INTEGER*4 IFIN        ! Nb of significant characters of a string.
 
 			               
       
-      LOGICAL TRACE   ! = vrai,si écriture dans le fichier trace
-      LOGICAL EX	! Vérifie l'existence d'un fichier
+      LOGICAL TRACE   ! = true if writing in the trace file
+      LOGICAL EX	! Checks the existence of a file
 
-      CHARACTER*CTE_LENDIR REPSURF	! Répertoire de stockage des matrice de réflexion de
-      				       ! surface (fichier Glitter ou autres BRDF/BPDF).
-      CHARACTER*CTE_LENFIC2 FICSURF ! Fichier contenant la matrice de réflexion de
-      				        ! surface (fichier Glitter ou autres BRDF/BPDF).
-      CHARACTER*CTE_LENFIC2 FICANGLES           ! chemin et nom du fichier des angles effectifs    
-      CHARACTER*CTE_LENFIC2 FICANGLES_USER      ! chemin et nom du fichier des angles "utilisateurs"
+      CHARACTER*CTE_LENDIR REPSURF	! Storage directory of the surface reflection
+      				       ! matrices (Glitter file or other BRDF/BPDF).
+      CHARACTER*CTE_LENFIC2 FICSURF ! File containing the surface reflection
+      				        ! matrix (Glitter file or other BRDF/BPDF).
+      CHARACTER*CTE_LENFIC2 FICANGLES           ! path and name of the file of the actual angles
+      CHARACTER*CTE_LENFIC2 FICANGLES_USER      ! path and name of the "user" angles file
       
-      CHARACTER*CTE_LENFIC2 FICGRANU	! nom du fichier d'entrée AEROSOLS
+      CHARACTER*CTE_LENFIC2 FICGRANU	! name of the AEROSOLS input file
 
-      CHARACTER*CTE_LENFIC1 FICS ! nom recomposé du fichier SURFACE à partir 
-      				     ! des arguments de simulation de la BRDF / BPDF.
+      CHARACTER*CTE_LENFIC1 FICS ! name of the SURFACE file rebuilt from
+      				     ! the BRDF / BPDF simulation arguments.
 
-      CHARACTER*LENLINE LIGNE_TEXTE    ! Ligne de caractères pour décodage de paramètres      
-      CHARACTER*1000 CVAL	           ! Chaine de caractères pour la lecture de valeurs inutilisées
+      CHARACTER*LENLINE LIGNE_TEXTE    ! Character line for decoding parameters
+      CHARACTER*1000 CVAL	           ! Character string to read unused values
              
-      INTEGER*4 IDLOG	     ! Numéro identifiant du fichier Trace	    
+      INTEGER*4 IDLOG	     ! Identifier number of the trace file
      	  
       	        		 
 
@@ -497,7 +497,7 @@ C-----------------
      &     OR.(IMAIGNAN.EQ.1)) IMAT_SURF=1
 
 
-C* Lecture des tables d'angles et de poids utiles aux simulations
+C* Reading of the angle and weight tables used by the simulations
 C* -----------------------------------------------------------------     
       OPEN(UNIT=10,FILE=FICANGLES,STATUS='OLD',ERR=950)
 
@@ -510,10 +510,10 @@ C* -----------------------------------------------------------------
       READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) NBMU_GAUSS
       
       READ(10,'(a)',ERR=951) LIGNE_TEXTE
-      !On ne conserve que la partie après le séparateur ':'
+      !Only the part after the separator ':' is kept
       IFIN=INDEX(LIGNE_TEXTE,':')	
       LIGNE_TEXTE=LIGNE_TEXTE(IFIN+1:LENLINE)	
-      !On recherche la fin de ligne utile ' ' pour réduire la taille de la chaine
+      !Search for the end of the useful line ' ' to reduce the string size
       IFIN=INDEX(LIGNE_TEXTE,' ')
       FICANGLES_USER=LIGNE_TEXTE(1:IFIN)
 
@@ -542,10 +542,10 @@ C* -----------------------------------------------------------------
          RMU(-J) = -RMU(J)
 	  GA(-J) =  GA(J)
 	  IND_ANGOUT(-J) = IND_ANGOUT(J)
-	  IND_ANGOUT_FIN(J-1) = IND_ANGOUT(J)	!Passage à indexation à partir de 0 pour Python
+	  IND_ANGOUT_FIN(J-1) = IND_ANGOUT(J)	!Indexing from 0 for Python
       ENDDO 
       
-      !Controle d'applicabilite
+      !Applicability check
       IF (ABS(N0).GT.LUM_NBMU) GOTO 1000
       IF ((TETAS.LT.0.D-00).OR.(TETAS.GE.90.D-00)) GOTO 1001
       IF ((ISURF.NE.0).AND.(N0.LT.0)) GOTO 1012
@@ -569,7 +569,7 @@ C* -----------------------------------------------------------------
 	 ELSE
 	     WRITE(IDLOG,*,ERR=960)  
      &	       "No file of user's angles"
-	 ENDIF !Fin test Pas de fichier d'angles utilisateur
+	 ENDIF !End of test: no user angle file
         WRITE (IDLOG,*,ERR=960) " " 
 	 WRITE (IDLOG,*,ERR=960) "Max order NB ", OS_NB
 	 WRITE (IDLOG,*,ERR=960) " " 
@@ -591,16 +591,16 @@ C* -----------------------------------------------------------------
 1200    CONTINUE	
 	 WRITE (IDLOG,*,ERR=960) " " 
 	 WRITE (IDLOG,*,ERR=960) " "  	
-      ENDIF !Fichier Trace	 
+      ENDIF !Trace file
 
 	     	
       
-C* Détermination du fichier de BRDF ou BPDF de surface
+C* Determination of the surface BRDF or BPDF file
 C  ---------------------------------------------------
 
       IF (IMAT_SURF.EQ.1) THEN
 
-C* Restitution du nom du fichier de Réflexion de surface
+C* Retrieval of the name of the surface reflection file
 C  ----------------------------------------------------------	
          IF (FICSURF.EQ.'DEFAULT') THEN
 
@@ -650,41 +650,41 @@ C  ----------------------------------------------------------
 	 
 	 ENDIF        
 		
-C* Controle de l'existence du fichier de Matrice de réflexion
+C* Check of the existence of the reflection matrix file
 C  ----------------------------------------------------------	
 	 
         LFICSURF=INDEX(FICSURF,' ')-1 
         INQUIRE(FILE=FICSURF(1:LFICSURF),EXIST=EX)
-        IF (EX.EQV..FALSE.) GOTO 1020   !Cas d'erreur  
+        IF (EX.EQV..FALSE.) GOTO 1020   !Error case
 	       
-      ENDIF ! Fin du test pour l'utilisation du fichier de Matrice de réflexion
+      ENDIF ! End of the test for the use of the reflection matrix file
 
 
       
-C* Lecture du fichier AEROSOLS
+C* Reading of the AEROSOLS file
 C  ---------------------------
       OPEN(UNIT=1,FILE=FICGRANU,STATUS='OLD',ERR=913)
 	 
-      ! Section efficace d'extinction
+      ! Extinction cross section
       READ(1,'(a)',ERR=923) LIGNE_TEXTE	
 
-      ! Section efficace de diffusion
+      ! Scattering cross section
       READ(1,'(a)',ERR=923) LIGNE_TEXTE
 
-      ! Facteur d'asymétrie (non tronqué)
+      ! Asymmetry factor (not truncated)
       READ(1,'(a)',ERR=923) LIGNE_TEXTE
           
-      ! Coefficient de troncature  
+      ! Truncation coefficient
       READ(1,'(a)',ERR=923) LIGNE_TEXTE
       IFIN=INDEX(LIGNE_TEXTE,':')
       READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) A
 	 
-      ! Albédo de simple diffusion (éventuellement tronqué) 
+      ! Single scattering albedo (possibly truncated)
       READ(1,'(a)',ERR=923) LIGNE_TEXTE
       IFIN=INDEX(LIGNE_TEXTE,':')
       READ(LIGNE_TEXTE(IFIN+1:LENLINE),*)  PIZTR
 
-      !Lecture des informations de contenu des colonnes
+      !Reading of the information on the column contents
       READ(1,'(a)',ERR=923) LIGNE_TEXTE
       READ(1,'(a)',ERR=923) LIGNE_TEXTE
       READ(1,'(a)',ERR=923) LIGNE_TEXTE
@@ -694,15 +694,15 @@ C  ---------------------------
       ENDDO      
 
 
-C* Calcul de l'albédo de simple diffusion non tronquée 
-C* à partir de la valeur tronquée
+C* Computation of the non-truncated single scattering albedo
+C* from the truncated value
 C  ---------------------------------------------------
       PIZ=PIZTR/(1+0.5*A*(PIZTR-1))
             
      
       
       
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(1)
       CLOSE(10)
@@ -713,11 +713,11 @@ C----------
   223 FORMAT(I4,1X,D21.14,2X,F7.3,2X,D21.14,2X,I2)  
 
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------    
 
   950 WRITE(6,*) '  SOS_PREPA_OS : ERROR_950'
@@ -773,7 +773,7 @@ C----------------------------------------------
     
  9999 RETURN
  
-      END	!FIN DU PROGRAMME SOS
+      END	!END OF PROGRAM SOS
 
 
 

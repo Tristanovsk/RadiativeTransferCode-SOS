@@ -19,652 +19,652 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_AEROSOLS.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Ce module gère le calcul des proprietes radiatives de 
-C*       différentes granulométrieF d'aérosols.
+C* FILE: SOS_AEROSOLS.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: This module manages the computation of the radiative properties of
+C*       different aerosol size distributions.
 C*
-C* AUTEUR: 
-C*   Code initial: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
-C*   Reprise du codage et développement : CS GROUP France, B.Lafrance, X.Lenot
+C* AUTHOR:
+C*   Initial code: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
+C*   Code rework and development: CS GROUP France, B.Lafrance, X.Lenot
 C*
 C* DATE: 30/04/2002
 C*
-C* MOD:VERSION:1.1: Mise a niveau du code des OS du LOA
-C* MOD:VERSION:1.2: Mise à jour des commentaires.
+C* MOD:VERSION:1.1: Upgrade of the LOA OS code
+C* MOD:VERSION:1.2: Update of the comments.
 C*
 C* MOD:VERSION:2.0: 24/08/2008 
-C*       - Introduction d'une modelisation bi-LND.
-C*       - Conversion des sorties KMAT1 et KMAT2 de la routine SOS_GRANU
-C*         en sections efficaces d'extinction et de diffusion (micron^2)
-C*         au lieu de coefficients d'extinction et de diffusion (/mic)
-C*         qui n'étaient pas normalisés à une particule.
-C*       - Mise à jour des commentaires.
+C*       - Introduction of a bi-LND modelling.
+C*       - Conversion of the outputs KMAT1 and KMAT2 of routine SOS_GRANU
+C*         into extinction and scattering cross sections (micron^2)
+C*         instead of extinction and scattering coefficients (/mic)
+C*         that were not normalised to one particle.
+C*       - Update of the comments.
 C*
 C*
 C* MOD:VERSION:2.1: 08/09/2008 
-C*       - Correction de dépassements de zone d'indentation pour compilation f77.
-C*       - Suppression de la sortie de boucle pour fin de fichier de MIE atteinte.
-C*         Car si c'est le cas, il s'agit d'une erreur : le fichier de MIE est 
-C*         incomplet (probable manque d'espace disque à sa génération).
-C*         Ce cas est alors correctement géré en erreur.
-C*       - Correction pour le calcul des proportions de composants des modèles bimodaux
-C*         Dubovik : cas du calcul à partir des rapports d'épaisseur optique des deux modes
-C*         (fin et grossier) et de l'épaisseur optique totale pour une longueur
-C*         d'onde de référence ==> utilisation de l'indice de réfraction des 
-C*         particules pour la longueur d'onde de référence (uniquement).
+C*       - Correction of indentation overflows for f77 compilation.
+C*       - Removal of the loop exit when the end of the MIE file is reached.
+C*         Indeed, if this happens, it is an error: the MIE file is
+C*         incomplete (probably lack of disk space when it was generated).
+C*         This case is then correctly handled as an error.
+C*       - Correction of the computation of the proportions of the components of the
+C*         Dubovik bimodal models: case of the computation from the optical thickness ratios
+C*         of the two modes (fine and coarse) and from the total optical thickness for a reference
+C*         wavelength ==> use of the refractive index of the
+C*         particles for the reference wavelength (only).
 C*
 C* MOD:VERSION:3.0: 19/11/2009 
-C*       - Modification du passage des arguments : 
-C*           - passage par couples (mot clef, valeur). 
-C*           - adaptation de la gestion des cas d'erreurs. 
-C*       - Conversion des messages d'erreurs en anglais. 
-C*       - Introduction du paramètre CTE_MIE_ALPHAMIN qui précise la valeur minimale
-C*         du paramètre de taille ALPHAO des calculs de Mie.
+C*       - Change of the argument passing:
+C*       - passing by pairs (keyword, value).
+C*       - adaptation of the error case management.
+C*       - Error messages converted to English.
+C*       - Introduction of the parameter CTE_MIE_ALPHAMIN giving the minimum value
+C*         of the size parameter ALPHAO of the Mie computations.
 C*
 C* MOD:VERSION:4.0: 10/01/2010 
-C*   - Suppression de la constante CTE_OS_FICANGLE (de SOS.h) 
-C*     au profit d'un passage par argument du nom du fichier des angles (produit par SOS_ANGLES).
+C*   - Removal of the constant CTE_OS_FICANGLE (from SOS.h)
+C*     in favour of passing the name of the angle file (produced by SOS_ANGLES) as argument.
 C*
-C*   - Modification de la taille des tableaux de luminance :
-C*     ==> Passage de CTE_MIE_NBMU à CTE_MIE_NBMU_MAX.
-C*     ==> Boucle sur les angles jusqu'à MIE_NBMU égal au nombre effectif d'angles utilises.
+C*   - Change of the size of the radiance arrays:
+C*     ==> Changed from CTE_MIE_NBMU to CTE_MIE_NBMU_MAX.
+C*     ==> Loop on the angles up to MIE_NBMU, equal to the actual number of angles used.
 C*                                   
-C*   - Modification de la taille des tableaux des fonctions de phase :
-C*     ==> Passage de CTE_MIE_NBMU à CTE_MIE_NBMU_MAX.
-C*     ==> Boucle sur les angles jusqu'à MIE_NBMU égal au nombre effectif d'angles utilises.
+C*   - Change of the size of the phase function arrays:
+C*     ==> Changed from CTE_MIE_NBMU to CTE_MIE_NBMU_MAX.
+C*     ==> Loop on the angles up to MIE_NBMU, equal to the actual number of angles used.
 C*
-C*   - Modification de la taille des tableaux de decomposition en polynomes de Legendre :
-C*     ==> Passage de CTE_OS_NB à CTE_OS_NB_MAX.
-C*     ==> Boucle sur les ordre jusqu'à OS_NB (lu dans le fichier des angles)
+C*   - Change of the size of the arrays of the decomposition in Legendre polynomials:
+C*     ==> Changed from CTE_OS_NB to CTE_OS_NB_MAX.
+C*     ==> Loop on the orders up to OS_NB (read in the angle file)
 C*
-C*   - CTE_MIE : Ajout des arguments d'entrée : NBMU_MIE (nb angles utiles) et XMU (tableau des angles)
+C*   - CTE_MIE : Added input arguments: NBMU_MIE (nb of useful angles) and XMU (array of angles)
 C*
-C*   - SOS_NOMFIC_MIE : Ajout des arguments d'entrée : NBMU_GAUSS (nb angles de Gauss) 
-C*                                                     et FICANGLES_USER (fichier d'angles utilisateurs)
+C*   - SOS_NOMFIC_MIE : Added input arguments: NBMU_GAUSS (nb of Gauss angles)
+C*                                                     and FICANGLES_USER (user angle file)
 C*
-C*   - SOS_GRANU : 
-C*         * Ajout de l'argument d'entrée : NBMU_MIE (nb angles utiles)
-C*         * Modification de la ligne de lecture  des tableaux 
-C*           de fonctions de phase par valeur de paramètre de taille Alpha
-C*           ==> limitation aux bornes utiles -MIE_NBMU:MIE_NBMU
+C*   - SOS_GRANU:
+C*         * Added input argument: NBMU_MIE (nb of useful angles)
+C*         * Change of the reading line of the arrays
+C*           of phase functions per value of the size parameter Alpha
+C*           ==> limited to the useful bounds -MIE_NBMU:MIE_NBMU
 C*
-C*   - SOS_DECOMPO_LEGENDRE : 
-C*         * Ajout des arguments d'entrée : NBMU_MIE (nb angles utiles) et OS_NB
-C*         * Boucles limitées à NBMU_MIE au lieu CTE_MIE_NBMU_MAX
+C*   - SOS_DECOMPO_LEGENDRE:
+C*         * Added input arguments: NBMU_MIE (nb of useful angles) and OS_NB
+C*         * Loops limited to NBMU_MIE instead of CTE_MIE_NBMU_MAX
 C*  
-C*   - Suppression de l'utilisation de la variable d'environnement SOS_RACINE_MU
-C*     ==> devient SOS_ABS_FIC car utilisee seulement pour les fichiers WMO et S&F.
+C*   - Removal of the use of the environment variable SOS_RACINE_MU
+C*     ==> becomes SOS_ABS_FIC since it is only used for the WMO and S&F files.
 C*
-C*   - Ajout d'une option de traitement IMOD=4 pour ingérer une matrice de phase externe
-C*     --> Fonctions de phase externes et coefficients de diffusion et d'extinction
-C*     ==> Introduction des routines : 
+C*   - Addition of a processing option IMOD=4 to ingest an external phase matrix
+C*     --> External phase functions and scattering and extinction coefficients
+C*     ==> Introduction of the routines:
 C*            	- SOS_INTERPO_SPLINT
 C*     		- SOS_SPLINE
 C*    		- SOS_SPLINT
-C*     ==> Ajout de la constante (SOS.h) :  CTE_MAXNB_ANG_EXT
+C*     ==> Addition of the constant (SOS.h): CTE_MAXNB_ANG_EXT
 C*
 C* MOD:VERSION:5.0: 06/06/2013
 C*     
-C*   -  Les paramètres d'entrée sont fournis sous la forme de liste de paramètres
-C*      et non plus sous la forme de couples avec mot cle associe => tous les
-C*	paramètres deviennent donc obligatoires
+C*   -  The input parameters are given as a list of parameters
+C*      and no longer as pairs with associated keyword => all
+C*	 parameters are therefore mandatory
 C*
-C*   -  Modification de la valeur de Pi, declaree en constante dans le fichier
-C*      (INCTE_PI remplace CTE_PI)
+C*   -  Change of the value of Pi, declared as a constant in the file
+C*      (INCTE_PI replaces CTE_PI)
 C* 
 C* MOD:VERSION:6.0: 02/03/2016
 C*
-C*    - Ajustements mineurs pour le respect strict des 72 colonnes 
-C*      (incluant au décodage des constante) : requis pour compilation gfortran 
+C*    - Minor adjustments to strictly respect the 72 columns
+C*      (including when decoding the constants): required for gfortran compilation
 C*
-C*    - Changement de la manière de lire les fichiers formatés 
-C*      (Angles, fichier de données externes pour les aérosols)
-C*      pour être compatible avec le compilateur gfortran.
+C*    - Change of the way the formatted files are read
+C*      (Angles, external data file for the aerosols)
+C*      to be compatible with the gfortran compiler.
 C*
-C*    - Modification du format du fichier GRANU résultat pour permettre sa lecture
-C*      par le code SOS_PREPA_OS.F compilé avec gfortran et pour clarifier son contenu
+C*    - Change of the format of the result GRANU file to allow its reading
+C*      by the code SOS_PREPA_OS.F compiled with gfortran and to clarify its content
 C* 
-C*    - Modification de la gestion des variances pour les granulométrie LND:
-C*      abandon de l'usage d'un SIG = log10(variance) au profit de l'utilisation
-C*      d'une formulation classique du modèle LND en fonction de la variance.
+C*    - Change of the management of the variances for the LND size distributions:
+C*      the use of SIG = log10(variance) is abandoned in favour of a
+C*      classical formulation of the LND model versus the variance.
 C*		N(r) = exp(-0.5 *(log10(r/rm)/sig)**2) / r
-C*	devient 
+C*	becomes
 C*		N(r) = exp(-0.5 *(log(r/rm)/sig)**2) / r
-C*      ==> Impacte les valeurs des paramètres en entrée de SOS_AEROSOLS et donc
-C*          fournis en ligne de commandes à SOS_ABS_MAIN.   
+C*      ==> Impacts the values of the input parameters of SOS_AEROSOLS and thus
+C*          given on the command line to SOS_ABS_MAIN.
 C*
 C* 
 C* MOD:VERSION:6.1: 12/06/2020
 C* 
-C*    - Ajout du paramètre DIR_TMP qui définit le répertoire temporaire des 
-C*      calculs de Mie.
+C*    - Addition of the parameter DIR_TMP defining the temporary directory of the
+C*      Mie computations.
 C*
-C*    - Définition 'un fichier de Mie temporaire FICMIE_TMP qui est généré 
-C*      sous DIR_TMP avant d'être déplacé sous le répertoire de stockage
-C*      des fichiers de Mie (DIRS) avec le nom formalisé du fichier (FICMIE).
+C*    - Definition of a temporary Mie file FICMIE_TMP generated
+C*      under DIR_TMP before being moved to the storage directory
+C*      of the Mie files (DIRS) with the formalised file name (FICMIE).
 C*
-C*    - Ajout de l'argument VARGRANU3_MMD qui donne le rayon max d'une
-C*      granulomètrie suivant la loi de Junge.
-C*      On renomme VARGRANU1 en VARGRANU1_MMD et VARGRANU2 en VARGRANU2_MMD
-C*      ==> Adaptation de l'appel de CTE_GRANU
+C*    - Addition of the argument VARGRANU3_MMD giving the max radius of a
+C*      size distribution following the Junge law.
+C*      VARGRANU1 is renamed VARGRANU1_MMD and VARGRANU2 VARGRANU2_MMD
+C*      ==> Adaptation of the call of CTE_GRANU
 C*
-C*    - Le paramètre de taille maximal des calculs de Mie (ALPHAF)  
-C*      pour un modèle mono-modal n'est plus fourni mais est calculé par la routine.
+C*    - The maximum size parameter of the Mie computations (ALPHAF)
+C*      for a mono-modal model is no longer given but computed by the routine.
 C*
-C*    - Ajout d'une option de traitement IMOD=5 pour utiliser la définition 
-C*      d'un mélange de modes fournis dans un fichier par l'utilisateur.
-C*      ==> Introduction de paramètre: FICMIXTURE_AER qui donne la location du fichier.
-C*      ==> Implémentation du bloc de traitement pour IMOD=5.
+C*    - Addition of a processing option IMOD=5 to use the definition
+C*      of a mixture of modes given in a file by the user.
+C*      ==> Introduction of the parameter FICMIXTURE_AER, which gives the location of the file.
+C*      ==> Implementation of the processing block for IMOD=5.
 C*
 C*
 C* MOD:VERSION:6.2: 31/08/2022
-C*    - Suppression du passage par la variable d'environnement SOS_ABS_FIC.
-C*    - Renommage des constantes de SOS_* en CTE_*
-C*    - Conversion des traces en Anglais.
-C*    - Introduire des constantes CTE_AER_MU1_TRONCA et CTE_AER_MU2_TRONCA 
-C*      pour définir les angles permettant d'estimer la troncature de la pointe
-C*      de diffusion avant de la fonction de phase des aérosols.
+C*    - Removal of the use of the environment variable SOS_ABS_FIC.
+C*    - Constants renamed from SOS_* to CTE_*
+C*    - Traces converted to English.
+C*    - Introduction of the constants CTE_AER_MU1_TRONCA and CTE_AER_MU2_TRONCA
+C*      to define the angles used to estimate the truncation of the forward
+C*      scattering peak of the aerosol phase function.
 C*    - The information about the units for extinction and scattering coefficients,
 C*      and for the number of particles, are clarified in the log file.
 C*
 C* MOD:VERSION:6.3: 08/08/2023
-C*    - Ajout d'un test sur la somme des taux d'épaisseur optique définissant un mélange d'aérosols
-C*       ==> Normalisation appliquée si l'écart à 1 est inférieur au seuil CTE_GAP_TOLER_SUM_RATES
-C*    - Clarification du nom de la variable donnant le coefficient de troncature (COEF_TRONCA)
-C*      et passage de cette variable en paramètre de sortie de la routine SOS_AEROSOLS.
+C*    - Addition of a test on the sum of the optical thickness rates defining an aerosol mixture
+C*       ==> Normalisation applied if the difference to 1 is below the threshold CTE_GAP_TOLER_SUM_RATES
+C*    - Clarification of the name of the variable giving the truncation coefficient (COEF_TRONCA)
+C*      and this variable becomes an output parameter of routine SOS_AEROSOLS.
 C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Definition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisees :
-C    CTE_LENDIR : Longueur des noms de répertoires.
-C    CTE_LENFIC1 : Longueur des noms de fichiers sans arborescence.
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_LENKEYWORD : Taille maximale des Keywords pour le passage des arguments.
-C    CTE_LENCOM: longueur des chaines de commande système
-C    INCTE_PI : Valeur de PI.
-C    CTE_MIE_NBMU_MAX : Nombre maximal d'angles positifs.
-C    CTE_MIE_ALPHAMIN : Valeur minimale par defaut du paramètre de taille 
-C                       Alpha des calculs de Mie.
-C    CTE_ALPHAMAX_WMO_DL : Valeur limite du paramètre de taille pour le calcul
-C                          des fichiers du composant Dust-Like de la WMO.
-C    CTE_ALPHAMAX_WMO_WS : Idem pour le composant Water Soluble.
-C    CTE_ALPHAMAX_WMO_OC : Idem pour le composant Oceanic.
-C    CTE_ALPHAMAX_WMO_SO : Idem pour le composant Soot.
-C    CTE_ALPHAMAX_SF_SR : Idem pour le composant Small Rural de Shettle & Fenn.
-C    CTE_ALPHAMAX_SF_SU : Idem pour le composant Small Urban de Shettle & Fenn.
-C    CTE_COEF_NRMAX : Constante pour la determination du paramètre de taille max.
-C    CTE_OS_NB_MAX :  Valeur maximale pour l'ordre limite du développement en 
-C                     polynomes de Legendre.
-C    CTE_PH_SEUIL_TRONCA : Valeur seuil pour la troncature.
-C    CTE_AER_DATAWMO : Nom du fichier contenant les paramètres WMO (rm,sig,...).
-C    CTE_AER_DATASF  : Nom du fichier contenant rayon modal et log variance S&F.
-C    CTE_AER_XX_SF   : Nom des fichiers contenant les indices de réfraction S&F
-C		       pour chaque constituant XX = SR, LR, SU, LU, OM.
-C    CTE_MAXNB_ANG_EXT : Taille maximale des tableaux de fonctions de phase externesC
-C    CTE_AER_MU1_TRONCA : cos de l'angle Theta1 pour l'estimation du segment de
-C                         troncature de la fonction de phase des aérosols.
-C    CTE_AER_MU2_TRONCA : cos de l'angle Theta2 pour l'estimation du segment de
-C                         troncature de la fonction de phase des aérosols.
+C Constants used:
+C    CTE_LENDIR : Length of directory names.
+C     CTE_LENFIC1 : Length of file names without directory tree.
+C     CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_LENKEYWORD : Maximum size of the keywords for argument passing.
+C    CTE_LENCOM: length of the system command strings
+C    INCTE_PI : Value of PI.
+C    CTE_MIE_NBMU_MAX : Maximum number of positive angles.
+C    CTE_MIE_ALPHAMIN : Default minimum value of the size parameter
+C                       Alpha of the Mie computations.
+C    CTE_ALPHAMAX_WMO_DL : Limit value of the size parameter for the computation
+C                          of the files of the WMO Dust-Like component.
+C    CTE_ALPHAMAX_WMO_WS : Same for the Water Soluble component.
+C    CTE_ALPHAMAX_WMO_OC : Same for the Oceanic component.
+C    CTE_ALPHAMAX_WMO_SO : Same for the Soot component.
+C    CTE_ALPHAMAX_SF_SR : Same for the Small Rural component of Shettle & Fenn.
+C    CTE_ALPHAMAX_SF_SU : Same for the Small Urban component of Shettle & Fenn.
+C    CTE_COEF_NRMAX : Constant for the determination of the max size parameter.
+C    CTE_OS_NB_MAX :  Maximum value of the limit order of the expansion in
+C                     Legendre polynomials.
+C    CTE_PH_SEUIL_TRONCA : Threshold for the truncation.
+C    CTE_AER_DATAWMO : Name of the file containing the WMO parameters (rm,sig,...).
+C    CTE_AER_DATASF  : Name of the file containing the S&F modal radius and log variance.
+C    CTE_AER_XX_SF   : Name of the files containing the S&F refractive indices
+C		       for each component XX = SR, LR, SU, LU, OM.
+C    CTE_MAXNB_ANG_EXT : Maximum size of the arrays of external phase functions
+C    CTE_AER_MU1_TRONCA : cos of the angle Theta1 for the estimation of the segment of
+C                         truncation of the aerosol phase function.
+C    CTE_AER_MU2_TRONCA : cos of the angle Theta2 for the estimation of the segment of
+C                         truncation of the aerosol phase function.
 C
 C
-C Constantes spécifiques :
-C    LENLINE  : Longueur maximale d'une ligne de données lue dans un fichier
-C    CTE_NOT_DEFINED_VALUE_DBLE: valeur par défaut pour les reels
+C Specific constants:
+C    LENLINE  : Maximum length of a data line read in a file
+C    CTE_NOT_DEFINED_VALUE_DBLE: default value for reals
 C----------------------------------------------------------------------------
 #include "SOS.h"
 #define INCTE_PI DACOS(-1.D+00)
 #define LENLINE 1000
 
 C==============================================================================
-C PROGRAMME: SOS_AEROSOLS
+C PROGRAM: SOS_AEROSOLS
 C ==========  
-C  Modèles simulés :
+C  Simulated models:
 C  ----------------
-C      Ce programme calcule les proprietes radiatives d'une granulométrie 
-C      d'aérosols mono-modale, multi-modale (de la WMO) ou bi-modale (S&F).
+C      This program computes the radiative properties of a mono-modal,
+C      multi-modal (WMO) or bi-modal (S&F) aerosol size distribution.
 C
-C      Les constituants de base des modèles de la WMO sont:
-C      dust-like, oceanic, water-soluble et soot. 
-C      Quatre modèles WMO types peuvent etre simules: continental, maritime, 
-C      urbain et une composition definie par l'utilisateur.
+C      The basic components of the WMO models are:
+C      dust-like, oceanic, water-soluble and soot.
+C      Four typical WMO models can be simulated: continental, maritime,
+C      urban and a composition defined by the user.
 C
-C      Les constituants de base des modèles de Shettle & Fenn sont:
-C      small rural, large rural, small urban, large urban et oceanic. 
-C      Cinq modèles S&F types peuvent etre simules: tropospherique, urbain,  
-C      maritime et cotier.
+C      The basic components of the Shettle & Fenn models are:
+C      small rural, large rural, small urban, large urban and oceanic.
+C      The typical S&F models that can be simulated are: tropospheric, urban,
+C      maritime and coastal.
 C
-C      Si imodalite = 0 => prise en compte d'une seule granulométrie d'aérosols
-C			   (Log Normale ou loi de Junge).
+C      If imodalite = 0 => a single aerosol size distribution is used
+C			   (Log Normal or Junge law).
 C
-C      Si imodalite = 1 => cas de granulométries multi-modales, utilisation  
-C                          des quatre modèles standards WMO.
+C      If imodalite = 1 => case of multi-modal size distributions, use
+C                          of the four standard WMO models.
 C
-C      Si imodalite = 2 => cas de granulométries bi-modales, utilisation  
-C                          des cinq modèles standards S&F.
+C      If imodalite = 2 => case of bi-modal size distributions, use
+C                          of the standard S&F models.
 C
-C      Si imodalite = 3 => cas de granulométries LND bi-modales.
+C      If imodalite = 3 => case of bi-modal LND size distributions.
 C
-C      Si imodalite = 4 => cas de l'utilisation d'une matrice de phase externe 
-C                         (fonctions de phase en intensite et polarisation).
+C      If imodalite = 4 => case of the use of an external phase matrix
+C                         (phase functions in intensity and polarisation).
 C
-C      Si imodalite = 5 => cas de l'utilisation d'un fichier utilisateur 
-C                          définissant un mélange de modèles d'aérosols.
+C      If imodalite = 5 => case of the use of a user file
+C                          defining a mixture of aerosol models.
 C
 C
-C  Calculs de Mie et application :
+C  Mie computations and application:
 C  -----------------------------
-C      Les calculs de MIE donnent les proprietes radiatives d'un composant. 
-C      Ils sont realises par la procédure "SOS_MIE".
-C      Les fichiers de MIE sont stockes sous un répertoire specifique. 
+C      The MIE computations give the radiative properties of a component.
+C      They are made by the procedure "SOS_MIE".
+C      The MIE files are stored in a specific directory.
 C
-C      Le pas sur le paramètre de taille alpha est identique est :
-C         si        alpha  <= 0.1  ===> pas = 0.0001
-C         si 0.1  < alpha  <= 1.0  ===> pas = 0.001
-C         si 1.0  < alpha  <= 10   ===> pas = 0.01
-C         si 10   < alpha  <= 30   ===> pas = 0.05
-C         si 30   < alpha  <= 100  ===> pas = 0.1
-C         si 100  < alpha          ===> pas = 1.0
+C      The step on the size parameter alpha is:
+C         if        alpha  <= 0.1  ===> step = 0.0001
+C         if 0.1  < alpha  <= 1.0  ===> step = 0.001
+C         if 1.0  < alpha  <= 10   ===> step = 0.01
+C         if 10   < alpha  <= 30   ===> step = 0.05
+C         if 30   < alpha  <= 100  ===> step = 0.1
+C         if 100  < alpha          ===> step = 1.0
 C
-C      A partir des calculs de Mie, on determine la fonction de phase 
-C      P(mu) et les fonctions de phase polarisee Q(mu) et U(mu), pour une 
-C      longueur d'onde donnée et une distribution en taille des particules 
-C      donnée pour chaque modèle.
+C      From the Mie computations, the phase function
+C      P(mu) and the polarised phase functions Q(mu) and U(mu) are determined for a
+C      given wavelength and a given particle size distribution
+C      for each model.
 C
 C
-C      Une troncature est realisee sur la fonction de phase P(mu) si l'option
-C      itronc = 1 est selectionnee.
+C      A truncation is applied to the phase function P(mu) if the option
+C      itronc = 1 is selected.
 C
-C      Les fonctions de phase sont ensuite developpees dans la base des
-C      polynomes de Legendre. On obtient :
-C         - Pour P(mu) => les coefficients beta(k) de 0 a OS_NB,
-C         - Pour Q(mu) => les coefficients gamma(k) de 0 a OS_NB,
-C         - Pour U(mu) => les coefficients delta(k) de 0 a OS_NB.
+C      The phase functions are then expanded in the basis of the
+C      Legendre polynomials. This gives:
+C         - For P(mu) => the coefficients beta(k) from 0 to OS_NB,
+C         - For Q(mu) => the coefficients gamma(k) from 0 to OS_NB,
+C         - For U(mu) => the coefficients delta(k) from 0 to OS_NB.
 C
-C      On calcule les coefficients alp(k) et zeta(k) en fonction des beta(k)
-C      et delta(k). Ils serviront pour l'expression de la matrice de phase
-C      decomposee en series de Fourier (dans le code des OS).
+C      The coefficients alp(k) and zeta(k) are computed from beta(k)
+C      and delta(k). They are used for the expression of the phase matrix
+C      decomposed in Fourier series (in the OS code).
 C
 C 
-C  Remarque :
+C  Remark:
 C  --------    
-C      Si l'épaisseur optique des aérosols est nulle, il y a creation 
-C      d'un fichier Aérosols avec des valeurs mises a zero.
+C      If the aerosol optical thickness is null, an Aerosols file
+C      is created with values set to zero.
 C
 C
-C Donnees en entrée du programme
+C Input data of the program
 C ------------------------------
-C     -->Les paramètres/arguments du programme
+C    -->Parameters/arguments of the program
 C
-C             FICANGLES (CHARACTER) : (E) nom complet du fichier des angles utilises 
-C                                     pour les calculs de luminance et BRDF
-C                 		     (répertoire + nom fichier + extension)
+C             FICANGLES (CHARACTER) : (I) complete name of the file of the angles used
+C                                         for the radiance and BRDF computations
+C				  (directory + file name + extension)
 C
-C      	TA   (DOUBLE)  : (E) Epaisseur optique des aérosols (non tronquée).
-C                                (format de decodage en réel F9.5)
+C      	TA   (DOUBLE)  : (I) Aerosol optical thickness (not truncated).
+C                             (decoding format: real F9.5)
 C      		       
-C	       WA   (DOUBLE)  : (E) Longueur d'onde de simulation en microns.	
-C                                (format de decodage en réel F9.5)
+C	       WA   (DOUBLE)  : (I) Simulation wavelength in microns.
+C                             (decoding format: real F9.5)
 C
-C             WAREF (DOUBLE) : (E) longueur d'onde de référence WAREF.
-C                                (format de decodage en réel F9.5)
+C             WAREF (DOUBLE) : (I) reference wavelength WAREF.
+C                             (decoding format: real F9.5)
 C	 
-C      	TAWAREF (DOUBLE) : (E) AOT totale pour la longueur d'onde WAREF.
-C                                  (format de decodage en réel F9.5)
+C      	TAWAREF (DOUBLE) : (I) total AOT at the wavelength WAREF.
+C                             (decoding format: real F9.5)
 C     		       
-C	       ITRONC  (I4)   : (E) Option de troncature  (1 pour la realiser).
-C                                (format de decodage en entier I4)
+C	       ITRONC  (I4)   : (I) Truncation option (1 to apply it).
+C			       (decoding format: integer I4)
 C
-C	       IMOD  (I4)  : (E) Granulométrie mono-modal ou multi-modale.
-C                               (format de decodage en entier I2)
-C      		        	0 : Modèles mono-mode
-C				       1 : Modèles WMO
-C				       2 : Modèles Shettle & Fenn
-C		        	       3 : Modèles bimodaux de LND
-C                       	       4 : Utilisation de fonctions de phase externes
-C                                  5 : Utilisation d'un fichier définissant un mélange de modes
+C	       IMOD  (I4)  : (I) Mono-modal or multi-modal size distribution.
+C			       (decoding format: integer I2)
+C      		        	0 : Mono-modal models
+C				       1 : WMO models
+C				       2 : Shettle & Fenn models
+C		        	       3 : Bimodal LND models
+C                       	       4 : Use of external phase functions
+C                                  5 : Use of a file defining a mixture of modes
 C
-C	       RN   (DOUBLE)  : (E) ==> Associe a IMOD = 0
-C				   Partie réelle de l'indice de réfraction pour modèle mono-modal
-C                                  a la longueur d'onde de simulation des luminances (WA)
-C                                 (format de decodage en réel F5.3)	
+C	       RN   (DOUBLE)  : (I) ==> Associated with IMOD = 0
+C				   Real part of the refractive index for a mono-modal model
+C                                  at the radiance simulation wavelength (WA)
+C                                 (decoding format: real F5.3)
 C
-C             IN   (DOUBLE)  : (E) ==> Associe a IMOD = 0
-C				   Partie imaginaire de l'indice de réfraction pour modèle mono-modal
-C                                  a la longueur d'onde de simulation des luminances (WA)
-C                                (format de decodage en réel F8.5)				
+C             IN   (DOUBLE)  : (I) ==> Associated with IMOD = 0
+C				   Imaginary part of the refractive index for a mono-modal model
+C                                  at the radiance simulation wavelength (WA)
+C                                (decoding format: real F8.5)
 C	  
-C             IGRANU  (I4)   : (E) ==> Associe a IMOD = 0
-C			      	   Indice de type de granulométrie pour modèle mono-modal
-C                          		1 : LND (paramètres : rayon modal en microns et variance). 
-C                          		2 : Loi de Junge (paramètres : rayon minimal  
-C                              		en microns et puissance appliquee au rayon).					
-C				   (format de decodage en entier I4)
+C             IGRANU  (I4)   : (I) ==> Associated with IMOD = 0
+C			      	   Index of the size distribution type for a mono-modal model
+C                          		1 : LND (parameters: modal radius in microns and variance).
+C                          		2 : Junge law (parameters: minimum radius
+C                              		in microns and power applied to the radius).
+C			       (decoding format: integer I4)
 C
-C             VARGRANU1_MMD  (DOUBLE) (E) :  1er paramètre de granulométrie pour modèle mono-modal
-C             VARGRANU2_MMD  (DOUBLE) (E) :  2nd paramètre de granulométrie pour modèle mono-modal
-C             VARGRANU3_MMD  (DOUBLE) (E) :  3eme paramètre de granulométrie pour modèle mono-modal	
+C             VARGRANU1_MMD  (DOUBLE) (I) :  1st size distribution parameter for a mono-modal model
+C             VARGRANU2_MMD  (DOUBLE) (I) :  2nd size distribution parameter for a mono-modal model
+C             VARGRANU3_MMD  (DOUBLE) (I) :  3rd size distribution parameter for a mono-modal model
 C	 		   If LND       : modal radius and standard deviation
 C	  		   If Junge law : min radius, slope and max radius
 C
-C             IMODELE_WMO   (I4)  : (E) ==> Associe a IMOD = 1
-C				    Indice de choix du modèle WMO
-C				   (format de decodage en entier I2)
-C      		        		1 : Modèle WMO Continental
-C					2 : Modèle WMO Maritime
-C					3 : Modèle WMO Urban
-C					4 : Modèle WMO "user definition"
+C             IMODELE_WMO   (I4)  : (I) ==> Associated with IMOD = 1
+C				    Index of the choice of WMO model
+C			       (decoding format: integer I2)
+C      		        		1 : Continental WMO model
+C					2 : Maritime WMO model
+C					3 : Urban WMO model
+C					4 : WMO model "user definition"
 C
-C             C_WMO_DL (DOUBLE)  : (E) ==> Associe a IMOD = 1
-C				       Pourcentage volumique C des particules DL (WMO).
-C				      (format de decodage en réel F9.5)
+C             C_WMO_DL (DOUBLE)  : (I) ==> Associated with IMOD = 1
+C				       Volume percentage C of the DL particles (WMO).
+C                             (decoding format: real F9.5)
 C
-C             C_WMO_WS (DOUBLE)  : (E) ==> Associe a IMOD = 1
-C				       Pourcentage volumique C des particules WS (WMO).
-C				      (format de decodage en réel F9.5)
+C             C_WMO_WS (DOUBLE)  : (I) ==> Associated with IMOD = 1
+C				       Volume percentage C of the WS particles (WMO).
+C                             (decoding format: real F9.5)
 C
-C             C_WMO_OC (DOUBLE)  : (E) ==> Associe a IMOD = 1
-C				       Pourcentage volumique C des particules OC (WMO).
-C				      (format de decodage en réel F9.5)
+C             C_WMO_OC (DOUBLE)  : (I) ==> Associated with IMOD = 1
+C				       Volume percentage C of the OC particles (WMO).
+C                             (decoding format: real F9.5)
 C
-C             C_WMO_SO (DOUBLE)  : (E) ==> Associe a IMOD = 1
-C				       Pourcentage volumique C des particules SO (WMO).
-C				       (format de decodage en réel F9.5)
+C             C_WMO_SO (DOUBLE)  : (I) ==> Associated with IMOD = 1
+C				       Volume percentage C of the SO particles (WMO).
+C                             (decoding format: real F9.5)
 C
-C             IMODELE_SF (DOUBLE) : (E) ==> Associe a IMOD = 2
-C					Indice de choix du modèle Shettle & Fenn
-C				 	(format de decodage en entier I2)
-C      		        		1 : Modèle SF Tropospheric
-C					       2 : Modèle SF Urban
-C					       3 : Modèle SF Maritime
-C					       4 : Modèle SF Coastal
+C             IMODELE_SF (DOUBLE) : (I) ==> Associated with IMOD = 2
+C					Index of the choice of Shettle & Fenn model
+C			       (decoding format: integer I2)
+C      		        		1 : Tropospheric SF model
+C					       2 : Urban SF model
+C					       3 : Maritime SF model
+C					       4 : Coastal SF model
 C
-C             RH  (DOUBLE) : (E) ==> Associe a IMOD = 2
-C				 Humidite relative pour modèle Shettle & Fenn
-C				(format de decodage en réel F5.2)
+C             RH  (DOUBLE) : (I) ==> Associated with IMOD = 2
+C				 Relative humidity for the Shettle & Fenn model
+C				(decoding format: real F5.2)
 C
-C             MODE_PARAM_BILND (I4) : (E) ==> Associe a IMOD = 3
-C					  Indice de type de description du mélange bimodal LND.                 
-C                               	 (format de decodage en entier I2)
-C      		        		 1 : Utilisation des concentrations volumiques de l'utilisateur
-C					        2 : Utilisation du rapport AOT_coarse / AOT_totale
+C             MODE_PARAM_BILND (I4) : (I) ==> Associated with IMOD = 3
+C					  Index of the type of description of the bimodal LND mixture.
+C			       (decoding format: integer I2)
+C      		        		 1 : Use of the user volume concentrations
+C					        2 : Use of the ratio AOT_coarse / AOT_total
 C
-C             USER_CV_COARSE (DOUBLE) : (E) ==> Associe a IMOD = 3 et MODE_PARAM_BILND = 1
-C      	     					Concentration volumique de l'utilisateur pour le mode "LND coarse". 
-C                                		       (format de decodage en réel F8.5)
+C             USER_CV_COARSE (DOUBLE) : (I) ==> Associated with IMOD = 3 and MODE_PARAM_BILND = 1
+C      	     					User volume concentration for the "LND coarse" mode.
+C                                		       (decoding format: real F8.5)
 C	 
-C             USER_CV_FINE (DOUBLE) : (E) ==> Associe a IMOD = 3 et MODE_PARAM_BILND = 1
-C      	     			      	  Concentration volumique de l'utilisateur pour le mode "LND fine". 
-C                                	         (format de decodage en réel F8.5)
+C             USER_CV_FINE (DOUBLE) : (I) ==> Associated with IMOD = 3 and MODE_PARAM_BILND = 1
+C      	     			      	  User volume concentration for the "LND fine" mode.
+C                                	         (decoding format: real F8.5)
 C	 
-C             RTAUct_WAREF (DOUBLE) : (E) ==> Associe a IMOD = 3 et MODE_PARAM_BILND = 2
-C      	     			     	  rapport AOT_coarse / AOT_tot pour la longueur d'onde WAREF.
-C                                    	  (format de decodage en réel F9.5)
+C             RTAUct_WAREF (DOUBLE) : (I) ==> Associated with IMOD = 3 and MODE_PARAM_BILND = 2
+C      	     			     	  ratio AOT_coarse / AOT_tot at the wavelength WAREF.
+C                             (decoding format: real F9.5)
 C
-C             BMD_CM_MRwa  (DOUBLE) : (E) ==> Associe a IMOD = 3 
-C      	     				  Partie réelle de l'indice de réfraction
-C                                   	  des particules du mode "LND coarse" pour WA de simulation
-C                               	         (format de decodage en réel F5.3)
+C             BMD_CM_MRwa  (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				  Real part of the refractive index
+C                                   	  of the particles of the "LND coarse" mode for the simulation WA
+C                               	         (decoding format: real F5.3)
 C
-C             BMD_CM_MIwa  (DOUBLE) : (E) ==> Associe a IMOD = 3 
-C      	     				  Partie imaginaire de l'indice de réfraction
-C                                   	  des particules du mode "LND coarse" pour WA de simulation
-C                               	         (format de decodage en réel F8.5)
+C             BMD_CM_MIwa  (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				  Imaginary part of the refractive index
+C                                   	  of the particles of the "LND coarse" mode for the simulation WA
+C                               	         (decoding format: real F8.5)
 C
-C             BMD_CM_MRwaref  (DOUBLE) : (E) ==> Associe a IMOD = 3  
-C      	     				     Partie réelle de l'indice de réfraction
-C                                   	     des particules du mode "LND coarse" pour WAREF
-C                               	            (format de decodage en réel F5.3)
+C             BMD_CM_MRwaref  (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				  Real part of the refractive index
+C                                   	     of the particles of the "LND coarse" mode for WAREF
+C                               	            (decoding format: real F5.3)
 C
-C             BMD_CM_MIwaref (DOUBLE) : (E) ==> Associe a IMOD = 3 
-C      	     				    Partie imaginaire de l'indice de réfraction
-C                                   	    des particules du mode "LND coarse" pour WAREF
-C                               	           (format de decodage en réel F8.5)
+C             BMD_CM_MIwaref (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				  Imaginary part of the refractive index
+C                                   	    of the particles of the "LND coarse" mode for WAREF
+C                               	           (decoding format: real F8.5)
 C
-C             BMD_CM_RMODAL (DOUBLE) : (E)  ==> Associe a IMOD =  3 
-C      	     				    Rayon modal de la "LND coarse"
-C                               	           (format de decodage en réel F9.5)
+C             BMD_CM_RMODAL (DOUBLE) : (I)  ==> Associated with IMOD =  3
+C      	     				    Modal radius of the "LND coarse"
+C                             (decoding format: real F9.5)
 C
-C             BMD_CM_VAR (DOUBLE) : (E) ==> Associe a IMOD = 3 
-C      	     				    Variance de la "LND coarse"
-C                               	    (format de decodage en réel F9.5)
+C             BMD_CM_VAR (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				    Variance of the "LND coarse"
+C                             (decoding format: real F9.5)
 C
-C             BMD_FM_MRwa  (DOUBLE) : (E) ==> Associe a IMOD = 3 
-C      	     				  Partie réelle de l'indice de réfraction
-C                                   	  des particules du mode "LND fine" pour WA de simulation
-C                               	  (format de decodage en réel F5.3)
+C             BMD_FM_MRwa  (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				  Real part of the refractive index
+C                                   	  of the particles of the "LND fine" mode for the simulation WA
+C                               	  (decoding format: real F5.3)
 C
-C             BMD_FM_MIwa  (DOUBLE) : (E) ==> Associe a IMOD = 3 
-C      	     				  Partie imaginaire de l'indice de réfraction
-C                                   	  des particules du mode "LND fine" pour WA de simulation
-C                               	         (format de decodage en réel F8.5)
+C             BMD_FM_MIwa  (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				  Imaginary part of the refractive index
+C                                   	  of the particles of the "LND fine" mode for the simulation WA
+C                               	         (decoding format: real F8.5)
 C
-C             BMD_FM_MRwaref  (DOUBLE) : (E) ==> Associe a IMOD = 3  
-C      	     				     Partie réelle de l'indice de réfraction
-C                                   	     des particules du mode "LND fine" pour WAREF
-C                               	            (format de decodage en réel F5.3)
+C             BMD_FM_MRwaref  (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				  Real part of the refractive index
+C                                   	     of the particles of the "LND fine" mode for WAREF
+C                               	            (decoding format: real F5.3)
 C
-C             BMD_FM_MIwaref (DOUBLE) : (E) ==> Associe a IMOD = 3 
-C      	     				    Partie imaginaire de l'indice de réfraction
-C                                   	    des particules du mode "LND fine" pour WAREF
-C                               	           (format de decodage en réel F8.5)
+C             BMD_FM_MIwaref (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				  Imaginary part of the refractive index
+C                                   	    of the particles of the "LND fine" mode for WAREF
+C                               	           (decoding format: real F8.5)
 C
-C             BMD_FM_RMODAL (DOUBLE) : (E)  ==> Associe a IMOD =  3 
-C      	     				    Rayon modal de la "LND fine"
-C                               	           (format de decodage en réel F9.5)
+C             BMD_FM_RMODAL (DOUBLE) : (I)  ==> Associated with IMOD =  3
+C      	     				    Modal radius of the "LND fine"
+C                             (decoding format: real F9.5)
 C
-C             BMD_FM_VAR (DOUBLE) : (E) ==> Associe a IMOD = 3 
-C      	     				    Variance de la "LND fine"
-C                               	           (format de decodage en réel F9.5)
+C             BMD_FM_VAR (DOUBLE) : (I) ==> Associated with IMOD = 3
+C      	     				    Variance of the "LND fine"
+C                             (decoding format: real F9.5)
 C
-C             FICEXTDATA (CHARACTER) : (E) ==> Associe a IMOD = 4 
-C                     			   Nom du fichier de données externes de fonctions de phase
-C                     			   et paramètres radiatifs (coefficients extinction et diffusion) 
-C                    			   (répertoire + nom fichier + extension)
+C             FICEXTDATA (CHARACTER) : (I) ==> Associated with IMOD = 4
+C                     			   Name of the external data file of phase functions
+C                     			   and radiative parameters (extinction and scattering coefficients)
+C				  (directory + file name + extension)
 C
-C             FICMIXTURE_AER (CHARACTER) : (E) ==> Associe a IMOD = 5 
-C                     			   Nom du fichier de définition d'un mélange de modes aérosols 
-C                    			   (répertoire + nom fichier + extension)
+C             FICMIXTURE_AER (CHARACTER) : (I) ==> Associated with IMOD = 5
+C                     			   Name of the file defining a mixture of aerosol modes
+C				  (directory + file name + extension)
 C
-C             DIR_TMP  (CHARACTER)  : (E) répertoire temporaire de génération des fichiers
+C             DIR_TMP  (CHARACTER)  : (I) temporary directory where the files are generated
 C
-C             DIRS   (CHARACTER)  : (E) répertoire de stockage des fichiers MIE
+C             DIRS   (CHARACTER)  : (I) storage directory of the MIE files
 C
-C             FICLOGMIE (CHARACTER) : (E) Fichier trace MIE  
-C				              (0 ou chemin complet au fichier Trace)
-C                 		              (répertoire + nom fichier + extension)	
+C             FICLOGMIE (CHARACTER) : (I) MIE trace file
+C				              (0 or complete path to the trace file)
+C				  (directory + file name + extension)
 C
-C             FICGRANU (CHARACTER) : (E) nom complet du fichier résultat GRANU
-C                 		             (répertoire + nom fichier + extension)
+C             FICGRANU (CHARACTER) : (I) complete name of the GRANU result file
+C				  (directory + file name + extension)
 C 
-C             FICLOGGRANU (CHARACTER) : (E) Fichier trace du programme Aérosols 
-C					        (0 ou chemin complet au fichier Trace)
-C                 			        (répertoire + nom fichier + extension)
+C             FICLOGGRANU (CHARACTER) : (I) Trace file of the Aerosols program
+C				              (0 or complete path to the trace file)
+C				  (directory + file name + extension)
 C
-C      	KMAT1 (DOUBLE) : (S) Section efficace d'extinction (micron^2). Non tronqué.
+C      	KMAT1 (DOUBLE) : (O) Extinction cross section (micron^2). Not truncated.
 C
-C      	PIZ (DOUBLE) : (S) Albédo de simple diffusion.C
+C      	PIZ (DOUBLE) : (O) Single scattering albedo.
 C
-C      	COEF_TRONCA (DOUBLE) : Coefficient de troncature de la fonction de phase (S) 
+C      	COEF_TRONCA (DOUBLE) : Truncation coefficient of the phase function (O)
 C
-C      	IER (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+C     IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C 
 C                          
 C
-C    -->Fichiers
-C       Le fichier MIE
-C       Le fichier Trace Granu
-C       Le fichier Trace Mie
-C       Le fichier des angles et paramètres internes pour les limites des développements.
-C       Le fichier des fonctions de phase externes (entrée optionnelle)
-C       Le fichier de définition d'un mélange de modes aérosols (entrée optionnelle)
+C    -->Files
+C       The MIE file
+C       The Granu trace file
+C       The Mie trace file
+C       The file of angles and internal parameters for the expansion limits.
+C       The file of external phase functions (optional input)
+C       The file defining a mixture of aerosol modes (optional input)
 C
-C Resultats fournis par le programme
+C Results provided by the program
 C ----------------------------------
-C   Fichier résultat GRANU contenant :
-C	- coefficient d'extinction et de diffusion, Beta(0)/3
-C	- coefficient de troncature
-C	- albédo de simple diffusion tronquée
-C	- les paramètres de decomposition de la fonction de phase en 
-C	  polynomes de Legendre.
+C   GRANU result file containing:
+C	- extinction and scattering coefficient, Beta(0)/3
+C	- truncation coefficient
+C	- truncated single scattering albedo
+C	- the parameters of the decomposition of the phase function in
+C                     Legendre polynomials.
 C
-C Variable d'environnement
+C Environment variable
 C ------------------------
-C   SOS_ABS_ROOT : qui définit l'arborescence d'accès au répertoire principal du code SOS_ABS
-C   Cette variable d'environnement permet de localiser les fichiers sous $SOS_ABS_ROOT/fic 
+C   SOS_ABS_ROOT : defines the access path to the main directory of the SOS_ABS code
+C   This environment variable is used to locate the files under $SOS_ABS_ROOT/fic
 C
 C
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier de MIE
-C       Fichier binaire non formatte, cree par SOS_MIE
-C       1 enregistrement d'entete avec
-C                Indice de réfraction (partie réelle)
-C                Indice de réfraction (partie imaginaire)
-C                Paramètre de taille limite
-C                Nombre d'angles de Gauss positifs
+C   -->Content of the MIE file
+C       Unformatted binary file, created by SOS_MIE
+C       1 header record with
+C                Refractive index (real part)
+C                Refractive index (imaginary part)
+C                Limit size parameter
+C                Number of positive Gauss angles
 C
-C      1 enregistrement pour chaque valeur du paramètre de taille avec:
-C        - Paramètre de taille (réel),
-C        - Coefficient d'efficacite en extinction (réel),
-C        - Coefficient d'efficacite en diffusion (réel),
-C        - Facteur d'anisotropie (double précision),
-C        - Tableau de la fonction de phase Mie(mu) (réel),
-C        - Tableau de la fonction de phase polarisee Qmie(mu) (réel),
-C        - Tableau de la fonction de phase polarisee Umie(mu) (réel).
+C      1 record for each value of the size parameter with:
+C        - Size parameter (real),
+C        - Extinction efficiency factor (real),
+C        - Scattering efficiency factor (real),
+C        - Asymmetry factor (double precision),
+C        - Array of the phase function Mie(mu) (real),
+C        - Array of the polarised phase function Qmie(mu) (real),
+C        - Array of the polarised phase function Umie(mu) (real).
 C
-C    --> Les tableaux ont une taille utile limitée à MIE_NBMU : 
-C        ils sont crees et lus avec cette limitation.
+C    --> The arrays have a useful size limited to MIE_NBMU:
+C        they are created and read with this limitation.
 C
 C
-C    -->Contenu du fichier des angles:
-C       Fichier ascii formatte, cree par SOS_ANGLES.
-C       Il contient l'information sur les angles à utiliser 
-C       et sur les ordres des développements adaptes : 
-C		NB_TOTAL_ANGLES :  nb d'angles total à utiliser
-C               NB_GAUSS_ANGLES :  nb d'angles de Gauss
-C               ANGLES_USERFILE :  Nom du fichier des angles utilisateur
-C               INTERNAL_OS_NB :   Ordre des développements des fonctions de phase 
-C				   en Polynomes de Legendre à utiliser.
-C               INDEX COS_ANGLE WEIGHT : lignes donnant le numéro d'angle, son cosinus et son poids
-C                                        au format I4,1X,2D21.14
+C    -->Content of the angle file:
+C       Formatted ascii file, created by SOS_ANGLES.
+C       It contains the information on the angles to be used
+C       and on the adapted expansion orders:
+C		NB_TOTAL_ANGLES :    total nb of angles to be used
+C               NB_GAUSS_ANGLES :  nb of Gauss angles
+C               ANGLES_USERFILE :  Name of the user angles file
+C               INTERNAL_OS_NB :   Order of the expansions of the phase functions
+C		           in Legendre polynomials to be used.
+C               INDEX COS_ANGLE WEIGHT : lines giving the angle number, its cosine and its weight
+C                                        with format I4,1X,2D21.14
 C 
 C
-C    -->Contenu du fichier des fonctions de phase externes:  
-C       Fichier ascii formaté, cree par l'utilisateur.
-C       Le format de ce fichier s'inspire de celui de l'outil DLS d'Oleg Dubovik (LOA)
-C       fournissant les propriétés de diffusion primaire de particules
-C       sphéroides homogènes orientées de facon aléatoire.
-C       Les premières lignes ont dû être adaptées.
+C    -->Content of the file of external phase functions:
+C       Formatted ascii file, created by the user.
+C       The format of this file is inspired by that of the DLS tool of Oleg Dubovik (LOA)
+C       giving the primary scattering properties of homogeneous
+C       randomly oriented spheroid particles.
+C       The first lines had to be adapted.
 C 
-C          1ere ligne : EXTINCTION_COEF : Valeur 
-C              Valeurs : Section efficace d'extinction (micron²)
-C              Format  : Commentaire + séparateur « : » + valeur (réel non formaté)
+C          1st line : EXTINCTION_COEF : Value
+C              Values : Extinction cross section (micron²)
+C              Format  : Comment + separator « : » + value (unformatted real)
 C                
-C          2eme ligne : SCATTERING_COEF : Valeur 
-C              Valeurs : Section efficace de diffusion (micron²)
-C              Format  : Commentaire + séparateur « : » + valeur (réel non formaté)
+C          2nd line : SCATTERING_COEF : Value
+C              Values : Scattering cross section (micron²)
+C              Format  : Comment + separator « : » + value (unformatted real)
 C
-C	  3eme ligne : NB_LINES : nbAng
-C              Valeur : Nombre d'angles décrivant les fonctions de phase.
-C              Format : Commentaire + séparateur « : » + valeur (entier non formaté)
+C	  3rd line : NB_LINES : nbAng
+C              Value : Number of angles describing the phase functions.
+C              Format : Comment + separator « : » + value (unformatted integer)
 C              
-C          4eme ligne : Ligne de commentaire 
+C          4th line : Comment line
 C          
-C          Lignes 5 à 5+nbAng-1
-C               Valeurs : ANGLE  F11  -F12/F11  F22/F1   F33/F11
-C                           ANGLE 	: angle en degrés.
-C                           F11 	: fonction de phase en intensité
-C 			   -F12/F11 	: rapport des fonctions -F12 et F11
-C 			   F22/F11 	: rapport des fonctions F22 et F11
-C 			   F33/F11 	: rapport des fonctions F33 et F11 
+C          Lines 5 to 5+nbAng-1
+C               Values : ANGLE  F11  -F12/F11  F22/F1   F33/F11
+C                           ANGLE 	: angle in degrees.
+C                           F11 	: phase function in intensity
+C 			   -F12/F11 	: ratio of the functions -F12 and F11
+C 			   F22/F11 	: ratio of the functions F22 and F11
+C 			   F33/F11 	: ratio of the functions F33 and F11
 C               ----------------------   ===========================================
-C               NB CONVENTION DE SIGNE : F12 est négative pour la diffusion Rayleigh.
-C                                        = convention des OS
+C               NB SIGN CONVENTION: F12 is negative for Rayleigh scattering.
+C                                        = OS convention
 C               ----------------------   ===========================================
-C 		 Format  : Valeurs réelles, non formatées
+C 		 Format  : Real values, unformatted
 C 
-C          Pas de lecture des lignes suivantes.	
+C          The following lines are not read.
 C
 C 
 C
-C    -->Contenu du fichier de définition d'un mélange de modèles d'aérosols:  
-C       Fichier ascii formaté, créé par l'utilisateur.
+C    -->Content of the file defining a mixture of aerosol models:
+C       Formatted ascii file, created by the user.
 C       
-C          1ere ligne : NUMBER OF AEROSOLS MODES: Valeur 
-C              Valeurs : Nombre de blocs de définition de modes
-C              Format  : Commentaire + séparateur « : » + valeur (entier non formaté)
+C          1st line : NUMBER OF AEROSOLS MODES: Value
+C              Values : Number of blocks of mode definition
+C              Format : Comment + separator « : » + value (unformatted integer)
 C               
-C          Par bloc de données d'un mode: 
-C                 Bloc ligne 1 : SIZE DISTRIBUTION  : Valeur 
-C                 Valeurs : Type de granulomètrie (LND ou JUNGE)
-C                 Format  : Commentaire + séparateur « : » + valeur (chaine de caractères)
+C          Per data block of a mode:
+C                 Block line 1 : SIZE DISTRIBUTION  : Value
+C                 Values : Size distribution type (LND or JUNGE)
+C                 Format  : Comment + separator « : » + value (character string)
 C
-C                 Cas d'une granulométrie LND:
-C	              Bloc ligne 2 : MODAL RADIUS  : Valeur
-C                    Valeur : Rayon modal de la LND  (en microns)
-C                    Format : Commentaire + séparateur « : » + valeur (réel non formaté)
+C                 Case of an LND size distribution:
+C	              Block line 2 : MODAL RADIUS  : Value
+C                    Value : Modal radius of the LND  (in microns)
+C              Format  : Comment + separator « : » + value (unformatted real)
 C              
-C	              Bloc ligne 3 : STANDARD DEVIATION  : Valeur
-C                     Valeur : Variance de la LND (en microns)
-C                     Format : Commentaire + séparateur « : » + valeur (réel non formaté)
+C	              Block line 3 : STANDARD DEVIATION  : Value
+C                     Value : Variance of the LND (in microns)
+C              Format  : Comment + separator « : » + value (unformatted real)
 C  
-C                 Cas d'une granulométrie JUNGE:
-C	               Bloc ligne 2 : SLOPE : Valeur
-C                     Valeur : Pente de la distribution de Junge 
-C                     Format : Commentaire + séparateur « : » + valeur (réel non formaté)
+C                 Case of a JUNGE size distribution:
+C	               Block line 2 : SLOPE : Value
+C                     Value : Slope of the Junge distribution
+C              Format  : Comment + separator « : » + value (unformatted real)
 C              
-C	               Bloc ligne 3 : MIN RADIUS : Valeur
-C                     Valeur : Rayon minimal de la distribution de Junge (en microns)
-C                     Format : Commentaire + séparateur « : » + valeur (réel non formaté)
+C	               Block line 3 : MIN RADIUS : Value
+C                     Value : Minimum radius of the Junge distribution (in microns)
+C              Format  : Comment + separator « : » + value (unformatted real)
 C              
-C	               Bloc ligne 4 : MAX RADIUS : Valeur
-C                     Valeur : Rayon maximal de la distribution de Junge (en microns)
-C                     Format : Commentaire + séparateur « : » + valeur (réel non formaté)                         
+C	               Block line 4 : MAX RADIUS : Value
+C                     Value : Maximum radius of the Junge distribution (in microns)
+C              Format  : Comment + separator « : » + value (unformatted real)
 C    
-C                 Bloc ligne + 1 : REFRACTIVE INDEX at WA_SIMU - Real part  : Valeur 
-C                 Valeurs : Partie réelle de l'indice de réfraction à la longueur d'onde de simulation de la luminance
-C                 Format  : Commentaire + séparateur « : » + valeur (chaine de caractères)
+C                 Block line + 1 : REFRACTIVE INDEX at WA_SIMU - Real part  : Value
+C                 Values : Real part of the refractive index at the radiance simulation wavelength
+C                 Format  : Comment + separator « : » + value (character string)
 C    
-C                 Bloc ligne + 2 : REFRACTIVE INDEX at WA_SIMU - Imaginary part  : Valeur 
-C                 Valeurs : Partie imaginaire (<0) de l'indice de réfraction à la longueur d'onde de simulation de la luminance
-C                 Format  : Commentaire + séparateur « : » + valeur (chaine de caractères)
+C                 Block line + 2 : REFRACTIVE INDEX at WA_SIMU - Imaginary part  : Value
+C                 Values : Imaginary part (<0) of the refractive index at the radiance simulation wavelength
+C                 Format  : Comment + separator « : » + value (character string)
 C    
-C                 Bloc ligne + 3 : REFRACTIVE INDEX at WA_SIMU - Real part  : Valeur 
-C                 Valeurs : Partie réelle de l'indice de réfraction à la longueur d'onde de référence de l'AOT
-C                 Format  : Commentaire + séparateur « : » + valeur (chaine de caractères)
+C                 Block line + 3 : REFRACTIVE INDEX at WA_REF - Real part  : Value
+C                 Values : Real part of the refractive index at the AOT reference wavelength
+C                 Format  : Comment + separator « : » + value (character string)
 C    
-C                 Bloc ligne + 4 : REFRACTIVE INDEX at WA_SIMU - Imaginary part  : Valeur 
-C                 Valeurs : Partie imaginaire (<0) de l'indice de réfraction à la longueur d'onde de référence de l'AOT
-C                 Format  : Commentaire + séparateur « : » + valeur (chaine de caractères)
+C                 Block line + 4 : REFRACTIVE INDEX at WA_REF - Imaginary part  : Value
+C                 Values : Imaginary part (<0) of the refractive index at the AOT reference wavelength
+C                 Format  : Comment + separator « : » + value (character string)
 C    
-C                 Bloc ligne + 5 : PROPORTION TO THE TOTAL AOT at WA_REF  : Valeur 
-C                 Valeurs : Proportion du mode (entre 0 et 1) à la contribution à l'AOT à la longueur d'onde de référence
-C                 Format  : Commentaire + séparateur « : » + valeur (chaine de caractères)
+C                 Block line + 5 : PROPORTION TO THE TOTAL AOT at WA_REF  : Value
+C                 Values : Proportion of the mode (between 0 and 1) in the contribution to the AOT at the reference wavelength
+C                 Format  : Comment + separator « : » + value (character string)
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------        
-C     -Decodage des paramètres incorrect
-C     -Erreur dans un sous-programme
-C     -Erreur a l'ouverture du fichier Trace
-C     -Paramètres non valables
+C     -Incorrect decoding of parameters
+C     -Error in a subroutine
+C     -Error when opening the trace file
+C     -Invalid parameters
 C
-C     Affichage d'un message à l'écran, arret du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C   
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Ce programme fait appel aux routines:
+C  This program calls the routines:
 C     - SOS_NOM_FICMIE
 C     - SOS_MIE
 C     - SOS_INIT_PARAMWMO
@@ -701,294 +701,294 @@ C============================================================================
       
       IMPLICIT NONE
 
-C Constantes AEROSOLS
+C AEROSOLS constants
 C -------------------
 
-      INTEGER CTE_MODALITE	!Valeur max du paramètre modalite 
+      INTEGER CTE_MODALITE	!Max value of the modality parameter
       PARAMETER (CTE_MODALITE=4)
 
-      INTEGER CTE_NB_MODELE	!Nombre de modèles WMO ou Shettle & Fenn possibles.
+      INTEGER CTE_NB_MODELE	!Number of possible WMO or Shettle & Fenn models.
       PARAMETER (CTE_NB_MODELE=4)
 
-      INTEGER CTE_NB_WMO	    !Nombre de types d'aérosols de la WMO utilisés:
+      INTEGER CTE_NB_WMO	    !Number of WMO aerosol types used:
       PARAMETER (CTE_NB_WMO=4)  !DL,WS,OC,SO.
       
-      INTEGER CTE_NB_SF	    !Nombre de types d'aérosols du modèle Shettle & Fenn 
-      PARAMETER (CTE_NB_SF=5)   !utilises:SR,LR,SU,LU,OM.
+      INTEGER CTE_NB_SF	    !Number of aerosol types of the Shettle & Fenn model
+      PARAMETER (CTE_NB_SF=5)   !used: SR,LR,SU,LU,OM.
           
-      INTEGER CTE_NB_AERO	    !Initialisation avec le plus grand nombre de types 
-      PARAMETER (CTE_NB_AERO=5) !d'aérosols (cas Shettle & Fenn).	
+      INTEGER CTE_NB_AERO	    !Initialisation with the largest number of aerosol
+      PARAMETER (CTE_NB_AERO=5) !types (Shettle & Fenn case).
      
 
-C* Definition des variables                         
+C* Definition of variables
 C*-----------------------------------------------------------------
 
 
       DOUBLE PRECISION XMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)  
-                                                  !Cosinus des angles de Gauss (et utilisateur).
+                                                  !Cosines of the Gauss (and user) angles.
       DOUBLE PRECISION XHR(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)  
-                                                  !Poids des angles de Gauss.				
+                                                  !Weights of the Gauss angles.
 
-      DOUBLE PRECISION TA	! Epaisseur optique des aérosols (non tronquée).
+      DOUBLE PRECISION TA	! Aerosol optical thickness (not truncated).
 
-      DOUBLE PRECISION WA	! Longueur d'onde en microns selectionnee.	
+      DOUBLE PRECISION WA	! Selected wavelength in microns.
             						  						  
-      DOUBLE PRECISION C(CTE_NB_WMO)	 !Proportion volumique des constituants WMO
-      DOUBLE PRECISION C_WMO_DL	    	 ! --> Valeur utilisateur pour particule DL
-      DOUBLE PRECISION C_WMO_WS	    	 ! --> Valeur utilisateur pour particule WS
-      DOUBLE PRECISION C_WMO_OC	    	 ! --> Valeur utilisateur pour particule OC
-      DOUBLE PRECISION C_WMO_SO	    	 ! --> Valeur utilisateur pour particule SO
-      DOUBLE PRECISION V(CTE_NB_WMO)	 !Concentration volumique des constituants WMO
+      DOUBLE PRECISION C(CTE_NB_WMO)	 !Volume proportion of the WMO components
+      DOUBLE PRECISION C_WMO_DL	    	 ! --> User value for the DL particles
+      DOUBLE PRECISION C_WMO_WS	    	 ! --> User value for the WS particles
+      DOUBLE PRECISION C_WMO_OC	    	 ! --> User value for the OC particles
+      DOUBLE PRECISION C_WMO_SO	    	 ! --> User value for the SO particles
+      DOUBLE PRECISION V(CTE_NB_WMO)	 !Volume concentration of the WMO components
       DOUBLE PRECISION N(CTE_NB_WMO)	 ! C/V
-      DOUBLE PRECISION NTOT		        ! Somme des coefficients de ponderation 
-                                           ! des composants aérosols.
-      DOUBLE PRECISION ALPHAF_PARTICULE(4) ! Valeur Alpha Max pour chaque
-      					        ! composant de la WMO (DL, WS, OC, SO)
+      DOUBLE PRECISION NTOT		        ! Sum of the weighting coefficients
+                                           ! of the aerosol components.
+      DOUBLE PRECISION ALPHAF_PARTICULE(4) ! Alpha Max value for each
+      					        ! WMO component (DL, WS, OC, SO)
 					   
-      DOUBLE PRECISION Ni(CTE_NB_SF)	 !densite de particules (Shettle & Fenn)					   
-      DOUBLE PRECISION RH                  ! % d'humidite relative des modèles de Shettle & Fenn
+      DOUBLE PRECISION Ni(CTE_NB_SF)	 !particle density (Shettle & Fenn)
+      DOUBLE PRECISION RH                  ! % of relative humidity of the Shettle & Fenn models
 
 
 
- 	!   Modèle mono-mode
+ 	!   Mono-modal model
 	!------------------- 
- 	! Indice de réfraction pour modèle mono-mode     
-      DOUBLE PRECISION RN	! partie réelle de l'indice de réfraction
-      DOUBLE PRECISION IN	! partie imaginaire de l'indice de réfraction
- 	! Paramètres de granulométrie pour modèle mono-mode   
-      DOUBLE PRECISION VARGRANU1_MMD    ! Paramètre 1 de la granulométrie.
-      DOUBLE PRECISION VARGRANU2_MMD    ! Paramètre 2 de la granulométrie.
-      DOUBLE PRECISION VARGRANU3_MMD    ! Paramètre 3 de la granulométrie.
+ 	! Refractive index for the mono-modal model
+      DOUBLE PRECISION RN	! real part of the refractive index
+      DOUBLE PRECISION IN	! imaginary part of the refractive index
+ 	! Size distribution parameters for the mono-modal model
+      DOUBLE PRECISION VARGRANU1_MMD    ! Size distribution parameter 1.
+      DOUBLE PRECISION VARGRANU2_MMD    ! Size distribution parameter 2.
+      DOUBLE PRECISION VARGRANU3_MMD    ! Size distribution parameter 3.
 
 
 
-      DOUBLE PRECISION ALPHAO   ! valeur de alpha minimale des calculs de Mie		
-      DOUBLE PRECISION ALPHAF   ! valeur de alpha maximale des calculs de Mie			
+      DOUBLE PRECISION ALPHAO   ! minimum alpha value of the Mie computations
+      DOUBLE PRECISION ALPHAF   ! maximum alpha value of the Mie computations
 
-      DOUBLE PRECISION SOMME_NR	! nombre de particules : integration sur les rayons de NR * PR.  
+      DOUBLE PRECISION SOMME_NR	! number of particles: integration over the radii of NR * PR.
       
-      DOUBLE PRECISION MR(CTE_NB_AERO)   ! partie réelle de l'indice de réfraction
-      					      ! pour chaque composant d'aérosols
-      DOUBLE PRECISION MI(CTE_NB_AERO)   ! partie imaginaire de l'indice de réfraction.
-      					      ! pour chaque composant d'aérosols.
+      DOUBLE PRECISION MR(CTE_NB_AERO)   ! real part of the refractive index
+      					      ! for each aerosol component
+      DOUBLE PRECISION MI(CTE_NB_AERO)   ! imaginary part of the refractive index.
+      					      ! for each aerosol component.
  
 
 
 
-      DOUBLE PRECISION VARGRANU1I(CTE_NB_AERO)   ! Paramètre 1 de la granulométrie
-      						       ! pour chaque modèle de constituant.
-      DOUBLE PRECISION VARGRANU2I(CTE_NB_AERO)   ! Paramètre 2 de la granulométrie
-      						       ! pour chaque modèle de constituant.      
+      DOUBLE PRECISION VARGRANU1I(CTE_NB_AERO)   ! Size distribution parameter 1
+      						       ! for each component model.
+      DOUBLE PRECISION VARGRANU2I(CTE_NB_AERO)   ! Size distribution parameter 2
+      						       ! for each component model.
 	      				
 
-	!Paramètres pour un modèle bimodal de LND
-      INTEGER*2 MODE_PARAM_BILND   !Indice du choix de description du mélange de 2 LND.
-      DOUBLE PRECISION CVI(2)	!Concentration volumique de la "LND coarse" (1) et 
-      				      	!de la "LND fine" (2)
-      DOUBLE PRECISION USER_CV_COARSE	!Valeur utilisateur de la concentration volumique de la "LND coarse"
-      DOUBLE PRECISION USER_CV_FINE	!Valeur utilisateur de la concentration volumique de la "LND fine"	
-      DOUBLE PRECISION RTAUct_WAREF	!Rapport des épaisseurs optique AOT_coarse / AOT_total 
-      DOUBLE PRECISION WAREF		!Longueur d'onde du rapport AOT_coarse / AOT_total
-      DOUBLE PRECISION TA_WAREF		!Epaisseur optique aérosol totale 
-      					       !pour la longueur d'onde de référence.
+	!Parameters for a bimodal LND model
+      INTEGER*2 MODE_PARAM_BILND   !Index of the choice of description of the mixture of 2 LND.
+      DOUBLE PRECISION CVI(2)	!Volume concentration of the "LND coarse" (1) and
+      				      	!of the "LND fine" (2)
+      DOUBLE PRECISION USER_CV_COARSE	!User value of the volume concentration of the "LND coarse"
+      DOUBLE PRECISION USER_CV_FINE	!User value of the volume concentration of the "LND fine"
+      DOUBLE PRECISION RTAUct_WAREF	!Ratio of the optical thicknesses AOT_coarse / AOT_total
+      DOUBLE PRECISION WAREF		!Wavelength of the ratio AOT_coarse / AOT_total
+      DOUBLE PRECISION TA_WAREF		!Total aerosol optical thickness
+      					       !at the reference wavelength.
 					
-      DOUBLE PRECISION RN_LND(2)	!Partie réelle de l'indice de réfraction de la 
-      					!"LND coarse" (1) et de la "LND fine" (2) pour la longeur d'onde WA.					
-      DOUBLE PRECISION BMD_CM_MRWA	! Valeur lue pour RN_LND(1) : coarse mode
-      DOUBLE PRECISION BMD_FM_MRWA	! Valeur lue pour RN_LND(2) : fine mode    
+      DOUBLE PRECISION RN_LND(2)	!Real part of the refractive index of the
+      					!"LND coarse" (1) and of the "LND fine" (2) at the wavelength WA.
+      DOUBLE PRECISION BMD_CM_MRWA	! Value read for RN_LND(1) : coarse mode
+      DOUBLE PRECISION BMD_FM_MRWA	! Value read for RN_LND(2) : fine mode
        
-      DOUBLE PRECISION IN_LND(2) 	!Partie imaginaire de l'indice de réfraction de la 
-      					!"LND coarse" (1) et de la "LND fine" (2) pour la longeur d'onde WA.					
-      DOUBLE PRECISION BMD_CM_MIWA	! Valeur lue pour IN_LND(1) : coarse mode
-      DOUBLE PRECISION BMD_FM_MIWA	! Valeur lue pour IN_LND(2) : fine mode 
+      DOUBLE PRECISION IN_LND(2) 	!Imaginary part of the refractive index of the
+      					!"LND coarse" (1) and of the "LND fine" (2) at the wavelength WA.
+      DOUBLE PRECISION BMD_CM_MIWA	! Value read for IN_LND(1) : coarse mode
+      DOUBLE PRECISION BMD_FM_MIWA	! Value read for IN_LND(2) : fine mode
       
-      DOUBLE PRECISION RN_LND_WAREF(2)	!Partie réelle de l'indice de réfraction de la 
-      					       !"LND coarse" (1) et de la "LND fine" (2) pour la longueur d'onde WAREF.
-      DOUBLE PRECISION BMD_CM_MRWAREF	! Valeur lue pour RN_LND_WAREF(1) : coarse mode
-      DOUBLE PRECISION BMD_CM_MIWAREF	! Valeur lue pour RN_LND_WAREF(2) : fine mode 
+      DOUBLE PRECISION RN_LND_WAREF(2)	!Real part of the refractive index of the
+      					       !"LND coarse" (1) and of the "LND fine" (2) at the wavelength WAREF.
+      DOUBLE PRECISION BMD_CM_MRWAREF	! Value read for RN_LND_WAREF(1) : coarse mode
+      DOUBLE PRECISION BMD_CM_MIWAREF	! Value read for RN_LND_WAREF(2) : fine mode
       
-      DOUBLE PRECISION IN_LND_WAREF(2) 	!Partie imaginaire de l'indice de réfraction de la 
-      					       !"LND coarse" (1) et de la "LND fine" (2) pour la longueur d'onde WAREF.
-      DOUBLE PRECISION BMD_FM_MRWAREF	! Valeur lue pour IN_LND_WAREF(1) : coarse mode
-      DOUBLE PRECISION BMD_FM_MIWAREF	! Valeur lue pour IN_LND_WAREF(2) : fine mode      
+      DOUBLE PRECISION IN_LND_WAREF(2) 	!Imaginary part of the refractive index of the
+      					       !"LND coarse" (1) and of the "LND fine" (2) at the wavelength WAREF.
+      DOUBLE PRECISION BMD_FM_MRWAREF	! Value read for IN_LND_WAREF(1) : coarse mode
+      DOUBLE PRECISION BMD_FM_MIWAREF	! Value read for IN_LND_WAREF(2) : fine mode
       
-      DOUBLE PRECISION RMODAL_LND(2)  	!Rayon modal des "LND coarse" (1) et "fine" (2).
-      DOUBLE PRECISION BMD_CM_RMODAL	! Valeur lue pour RMODAL_LND(1) : coarse mode
-      DOUBLE PRECISION BMD_FM_RMODAL	! Valeur lue pour RMODAL_LND(2) : fine mode  
+      DOUBLE PRECISION RMODAL_LND(2)  	!Modal radius of the "LND coarse" (1) and "fine" (2).
+      DOUBLE PRECISION BMD_CM_RMODAL	! Value read for RMODAL_LND(1) : coarse mode
+      DOUBLE PRECISION BMD_FM_RMODAL	! Value read for RMODAL_LND(2) : fine mode
       
-      DOUBLE PRECISION VAR_LND(2)	!Variance des "LND coarse" (1) et "fine" (2).
-      DOUBLE PRECISION BMD_CM_VAR	! Valeur lue pour VAR_LND(1) : coarse mode
-      DOUBLE PRECISION BMD_FM_VAR	! Valeur lue pour VAR_LND(2) : fine mode 
+      DOUBLE PRECISION VAR_LND(2)	!Variance of the "LND coarse" (1) and "fine" (2).
+      DOUBLE PRECISION BMD_CM_VAR	! Value read for VAR_LND(1) : coarse mode
+      DOUBLE PRECISION BMD_FM_VAR	! Value read for VAR_LND(2) : fine mode
           
       
-      DOUBLE PRECISION KMAT1c      ! Section efficace d'extinction (micron^2) pour le mode 
-      					! "coarse" a la longueur d'onde WAREF. Non tronqué.
-      DOUBLE PRECISION KMAT1f	! Section efficace d'extinction (micron^2) pour le mode 
-      					! "fine" a la longueur d'onde WAREF. Non tronqué.
+      DOUBLE PRECISION KMAT1c      ! Extinction cross section (micron^2) for the
+      					! "coarse" mode at the wavelength WAREF. Not truncated.
+      DOUBLE PRECISION KMAT1f	! Extinction cross section (micron^2) for the
+      					! "fine" mode at the wavelength WAREF. Not truncated.
    
 
   
-      DOUBLE PRECISION KMAT1I	! Section efficace d'extinction (micron^2)
-      				       ! pour un constituant I. Non tronqué.
-      DOUBLE PRECISION KMAT2I 	! Section efficace de diffusion (micron^2)
-      				       ! pour un constituant I.  Non tronqué.       
-      DOUBLE PRECISION TAUEXTI     ! Epaisseurs optiques d'extinction d'un mode I des aérosols 
-      DOUBLE PRECISION TAUSCAI     ! Epaisseurs optiques de diffusion d'un mode I des aérosols
+      DOUBLE PRECISION KMAT1I	! Extinction cross section (micron^2)
+      				       ! for a component I. Not truncated.
+      DOUBLE PRECISION KMAT2I 	! Scattering cross section (micron^2)
+      				       ! for a component I. Not truncated.
+      DOUBLE PRECISION TAUEXTI     ! Extinction optical thicknesses of an aerosol mode I
+      DOUBLE PRECISION TAUSCAI     ! Scattering optical thicknesses of an aerosol mode I
 
-      DOUBLE PRECISION KMAT1	! Section efficace d'extinction (micron^2). Non tronqué.
-      DOUBLE PRECISION KMAT2 	! Section efficace de diffusion (micron^2). Non tronqué.      
-      DOUBLE PRECISION COEF_TRONCA ! Coefficient de troncature.
-      DOUBLE PRECISION PIZ	       ! Albédo de simple diffusion.
-      DOUBLE PRECISION PIZTR	! Albédo de simple diffusion apres troncature.
+      DOUBLE PRECISION KMAT1	! Extinction cross section (micron^2). Not truncated.
+      DOUBLE PRECISION KMAT2 	! Scattering cross section (micron^2). Not truncated.
+      DOUBLE PRECISION COEF_TRONCA ! Truncation coefficient.
+      DOUBLE PRECISION PIZ	       ! Single scattering albedo.
+      DOUBLE PRECISION PIZTR	! Single scattering albedo after truncation.
       
       
       DOUBLE PRECISION P11I(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Fonction de phase calculée à partir des fonctions de 
-		         !la théorie de MIE pour le constituant I.
+                       !Phase function computed from the functions of
+		         !the MIE theory for the component I.
       DOUBLE PRECISION P12I(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P12 de la matrice de phase pour le constituant I.
+                       !Element P12 of the phase matrix for the component I.
       DOUBLE PRECISION P33I(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P33 de la matrice de phase pour le constituant I.
+                       !Element P33 of the phase matrix for the component I.
       
       DOUBLE PRECISION P11(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Fonction de phase du modèle simule.
+                       !Phase function of the simulated model.
       DOUBLE PRECISION P12(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P12 de la matrice de phase.
+                       !Element P12 of the phase matrix.
       DOUBLE PRECISION P22(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P22 de la matrice de phase.
+                       !Element P22 of the phase matrix.
       DOUBLE PRECISION P33(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P33 de la matrice de phase.
+                       !Element P33 of the phase matrix.
 		       
       DOUBLE PRECISION TTT(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Copie de la fonction de phase (P11) avant troncature.
+                       !Copy of the phase function (P11) before truncation.
      
-      DOUBLE PRECISION Z1	!Valeur de BETA11(0) avant normalisation.
-      DOUBLE PRECISION TETA !Angle de diffusion.
+      DOUBLE PRECISION Z1	!Value of BETA11(0) before normalisation.
+      DOUBLE PRECISION TETA !Scattering angle.
       
                   
-      DOUBLE PRECISION ALP(0:CTE_OS_NB_MAX)	! Paramètres alpha(k).
-      DOUBLE PRECISION BETA11(0:CTE_OS_NB_MAX)	! Paramètres beta11(k).
-      DOUBLE PRECISION BETA22(0:CTE_OS_NB_MAX)	! Paramètres beta22(k).
-      DOUBLE PRECISION GAMMA12(0:CTE_OS_NB_MAX)	! Paramètres gamma12(k).
-      DOUBLE PRECISION ZETA(0:CTE_OS_NB_MAX)	! Paramètres zeta(k).
-      DOUBLE PRECISION DELTA33(0:CTE_OS_NB_MAX)	! Paramètres delta33(k).
+      DOUBLE PRECISION ALP(0:CTE_OS_NB_MAX)	! Parameters alpha(k).
+      DOUBLE PRECISION BETA11(0:CTE_OS_NB_MAX)	! Parameters beta11(k).
+      DOUBLE PRECISION BETA22(0:CTE_OS_NB_MAX)	! Parameters beta22(k).
+      DOUBLE PRECISION GAMMA12(0:CTE_OS_NB_MAX)	! Parameters gamma12(k).
+      DOUBLE PRECISION ZETA(0:CTE_OS_NB_MAX)	! Parameters zeta(k).
+      DOUBLE PRECISION DELTA33(0:CTE_OS_NB_MAX)	! Parameters delta33(k).
      
 	    
-      DOUBLE PRECISION X, RMAX   ! Paramètres pour le calcul de AlphaMax 
-      				     ! selon la taille des particules.
+      DOUBLE PRECISION X, RMAX   ! Parameters for the computation of AlphaMax
+      				     ! according to the particle size.
                
-      DOUBLE PRECISION VAL	! Variable pour la lecture de valeurs inutilisees
+      DOUBLE PRECISION VAL	! Variable to read unused values
       
-      DOUBLE PRECISION ANG_EXT(CTE_MAXNB_ANG_EXT)     ! Table des angles des fonctions de phase externes
-      DOUBLE PRECISION MU_EXT(CTE_MAXNB_ANG_EXT)	     ! Table des cosinus des angles des fonctions de phase externes   
-      DOUBLE PRECISION F11_EXT(CTE_MAXNB_ANG_EXT)     ! Fonction de phase P11 de données externes
-      DOUBLE PRECISION F12_EXT(CTE_MAXNB_ANG_EXT)     ! Fonction de phase P11 de données externes
-      DOUBLE PRECISION F22_EXT(CTE_MAXNB_ANG_EXT)     ! Fonction de phase P11 de données externes
-      DOUBLE PRECISION F33_EXT(CTE_MAXNB_ANG_EXT)     ! Fonction de phase P11 de données externes
-      DOUBLE PRECISION F12sF11_EXT(CTE_MAXNB_ANG_EXT) ! Fonction de phase P12/P11 de données externes
-      DOUBLE PRECISION F22sF11_EXT(CTE_MAXNB_ANG_EXT) ! Fonction de phase P22/P11 de données externes
-      DOUBLE PRECISION F33sF11_EXT(CTE_MAXNB_ANG_EXT) ! Fonction de phase P33/P11 de données externes   
+      DOUBLE PRECISION ANG_EXT(CTE_MAXNB_ANG_EXT)     ! Table of the angles of the external phase functions
+      DOUBLE PRECISION MU_EXT(CTE_MAXNB_ANG_EXT)	     ! Table of the cosines of the angles of the external phase functions
+      DOUBLE PRECISION F11_EXT(CTE_MAXNB_ANG_EXT)     ! Phase function P11 of external data
+      DOUBLE PRECISION F12_EXT(CTE_MAXNB_ANG_EXT)     ! Phase function P11 of external data
+      DOUBLE PRECISION F22_EXT(CTE_MAXNB_ANG_EXT)     ! Phase function P11 of external data
+      DOUBLE PRECISION F33_EXT(CTE_MAXNB_ANG_EXT)     ! Phase function P11 of external data
+      DOUBLE PRECISION F12sF11_EXT(CTE_MAXNB_ANG_EXT) ! Phase function P12/P11 of external data
+      DOUBLE PRECISION F22sF11_EXT(CTE_MAXNB_ANG_EXT) ! Phase function P22/P11 of external data
+      DOUBLE PRECISION F33sF11_EXT(CTE_MAXNB_ANG_EXT) ! Phase function P33/P11 of external data
       
-      INTEGER*2 IMOD	       ! Indice du cas de modélisation des aérosols.
-      INTEGER*2 IMODELE_WMO ! Type du modèle WMO.
-      INTEGER*2 IMODELE_SF  ! Type du modèle Shettle & Fenn.
+      INTEGER*2 IMOD	       ! Index of the aerosol modelling case.
+      INTEGER*2 IMODELE_WMO ! Type of the WMO model.
+      INTEGER*2 IMODELE_SF  ! Type of the Shettle & Fenn model.
 
-      INTEGER*4 NBMU_GAUSS  ! Nombre d'angles de Gauss utilises 
-      INTEGER*4 MIE_NBMU   ! Nombre d'angles effectifs des simulations
-      INTEGER*4 OS_NB   ! Ordre des développements des fonctions de phase 
-			   ! en Polynomes de Legendre.      
-      INTEGER*4 IGRANU	   ! Numéro du modèle de granulométrie
-      INTEGER*4 ITRONC	   ! Option de troncature  (1 pour la realiser). 
-      INTEGER*4 LDIRTMP        ! longueur de la chaine de caractères DIRTMP 
-      INTEGER*4 LDIRS	   ! longueur de la chaine de caractères DIRS
-      INTEGER*4 LFICS	   ! longueur de la chaine de caractères FICS  
-      INTEGER*4 LFICTMP	   ! longueur de la chaine de caractères FICMIE_TMP  
-      INTEGER*4 LFIC           ! longueur de chaine de caractères
-      INTEGER*4 IFIN           ! nb de caractères significatifs d'une chaine           
-      INTEGER*4 LCOM           ! longueur de la chaine de caractères COMMAND     
-      INTEGER*4 I	      ! Indice de tableau 
-      INTEGER*4 J	      ! Indice de tableau 
-      INTEGER*4 K          ! Indice de tableau        
-      INTEGER*4 IER        ! code d'erreur =0 si pas d'erreur, =-1 sinon
-      INTEGER*4 IARGC      ! Type de la fonction IARGC
-      INTEGER*4 NPARAM     ! Numéro du paramètre en entrée (type INTEGER*4 obligatoire pour le f77)
-      INTEGER*4 NB_FICEXT_ANGLES ! Nombre d'angles du fichier de fonctions de phase externe
+      INTEGER*4 NBMU_GAUSS  ! Number of Gauss angles used
+      INTEGER*4 MIE_NBMU   ! Number of actual angles of the simulations
+      INTEGER*4 OS_NB   ! Order of the expansions of the phase functions
+			   ! in Legendre polynomials.
+      INTEGER*4 IGRANU	   ! Number of the size distribution model
+      INTEGER*4 ITRONC	   ! Truncation option (1 to apply it).
+      INTEGER*4 LDIRTMP        ! length of the character string DIRTMP
+      INTEGER*4 LDIRS	   ! length of the character string DIRS
+      INTEGER*4 LFICS	   ! length of the character string FICS
+      INTEGER*4 LFICTMP	   ! length of the character string FICMIE_TMP
+      INTEGER*4 LFIC           ! length of a character string
+      INTEGER*4 IFIN           ! nb of significant characters of a string
+      INTEGER*4 LCOM           ! length of the character string COMMAND
+      INTEGER*4 I	      ! Array index
+      INTEGER*4 J	      ! Array index
+      INTEGER*4 K          ! Array index
+      INTEGER*4 IER        ! error code =0 if no error, =-1 otherwise
+      INTEGER*4 IARGC      ! Type of the function IARGC
+      INTEGER*4 NPARAM     ! Number of the input parameter (type INTEGER*4 mandatory for f77)
+      INTEGER*4 NB_FICEXT_ANGLES ! Number of angles of the external phase function file
   
-      INTEGER*4 NB_MODES_MELANGE   ! Nombre de modes aérosols pour un mélange défini par l'utilisateur
-      INTEGER*4 NMOD			! Numéro d'un mode aérosol
+      INTEGER*4 NB_MODES_MELANGE   ! Number of aerosol modes for a mixture defined by the user
+      INTEGER*4 NMOD			! Number of an aerosol mode
     
-      CHARACTER*CTE_LENDIR DIR_TMP        ! chemin d'acces aux fichiers MIE en cours de génération
-      CHARACTER*CTE_LENDIR DIRS	       ! chemin d'acces au fichier MIE
-      CHARACTER*CTE_LENFIC1 FICS		! nom du fichier MIE 
-      CHARACTER*CTE_LENFIC2 FICMIE	       ! chemin et nom du fichier MIE
-      CHARACTER*CTE_LENFIC2 FICMIE_TMP    ! chemin et nom du fichier MIE en cours de génération
-      CHARACTER*CTE_LENCOM  COMMAND       ! Chaine de commande pour appel système.
-      CHARACTER*CTE_LENFIC2 FICLOGMIE           ! nom du fichier TRACE de MIE  
-      CHARACTER*CTE_LENFIC2 FICLOGGRANU         ! nom du fichier TRACE de GRANU
-      CHARACTER*CTE_LENFIC2 FICGRANU	      ! nom du fichier résultat GRANU  
-      CHARACTER*CTE_LENFIC2 FICANGLES           ! chemin et nom du fichier des angles effectifs    
-      CHARACTER*CTE_LENFIC2 FICANGLES_USER      ! chemin et nom du fichier des angles "utilisateurs"
-      CHARACTER*CTE_LENFIC2 FICEXTDATA          ! chemin et nom du fichier de données externes de fonctions
-      						      ! de phase et paramètres radiatifs (coefficients extinction et
-						      ! diffusion)
+      CHARACTER*CTE_LENDIR DIR_TMP        ! access path to the MIE files being generated
+      CHARACTER*CTE_LENDIR DIRS	       ! access path to the MIE file
+      CHARACTER*CTE_LENFIC1 FICS		! name of the MIE file
+      CHARACTER*CTE_LENFIC2 FICMIE	       ! path and name of the MIE file
+      CHARACTER*CTE_LENFIC2 FICMIE_TMP    ! path and name of the MIE file being generated
+      CHARACTER*CTE_LENCOM  COMMAND       ! Command string for system call.
+      CHARACTER*CTE_LENFIC2 FICLOGMIE           ! name of the MIE TRACE file
+      CHARACTER*CTE_LENFIC2 FICLOGGRANU         ! name of the GRANU TRACE file
+      CHARACTER*CTE_LENFIC2 FICGRANU	      ! name of the GRANU result file
+      CHARACTER*CTE_LENFIC2 FICANGLES           ! path and name of the file of the actual angles
+      CHARACTER*CTE_LENFIC2 FICANGLES_USER      ! path and name of the "user" angles file
+      CHARACTER*CTE_LENFIC2 FICEXTDATA          ! path and name of the external data file of phase
+      						      ! functions and radiative parameters (extinction and
+						      ! scattering coefficients)
  
-      CHARACTER*CTE_LENFIC2 FICMIXTURE_AER      ! chemin et nom du fichier de définition d'un mélange de modèles 
-                                                ! d'aérosols par l'utilisateur  
+      CHARACTER*CTE_LENFIC2 FICMIXTURE_AER      ! path and name of the file defining a mixture of aerosol
+                                                ! models by the user
      
-      CHARACTER*CTE_LENDIR DIRFIC	             ! chemin d'acces au fichier des paramètres des modèles WMO et S&F
-      CHARACTER*CTE_LENFIC2 FICDATAWMO          ! chemin et nom du fichier Data_WMO
+      CHARACTER*CTE_LENDIR DIRFIC	             ! access path to the file of the parameters of the WMO and S&F models
+      CHARACTER*CTE_LENFIC2 FICDATAWMO          ! path and name of the file Data_WMO
       
-      CHARACTER*15 PARTICULE(CTE_NB_AERO)       ! nom des différentes particules de la WMO
-      					             ! ou des modèles S&F	
+      CHARACTER*15 PARTICULE(CTE_NB_AERO)       ! name of the different WMO particles
+      					             ! or of the S&F models
 
-      CHARACTER*LENLINE LIGNE_TEXTE             ! Ligne de caractères pour décodage de paramètres      
-      CHARACTER*1000 CVAL	                    ! Chaine de caractères pour la lecture de valeurs inutilisees
+      CHARACTER*LENLINE LIGNE_TEXTE             ! Character line for decoding parameters
+      CHARACTER*1000 CVAL	                    ! Character string to read unused values
 
-      CHARACTER*10 CMODEL       ! Chaine de caractères précisant le nom d'un mode aérosols (LND ou JUNGE)    
+      CHARACTER*10 CMODEL       ! Character string giving the name of an aerosol mode (LND or JUNGE)
  
-      INTEGER*4 MEL_MODEL_TYPE(CTE_MAX_NB_MODE_MIXTURE)           ! Tableau listant les types de modèles d'un mélange (coef IGRANU)   
-      DOUBLE PRECISION MEL_MODEL_PARAM(CTE_MAX_NB_MODE_MIXTURE,3) ! Tableau listant les paramètres des modèles d'un mélange    
-      DOUBLE PRECISION MEL_MODEL_INDEX_WAREF(CTE_MAX_NB_MODE_MIXTURE,2)  ! Tableau listant les indices de réfraction des modèles d'un mélange à WAREF
-      DOUBLE PRECISION MEL_MODEL_INDEX_WASIMU(CTE_MAX_NB_MODE_MIXTURE,2) ! Tableau listant les indices de réfraction des modèles d'un mélange à WASIMU
-      DOUBLE PRECISION MEL_MODEL_AOT(CTE_MAX_NB_MODE_MIXTURE)     ! Tableau listant les AOT par modèle d'un mélange
-      DOUBLE PRECISION AOT_TAUX					   ! Proportion à l'AOT totale du modèle d'un mélange
-                                                                  ! à la longueur d'onde de référence.
-      DOUBLE PRECISION SOM_TAUX_AOT				   ! Somme des taux des différents modes
-      DOUBLE PRECISION COEF_ALPHA(CTE_MAX_NB_MODE_MIXTURE)        ! Tableau listant les coefficients de pondération alpha par modèle 
-      DOUBLE PRECISION SOM_COEF_ALPHA                             ! Somme des coefficients avant normalisation
-      DOUBLE PRECISION RN_WAREF_LU, IN_WAREF_LU			   ! Indice de réfraction (partie réelle et partie imaginaire)
-                                                                  ! lu dans le fichier utilisateur de définition d'un mélange
-                                                                  ! à la longueur d'onde de référence.
-      DOUBLE PRECISION RN_WASIMU_LU, IN_WASIMU_LU		   ! Idem à la longueur d'onde de simulation des luminances.
+      INTEGER*4 MEL_MODEL_TYPE(CTE_MAX_NB_MODE_MIXTURE)           ! Array listing the model types of a mixture (coef IGRANU)
+      DOUBLE PRECISION MEL_MODEL_PARAM(CTE_MAX_NB_MODE_MIXTURE,3) ! Array listing the parameters of the models of a mixture
+      DOUBLE PRECISION MEL_MODEL_INDEX_WAREF(CTE_MAX_NB_MODE_MIXTURE,2)  ! Array listing the refractive indices of the models of a mixture at WAREF
+      DOUBLE PRECISION MEL_MODEL_INDEX_WASIMU(CTE_MAX_NB_MODE_MIXTURE,2) ! Array listing the refractive indices of the models of a mixture at WASIMU
+      DOUBLE PRECISION MEL_MODEL_AOT(CTE_MAX_NB_MODE_MIXTURE)     ! Array listing the AOT per model of a mixture
+      DOUBLE PRECISION AOT_TAUX					   ! Proportion of the total AOT of the model of a mixture
+                                                                  ! at the reference wavelength.
+      DOUBLE PRECISION SOM_TAUX_AOT				   ! Sum of the rates of the different modes
+      DOUBLE PRECISION COEF_ALPHA(CTE_MAX_NB_MODE_MIXTURE)        ! Array listing the weighting coefficients alpha per model
+      DOUBLE PRECISION SOM_COEF_ALPHA                             ! Sum of the coefficients before normalisation
+      DOUBLE PRECISION RN_WAREF_LU, IN_WAREF_LU			   ! Refractive index (real part and imaginary part)
+                                                                  ! read in the user file defining a mixture
+                                                                  ! at the reference wavelength.
+      DOUBLE PRECISION RN_WASIMU_LU, IN_WASIMU_LU		   ! Same at the radiance simulation wavelength.
 
-      LOGICAL TRACE     ! = vrai,si écriture dans le fichier trace
-      LOGICAL EX	   ! Verifie l'existence d'un fichier
+      LOGICAL TRACE     ! = true if writing in the trace file
+      LOGICAL EX	   ! Checks the existence of a file
 
 
 C*-------------
-C* Traitements                        
+C* Processing
 C*-------------    
  
  
       
-C* Initialisation                     
+C* Initialisation
 C*-----------------------------------------------------------------
       IER=0
 
-C --- Dénomination du fichier de MIE temporaire 
-C     pour sa création dans l'espace de travail avant déplacement 
-C     dans l'espace d'archivage.
+C --- Naming of the temporary MIE file
+C     for its creation in the work space before moving it
+C     to the archive space.
       LDIRTMP = INDEX(DIR_TMP,'/TMP') +3
       FICMIE_TMP=DIR_TMP(1:LDIRTMP)//'/'//"MIE_FILE_BUILDING_TMP"   
       LFICTMP = INDEX(FICMIE_TMP,' ') - 1
 	
-C --- Affectation de la valeur minimale du paramètre de taille 
-C     (passage de la constante en double précision)
+C --- Assignment of the minimum value of the size parameter
+C     (constant converted to double precision)
       ALPHAO = CTE_MIE_ALPHAMIN      
       
       IF ((ALPHAO.LT.1D-4).OR.(ALPHAO.GE.10D-00)) GOTO 1010
      	
-C* Ouverture du fichier Trace 
+C* Opening of the trace file
 C------------------------------------------------------
       IF (FICLOGGRANU.EQ.'NO_LOG_FILE') THEN
 	 TRACE=.FALSE.
@@ -1008,7 +1008,7 @@ C------------------------------------------------------
 	 
       ENDIF
       
-C* Lecture des tables d'angles et de poids utiles aux simulations
+C* Reading of the angle and weight tables used by the simulations
 C* -----------------------------------------------------------------     
       OPEN(UNIT=10,FILE=FICANGLES,STATUS='OLD',ERR=930)
 
@@ -1021,10 +1021,10 @@ C* -----------------------------------------------------------------
       READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) NBMU_GAUSS
       
       READ(10,'(a)',ERR=931)  LIGNE_TEXTE
-      !On ne conserve que la partie après le séparateur ':'
+      !Only the part after the separator ':' is kept
       IFIN=INDEX(LIGNE_TEXTE,':')	
       LIGNE_TEXTE=LIGNE_TEXTE(IFIN+1:LENLINE)	
-      !On recherche la fin de ligne utile ' ' pour réduire la taille de la chaine
+      !Search for the end of the useful line ' ' to reduce the string size
       IFIN=INDEX(LIGNE_TEXTE,' ')
       FICANGLES_USER=LIGNE_TEXTE(1:IFIN)
       
@@ -1079,11 +1079,11 @@ C* -----------------------------------------------------------------
 1000    CONTINUE
 	 WRITE (88,*,ERR=921) " " 
 	 WRITE (88,*,ERR=921) " "  	
-      ENDIF !Fichier Trace	 
+      ENDIF !Trace file
 
 
-C* Récupération du nom du répertoire contenant les fichiers de paramètres WMO 
-C* et Shettle & Fenn
+C* Retrieval of the name of the directory containing the WMO
+C* and Shettle & Fenn parameter files
 C----------------------------------------------------------------------------
       CALL GETENV('SOS_ABS_ROOT',DIRFIC)
       IFIN=INDEX(DIRFIC,' ')
@@ -1096,7 +1096,7 @@ C----------------------------------------------------------------------------
       IFIN=IFIN+4
       IF (IFIN.LE.0) IFIN=CTE_LENDIR
             
-C* Initialisation des proportions de constituants des modèles WMO et Shettle & Fenn
+C* Initialisation of the proportions of the components of the WMO and Shettle & Fenn models
 C----------------------------------------------------------------------------------      
       DO I=1,CTE_NB_WMO
 	  C(I)=0.
@@ -1109,7 +1109,7 @@ C-------------------------------------------------------------------------------
 
       NTOT=0.
             
-C* Initialisation des tableaux de paramètres de la matrice de phase
+C* Initialisation of the arrays of the phase matrix parameters
 C--------------------------------------------------------------------
       DO 101 K=0,OS_NB
          BETA11(K)=0.D+00
@@ -1120,7 +1120,7 @@ C--------------------------------------------------------------------
          ZETA(K)=0.D+00
   101 CONTINUE
 
-C* Initialisation des tableaux de fonction de phase
+C* Initialisation of the phase function arrays
 C--------------------------------------------------
       DO 102 J=-MIE_NBMU,MIE_NBMU
          P11(J)=0.
@@ -1130,26 +1130,26 @@ C--------------------------------------------------
          TTT(J)=0.
   102 CONTINUE
 
-C* Initialisation des sections efficaces d'extinction et de diffusion
+C* Initialisation of the extinction and scattering cross sections
 C--------------------------------------------------------------------
       KMAT1=0.
       KMAT2=0.
                         
-C* Calcul des paramètres de la matrice de phase des aérosols
-C* et de l'albédo de simple diffusion.
+C* Computation of the parameters of the aerosol phase matrix
+C* and of the single scattering albedo.
 C------------------------------------------------------------
-      IF (TA.EQ.0.D+00) THEN	!Pas de calcul sur la granulométrie
+      IF (TA.EQ.0.D+00) THEN	!No computation on the size distribution
       
       	PIZ = 0.D+00
-	GOTO 1111	!Enregistrement du fichier résultat GRANU
+	GOTO 1111	!Recording of the GRANU result file
       
       ENDIF
 
-      !Poursuite des traitements pour TA > 0
+      !Processing goes on for TA > 0
       !=====================================
       
       	
-C* Longueur du nom du répertoire des fichiers de Mie
+C* Length of the name of the directory of the Mie files
 C---------------------------------------------------
       LDIRS = INDEX(DIRS,' ')
       LDIRS = LDIRS - 1
@@ -1157,33 +1157,33 @@ C---------------------------------------------------
       
 
 C ===================
-C* Calcul mono-modal
+C* Mono-modal computation
 C ===================
 
       IF(IMOD.EQ.0) THEN
 	 	 	
       
-C* Valeurs de RN et IN forcées au format F5.3 et F8.5
+C* Values of RN and IN forced to the formats F5.3 and F8.5
 C  -----------------------------------------
 	 RN = DNINT(RN*1000.D+00) / 1000.D+00
 	 IN = -DNINT(-IN*100000.D+00) / 100000.D+00 	 
 
 
-        IF (IGRANU.EQ.1) THEN	! Cas LND
+        IF (IGRANU.EQ.1) THEN	! LND case
 	 
-	     !!!!!IGRANU_MMD_CALL = 1	! Indice LND pour routine OSOAA_GRANU
+	     !!!!!IGRANU_MMD_CALL = 1	! LND index for routine OSOAA_GRANU
 	     
 	     X = VARGRANU2_MMD   
 	     RMAX = VARGRANU1_MMD * DEXP(X*X) *
      &	            DEXP(X*DSQRT(-2.D+00*LOG(CTE_COEF_NRMAX)))
 	     
-	 ELSE	! Cas loi Junge pour aérosols
+	 ELSE	! Junge law case for aerosols
 	 
-	     !!!!!IGRANU_MMD_CALL = 3	! Indice Junge pour aérosols pour OSOAA_GRANU
+	     !!!!!IGRANU_MMD_CALL = 3	! Junge index for aerosols for OSOAA_GRANU
 
 	     RMAX = VARGRANU3_MMD
 	     
-	 ENDIF ! Fin cas IGRANU_MMD = 2
+	 ENDIF ! End of case IGRANU_MMD = 2
 
 
 	 ALPHAF 
@@ -1223,11 +1223,11 @@ C  -----------------------------------------
            WRITE(88,*,ERR=921) "  AlphaF limit : ", ALPHAF
 	    WRITE(88,*,ERR=921) " "	
 	    WRITE(88,*,ERR=921) " "  		
-         ENDIF !Fichier Trace	 
+         ENDIF !Trace file
  
 
      	 
-C* Constitution du nom du fichier MIE
+C* Building of the name of the MIE file
 C  ----------------------------------
 
 	 CALL SOS_NOM_FICMIE(NBMU_GAUSS,FICANGLES_USER,
@@ -1242,11 +1242,11 @@ C  ----------------------------------
      &	    FICMIE(1:LFICS)	
 	 ENDIF	
 	 
-	 !Affichage ecran
+	 !Screen display
 	 WRITE(6,*) "  MIE file : ", FICMIE(1:LFICS)
 
 	 
-C* Si le fichier MIE existe déjà, le programme n'est pas lancé
+C* If the MIE file already exists, the program is not run
 C  -----------------------------------------------------------	 
         INQUIRE(FILE=FICMIE,EXIST=EX)
 	 
@@ -1255,58 +1255,58 @@ C  -----------------------------------------------------------
 	  
 	 ELSE   
       
-C* Calcul du fichier de MIE
+C* Computation of the MIE file
 C  ------------------------ 
             CALL SOS_MIE(MIE_NBMU,XMU,XHR,RN,IN,ALPHAO,ALPHAF,
      &	                 FICMIE_TMP,FICLOGMIE,IER)
-            IF (IER.NE.0) GOTO 993   ! cas d'erreur
+            IF (IER.NE.0) GOTO 993   ! error case
 
             COMMAND='mv '//FICMIE_TMP(1:LFICTMP)//' '//FICMIE(1:LFICS)
-            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+            LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
             LCOM = LCOM + (4+LFICTMP)          
             IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
             INQUIRE(FILE=FICMIE,EXIST=EX)
-            IF (EX) THEN !Si le fichier de MIE existe on détruit le fichier temporaire (généré par autre traitement)
+            IF (EX) THEN !If the MIE file exists, the temporary file (generated by another process) is deleted
                 OPEN(UNIT=3,FILE=FICMIE_TMP,FORM='UNFORMATTED')
                 CLOSE(3,STATUS='DELETE') 
-            ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de MIE
+            ELSE !Otherwise it is moved to the storage space of the MIE files
                CALL SYSTEM(COMMAND)  
             ENDIF
 
         ENDIF
 	 
-C* Calcul des sections efficaces d'extinction et de diffusion 
-C  et des fonctions de phase I, Q, U
+C* Computation of the extinction and scattering cross sections
+C  and of the phase functions I, Q, U
 C  ----------------------------------------------------------          
         CALL SOS_GRANU(FICMIE,IGRANU,VARGRANU1_MMD,
      &                 VARGRANU2_MMD,VARGRANU3_MMD,
      &                 WA,MIE_NBMU,XMU,TRACE,
      &                 KMAT1,KMAT2,SOMME_NR,
      &                 P11,P12,P33,IER)
-        IF (IER.NE.0) GOTO 995   ! cas d'erreur 
+        IF (IER.NE.0) GOTO 995   ! error case
 
-C* Cas de particules sphériques : P22(J) = P11(J)
+C* Case of spherical particles: P22(J) = P11(J)
 C  -----------------------------------------------------
         DO 1021 J=-MIE_NBMU,MIE_NBMU
            P22(J)=P11(J)
  1021   CONTINUE	 
   
-C* Calcul des paramètres alpha, beta, gamma, delta, zeta
-C  avec application ou non de la troncature
+C* Computation of the parameters alpha, beta, gamma, delta, zeta
+C  with or without truncation
 C  -----------------------------------------------------
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,TRACE,MIE_NBMU,XMU,XHR,OS_NB,
      &				      P11,TTT,P12,P22,P33,COEF_TRONCA,Z1,
      &				      ALP,BETA11,BETA22,
      &                            GAMMA12,DELTA33,ZETA,IER)  
-        IF (IER.NE.0) GOTO 996   ! cas d'erreur
+        IF (IER.NE.0) GOTO 996   ! error case
 
-      ENDIF	!Fin test sur Modalite IMOD=0 (Mono-modal)
+      ENDIF	!End of test on modality IMOD=0 (Mono-modal)
 
 
 
 C ====================================================
-C* Calcul multi-modal avec les constituants de la WMO
+C* Multi-modal computation with the WMO components
 C ====================================================
 	    
       IF(IMOD.EQ.1) THEN
@@ -1314,7 +1314,7 @@ C ====================================================
 	 
 C* Initialisation
 C  --------------
-        ! Nom des différentes particules de la WMO
+        ! Name of the different WMO particles
 	 PARTICULE(1)='DUST LIKE'
         PARTICULE(2)='WATER SOLUBLE'
         PARTICULE(3)='OCEANIC'
@@ -1325,45 +1325,45 @@ C  --------------
 	 ALPHAF_PARTICULE(3) = CTE_ALPHAMAX_WMO_OC
 	 ALPHAF_PARTICULE(4) = CTE_ALPHAMAX_WMO_SO
 	 
-	 IGRANU =   1	! distribution Log Normal par defaut
+	 IGRANU =   1	! Log Normal distribution by default
 	    
-C* Initialisation des paramètres de la WMO
+C* Initialisation of the WMO parameters
 C  ---------------------------------------
 	 FICDATAWMO=DIRFIC(1:IFIN)//'/'//CTE_AER_DATAWMO
 
 	 CALL SOS_INIT_PARAMWMO(FICDATAWMO,WA,VARGRANU1I,
      &                          VARGRANU2I,MR,MI,V,IER)
-        IF (IER.NE.0) GOTO 994   ! cas d'erreur 
+        IF (IER.NE.0) GOTO 994   ! error case
 
-C* Definition de la proportion volumique de chaque constituant
-C  pour le modèle selectionné
+C* Definition of the volume proportion of each component
+C  for the selected model
 C  -----------------------------------------------------------	 
-        IF(IMODELE_WMO.EQ.1) THEN	!Modèle Continental
+        IF(IMODELE_WMO.EQ.1) THEN	!Continental model
 	    C(1) = 0.70
 	    C(2) = 0.29
 	    C(4) = 0.01      
 	    
-        ELSE IF(IMODELE_WMO.EQ.2) THEN 	!Modèle Maritime
+        ELSE IF(IMODELE_WMO.EQ.2) THEN 	!Maritime model
 	    C(2) = 0.05
 	    C(3) = 0.95
 	 
-        ELSE IF(IMODELE_WMO.EQ.3) THEN	!Modèle Urbain
+        ELSE IF(IMODELE_WMO.EQ.3) THEN	!Urban model
 	    C(1) = 0.17
 	    C(2) = 0.61
 	    C(4) = 0.22
 	       
-        ELSE IF(IMODELE_WMO.EQ.4) THEN	!Modèle défini par l'utilisateur
+        ELSE IF(IMODELE_WMO.EQ.4) THEN	!Model defined by the user
 	 
-C*          Controle de la récupération des proportions volumiques 
-C*          definies par l'utilisateur
+C*          Check of the retrieval of the volume proportions
+C*          defined by the user
 C           ------------------------------------------------------
 	    
-	    C(1) = C_WMO_DL    !Pourcentage volumique des particules DL
-	    C(2) = C_WMO_WS    !Pourcentage volumique des particules WS
-	    C(3) = C_WMO_OC    !Pourcentage volumique des particules OC
-	    C(4) = C_WMO_SO    !Pourcentage volumique des particules SO	       	    
+	    C(1) = C_WMO_DL    !Volume percentage of the DL particles
+	    C(2) = C_WMO_WS    !Volume percentage of the WS particles
+	    C(3) = C_WMO_OC    !Volume percentage of the OC particles
+	    C(4) = C_WMO_SO    !Volume percentage of the SO particles
 
-        ENDIF	!Fin définition des modèles
+        ENDIF	!End of the definition of the models
 	    
         DO 103 I=1,CTE_NB_WMO	    
             N(I) = C(I)/V(I)
@@ -1395,17 +1395,17 @@ C           ------------------------------------------------------
 	   WRITE (88,*,err=921) "Wavelength in microns : ",WA
 	   WRITE (88,*,ERR=921) " " 
 	   WRITE (88,*,ERR=921) " "  		
-        ENDIF !Fichier Trace
+        ENDIF !Trace file
       
       
 
-C* Pour chaque type d'aérosols de la WMO
+C* For each WMO aerosol type
 C  -------------------------------------	       
         DO 105 I=1,CTE_NB_WMO
 	    
 	    IF(C(I).EQ.0.) GOTO 105
 		
-C* Constitution du nom du fichier MIE
+C* Building of the name of the MIE file
 C  ----------------------------------
 	    ALPHAF = ALPHAF_PARTICULE(I)
 
@@ -1419,10 +1419,10 @@ C  ----------------------------------
      &	       FICMIE(1:LFICS)	
 	    ENDIF	
 	 
-	    !Affichage ecran
+	    !Screen display
 	    WRITE(6,*) "  MIE file : ", FICMIE(1:LFICS)
 	    
-C* Si le fichier MIE existe déjà, le programme n'est pas lance
+C* If the MIE file already exists, the program is not run
 C  -----------------------------------------------------------		              
            INQUIRE(FILE=FICMIE,EXIST=EX)
 	    
@@ -1431,30 +1431,30 @@ C  -----------------------------------------------------------
 	  
 	    ELSE   
       
-C* Calcul du fichier de MIE
+C* Computation of the MIE file
 C  ------------------------ 
               CALL SOS_MIE(MIE_NBMU,XMU,XHR,MR(I),MI(I),ALPHAO,ALPHAF,
      &                      FICMIE_TMP,FICLOGMIE,IER)
-    	       IF (IER.NE.0) GOTO 993   ! cas d'erreur
+    	       IF (IER.NE.0) GOTO 993   ! error case
                
               COMMAND=
      &        'mv '//FICMIE_TMP(1:LFICTMP)//' '//FICMIE(1:LFICS)
-              LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+              LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
               LCOM = LCOM + (4+LFICTMP)
               IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
               
               INQUIRE(FILE=FICMIE,EXIST=EX)
-              IF (EX) THEN !Si le fichier de MIE existe on détruit le fichier temporaire (généré par autre traitement)
+              IF (EX) THEN !If the MIE file exists, the temporary file (generated by another process) is deleted
                  OPEN(UNIT=3,FILE=FICMIE_TMP,FORM='UNFORMATTED')
                  CLOSE(3,STATUS='DELETE') 
-              ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de MIE
+              ELSE !Otherwise it is moved to the storage space of the MIE files
                  CALL SYSTEM(COMMAND)  
               ENDIF
    
            ENDIF
 	 
-C* Calcul des sections efficaces d'extinction et de diffusion 
-C  et des fonctions de phase I, Q, U du constituant I
+C* Computation of the extinction and scattering cross sections
+C  and of the phase functions I, Q, U of the component I
 C  ---------------------------------------------------------- 
 	    IF (TRACE) THEN
 	       WRITE(88,*,err=921) PARTICULE(I)
@@ -1466,10 +1466,10 @@ C  ----------------------------------------------------------
      &                    VARGRANU2I(I),CTE_NOT_DEFINED_VALUE_DBLE,
      &                    WA,MIE_NBMU,XMU,TRACE,
      &			     KMAT1I,KMAT2I,SOMME_NR,P11I,P12I,P33I,IER)
-           IF (IER.NE.0) GOTO 995   ! cas d'erreur  
+           IF (IER.NE.0) GOTO 995   ! error case
 	    
 
-C* Calcul des sections efficaces d'extinction et de diffusion du mélange
+C* Computation of the extinction and scattering cross sections of the mixture
 C  ---------------------------------------------------------------------	     
 	    KMAT1 = KMAT1 + (N(I)/NTOT)*KMAT1I
 	    KMAT2 = KMAT2 + (N(I)/NTOT)*KMAT2I
@@ -1478,12 +1478,12 @@ C  ---------------------------------------------------------------------
 	       P11(J) = P11(J) + (N(I)/NTOT)*P11I(J)*KMAT2I
 	       P12(J) = P12(J) + (N(I)/NTOT)*P12I(J)*KMAT2I
 	       P33(J) = P33(J) + (N(I)/NTOT)*P33I(J)*KMAT2I
-  104	    CONTINUE  !Fin boucle sur les angles de gauss
+  104	    CONTINUE  !End of loop on the Gauss angles
     
-  105	 CONTINUE	 !Fin boucle sur les constituants de la WMO
+  105	 CONTINUE	 !End of loop on the WMO components
 
 
-C* Normalisation des fonctions de phase du mélange
+C* Normalisation of the phase functions of the mixture
 C  -----------------------------------------------	    
 	 DO 106 J=-MIE_NBMU,MIE_NBMU   
 	    P11(J) = P11(J) / KMAT2
@@ -1491,67 +1491,67 @@ C  -----------------------------------------------
 	    P33(J) = P33(J) / KMAT2
   106	 CONTINUE
 
-C* Cas de particules sphériques : P22(J) = P11(J)
+C* Case of spherical particles: P22(J) = P11(J)
 C  -----------------------------------------------------
         DO 1022 J=-MIE_NBMU,MIE_NBMU
            P22(J)=P11(J)
  1022   CONTINUE	 
  
-C* Calcul des paramètres alpha, beta, gamma, delta, zeta
-C  avec application ou non de la troncature
+C* Computation of the parameters alpha, beta, gamma, delta, zeta
+C  with or without truncation
 C  -----------------------------------------------------  
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,TRACE,MIE_NBMU,XMU,XHR,OS_NB,
      &				      P11,TTT,P12,P22,P33,COEF_TRONCA,Z1,
      &				      ALP,BETA11,BETA22,
      &                            GAMMA12,DELTA33,ZETA,IER)  
-        IF (IER.NE.0) GOTO 996   ! cas d'erreur
+        IF (IER.NE.0) GOTO 996   ! error case
 
 
-      ENDIF	!Fin test sur Modalite IMOD=1 (WMO) 
+      ENDIF	!End of test on modality IMOD=1 (WMO)
   
        
 C =====================================================================
-C* Calcul bi-modal avec les constituants du modèle Shettle & Fenn (S&F)
+C* Bi-modal computation with the components of the Shettle & Fenn (S&F) model
 C =====================================================================
       
       IF(IMOD.EQ.2) THEN
       	 
 C* Initialisation
 C  --------------
-         ! Nom des différentes particules du modèle S&F
+         ! Name of the different particles of the S&F model
 	  PARTICULE(1)='SMALL_RURAL'
          PARTICULE(2)='LARGE RURAL'
          PARTICULE(3)='SMALL_URBAN'
          PARTICULE(4)='LARGE_URBAN'
 	  PARTICULE(5)='OCEANIC_MODEL'
 
-	  IGRANU =   1	! distribution Log Normal par defaut
+	  IGRANU =   1	! Log Normal distribution by default
 	    
-C* Initialisation des paramètres du modèle S&F
+C* Initialisation of the parameters of the S&F model
 C  -------------------------------------------
 	  CALL SOS_INIT_PARAMSF(DIRFIC,WA,RH,VARGRANU1I,
      &                         VARGRANU2I,MR,MI,IER)
-         IF (IER.NE.0) GOTO 997   ! cas d'erreur 
+         IF (IER.NE.0) GOTO 997   ! error case
 
-C* Definition de la densite de chaque constituant pour le 
-C  modèle selectionne
+C* Definition of the density of each component for the
+C  selected model
 C  -----------------------------------------------------------	 
-         IF(IMODELE_SF.EQ.1) THEN		!Modèle Tropospherique
+         IF(IMODELE_SF.EQ.1) THEN		!Tropospheric model
 	    Ni(1) = 1.0     
 	    
-         ELSE IF(IMODELE_SF.EQ.2) THEN 	!Modèle Urbain
+         ELSE IF(IMODELE_SF.EQ.2) THEN 	!Urban model
 	    Ni(3) = 0.999875
 	    Ni(4) = 0.000125
 	 
-         ELSE IF(IMODELE_SF.EQ.3) THEN	!Modèle Maritime
+         ELSE IF(IMODELE_SF.EQ.3) THEN	!Maritime model
 	    Ni(1) = 0.99
 	    Ni(5) = 0.01
 	       
-         ELSE IF(IMODELE_SF.EQ.4) THEN	!Modèle cotier
+         ELSE IF(IMODELE_SF.EQ.4) THEN	!Coastal model
 	    Ni(1) = 0.995
 	    Ni(5) = 0.005
 	       
-         ENDIF	!Fin definition des modèles S&F
+         ENDIF	!End of the definition of the S&F models
 
 
       IF (TRACE) THEN
@@ -1572,16 +1572,16 @@ C  -----------------------------------------------------------
 	 WRITE (88,*,err=921) "Wavelength in microns : ",WA 
 	 WRITE (88,*,ERR=921) " "   
 	 WRITE (88,*,ERR=921) " "		
-      ENDIF !Fichier Trace
+      ENDIF !Trace file
 
       
-C* Pour chaque type d'aérosols du modèle S&F
+C* For each aerosol type of the S&F model
 C  ----------------------------------------     
 	 DO 109 I=1,CTE_NB_SF
 	    
 	    IF(Ni(I).EQ.0.) GOTO 109
 		
-C* Constitution du nom du fichier MIE
+C* Building of the name of the MIE file
 C  ----------------------------------	   
            IF (I.EQ.1) ALPHAF = CTE_ALPHAMAX_SF_SR
 	    IF (I.EQ.3) ALPHAF = CTE_ALPHAMAX_SF_SU
@@ -1606,10 +1606,10 @@ C  ----------------------------------
      &	       FICMIE(1:LFICS)	
 	    ENDIF	
 	 
-	    !Affichage ecran
+	    !Screen display
 	    WRITE(6,*) "  MIE file : ", FICMIE(1:LFICS)
 	    
-C* Si le fichier MIE existe déjà, le programme n'est pas lancé
+C* If the MIE file already exists, the program is not run
 C  -----------------------------------------------------------           	              
            INQUIRE(FILE=FICMIE,EXIST=EX)
 	    
@@ -1618,31 +1618,31 @@ C  -----------------------------------------------------------
 	  
 	    ELSE   
       
-C* Calcul du fichier de MIE
+C* Computation of the MIE file
 C  ------------------------ 
               CALL SOS_MIE(MIE_NBMU,XMU,XHR,
      &	                    MR(I),MI(I),ALPHAO,ALPHAF,
      &                     FICMIE_TMP,FICLOGMIE,IER)
-     	       IF (IER.NE.0) GOTO 993   ! cas d'erreur
+     	       IF (IER.NE.0) GOTO 993   ! error case
        
               COMMAND=
      &        'mv '//FICMIE_TMP(1:LFICTMP)//' '//FICMIE(1:LFICS)
-              LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+              LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
               LCOM = LCOM + (4+LFICTMP)
               IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
               INQUIRE(FILE=FICMIE,EXIST=EX)
-              IF (EX) THEN !Si le fichier de MIE existe on détruit le fichier temporaire (généré par autre traitement)
+              IF (EX) THEN !If the MIE file exists, the temporary file (generated by another process) is deleted
                  OPEN(UNIT=3,FILE=FICMIE_TMP,FORM='UNFORMATTED')
                  CLOSE(3,STATUS='DELETE') 
-              ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de MIE
+              ELSE !Otherwise it is moved to the storage space of the MIE files
                  CALL SYSTEM(COMMAND)  
               ENDIF
 
             ENDIF
 	 
-C* Calcul des sections efficaces d'extinction et de diffusion 
-C  et des fonctions de phase I, Q, U du constituant I
+C* Computation of the extinction and scattering cross sections
+C  and of the phase functions I, Q, U of the component I
 C  ---------------------------------------------------------- 
 	    IF (TRACE) THEN
 	       WRITE(88,*,err=921) PARTICULE(I)
@@ -1659,9 +1659,9 @@ C  ----------------------------------------------------------
      &                    VARGRANU2I(I),CTE_NOT_DEFINED_VALUE_DBLE,
      &                    WA,MIE_NBMU,XMU,TRACE,
      &			     KMAT1I,KMAT2I,SOMME_NR,P11I,P12I,P33I,IER)
-           IF (IER.NE.0) GOTO 995   ! cas d'erreur  
+           IF (IER.NE.0) GOTO 995   ! error case
 	     
-C* Calcul des sections efficaces d'extinction et de diffusion du mélange
+C* Computation of the extinction and scattering cross sections of the mixture
 C  ---------------------------------------------------------------------
 	    KMAT1 = KMAT1 + Ni(I)*KMAT1I
 	    KMAT2 = KMAT2 + Ni(I)*KMAT2I
@@ -1670,12 +1670,12 @@ C  ---------------------------------------------------------------------
 	       P11(J) = P11(J) + Ni(I)*P11I(J)*KMAT2I
 	       P12(J) = P12(J) + Ni(I)*P12I(J)*KMAT2I
 	       P33(J) = P33(J) + Ni(I)*P33I(J)*KMAT2I
-  108	    CONTINUE  !Fin boucle sur les angles de gauss
+  108	    CONTINUE  !End of loop on the Gauss angles
     
-  109	 CONTINUE	 !Fin boucle sur les constituants du modèle Shettle et Fenn
+  109	 CONTINUE	 !End of loop on the components of the Shettle and Fenn model
 	    
 
-C* Normalisation des fonctions de phase du mélange
+C* Normalisation of the phase functions of the mixture
 C  -----------------------------------------------
 	 DO 110 J=-MIE_NBMU,MIE_NBMU   
 	    P11(J) = P11(J) / KMAT2
@@ -1683,67 +1683,67 @@ C  -----------------------------------------------
 	    P33(J) = P33(J) / KMAT2
   110	 CONTINUE
 
-C* Cas de particules sphériques : P22(J) = P11(J)
+C* Case of spherical particles: P22(J) = P11(J)
 C  -----------------------------------------------------
         DO 1023 J=-MIE_NBMU,MIE_NBMU
            P22(J)=P11(J)
  1023   CONTINUE	 
  
-C* Calcul des paramètres alpha, beta, gamma, delta, zeta
-C  avec application ou non de la troncature
+C* Computation of the parameters alpha, beta, gamma, delta, zeta
+C  with or without truncation
 C  -----------------------------------------------------  
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,TRACE,MIE_NBMU,XMU,XHR,OS_NB,
      &				      P11,TTT,P12,P22,P33,COEF_TRONCA,Z1,
      &				      ALP,BETA11,BETA22,
      &                            GAMMA12,DELTA33,ZETA,IER)  
-        IF (IER.NE.0) GOTO 996   ! cas d'erreur	 
+        IF (IER.NE.0) GOTO 996   ! error case
 
       	 
-      ENDIF	!Fin test sur Modalite IMOD=2 (Shettle&Fenn) 
+      ENDIF	!End of test on modality IMOD=2 (Shettle&Fenn)
 
 
 
 C =====================================================================
-C* Calcul des proprietes radiatives d'une granulométrie LND bimodale
+C* Computation of the radiative properties of a bimodal LND size distribution
 C =====================================================================
       
       IF(IMOD.EQ.3) THEN
 	
       
-C*       Récupération de l'information de la description du mélange
+C*       Retrieval of the information on the description of the mixture
 C        ----------------------------------------------------------      
-C        Utilisation des concentrations volumiques de l'utilisateur
-C         --> Controle que les paramètres utilisateurs sont renseignés pour l'option
+C        Use of the user volume concentrations
+C         --> Check that the user parameters are given for the option
          IF (MODE_PARAM_BILND.EQ.1) THEN 
 	         
-	     CVI(1) = USER_CV_COARSE !mode "coarse"		 
-	     CVI(2) = USER_CV_FINE   !mode "fine"
+	     CVI(1) = USER_CV_COARSE !"coarse" mode
+	     CVI(2) = USER_CV_FINE   !"fine" mode
 	  
          ENDIF
        	    
-C*       Récupération de l'information d'indice et granulométrie des 2 LND
+C*       Retrieval of the refractive index and size distribution information of the 2 LND
 C        -----------------------------------------------------------------         	 
       
-         RN_LND(1) = BMD_CM_MRWA  !mode "coarse"
-         RN_LND(2) = BMD_FM_MRWA  !mode "fine"
+         RN_LND(1) = BMD_CM_MRWA  !"coarse" mode
+         RN_LND(2) = BMD_FM_MRWA  !"fine" mode
       
-         IN_LND(1) = BMD_CM_MIWA  !mode "coarse"
-         IN_LND(2) = BMD_FM_MIWA  !mode "fine"
+         IN_LND(1) = BMD_CM_MIWA  !"coarse" mode
+         IN_LND(2) = BMD_FM_MIWA  !"fine" mode
       
-         RMODAL_LND(1) = BMD_CM_RMODAL  !mode "coarse"
-         RMODAL_LND(2) = BMD_FM_RMODAL  !mode "fine"
+         RMODAL_LND(1) = BMD_CM_RMODAL  !"coarse" mode
+         RMODAL_LND(2) = BMD_FM_RMODAL  !"fine" mode
       
-         VAR_LND(1) = BMD_CM_VAR  !mode "coarse"
-         VAR_LND(2) = BMD_FM_VAR  !mode "fine"
+         VAR_LND(1) = BMD_CM_VAR  !"coarse" mode
+         VAR_LND(2) = BMD_FM_VAR  !"fine" mode
       
       
          IF (MODE_PARAM_BILND.EQ.2) THEN 
 	  
-	    RN_LND_WAREF(1) = BMD_CM_MRWAREF !mode "coarse"
-	    RN_LND_WAREF(2) = BMD_FM_MRWAREF !mode "fine"
+	    RN_LND_WAREF(1) = BMD_CM_MRWAREF !"coarse" mode
+	    RN_LND_WAREF(2) = BMD_FM_MRWAREF !"fine" mode
 	  
-	    IN_LND_WAREF(1) = BMD_CM_MIWAREF !mode "coarse"
-	    IN_LND_WAREF(2) = BMD_FM_MIWAREF !mode "fine"
+	    IN_LND_WAREF(1) = BMD_CM_MIWAREF !"coarse" mode
+	    IN_LND_WAREF(2) = BMD_FM_MIWAREF !"fine" mode
 	    
          ENDIF
  
@@ -1751,11 +1751,11 @@ C        -----------------------------------------------------------------
 
          DO 111 I=1,2
 	 
-C* Controle le signe de l'argument IN
+C* Check of the sign of the argument IN
 C  -----------------------------------------
 	    IF (IN_LND(I).GT.0.D+00) GOTO 10100	 
 
-C* Valeurs de RN et IN forcées au format F5.3 et F8.5
+C* Values of RN and IN forced to the formats F5.3 and F8.5
 C  -----------------------------------------
 	    RN_LND(I) = DNINT(RN_LND(I)*1000.D+00) / 1000.D+00
 	    IN_LND(I) = -DNINT(-IN_LND(I)*100000.D+00) / 100000.D+00 
@@ -1830,20 +1830,20 @@ C  -----------------------------------------
 	       WRITE(88,*,ERR=921) " "
 	    ENDIF  	        	    
 	 
-         ENDIF !Fichier Trace	
+         ENDIF !Trace file
       	    
 	 
  
 C* Initialisation
 C  --------------
- 	  IGRANU =   1	! distribution Log Normal par defaut
+ 	  IGRANU =   1	! Log Normal distribution by default
 
 
-C* Calcul des coefficients CVI pour une expression du
-C  mélange en AOT_coarse / AOT_totale
+C* Computation of the coefficients CVI for an expression of the
+C  mixture as AOT_coarse / AOT_total
 C  --------------------------------------------------
          IF (MODE_PARAM_BILND.EQ.2) THEN
-	    !Utilisation du rapport AOT_coarse / AOT_totale
+	    !Use of the ratio AOT_coarse / AOT_total
  
 	    IF (TRACE) THEN
 	       WRITE (88,*,ERR=921) " "
@@ -1854,11 +1854,11 @@ C  --------------------------------------------------
                WRITE (88,*,ERR=921) "  "
 	    ENDIF
 	    
-C* Pour chacun des deux modes (1 : coarse, 2 : fine)
+C* For each of the two modes (1 : coarse, 2 : fine)
 C  -------------------------------------------------  
            DO 114 I=1,2  
 		
-C* Constitution du nom du fichier MIE (pour WAREF)
+C* Building of the name of the MIE file (for WAREF)
 C  -----------------------------------------------	               
 	       X = VAR_LND(I)  
 	       RMAX = RMODAL_LND(I) * DEXP(X*X) *
@@ -1880,10 +1880,10 @@ C  -----------------------------------------------
      &	          FICMIE(1:LFICS)	
 	       ENDIF	
 	 
-	       !Affichage ecran
+	       !Screen display
 	       WRITE(6,*) "  MIE file : ", FICMIE(1:LFICS)
 	    
-C* Si le fichier MIE existe déjà, le programme n'est pas lancé
+C* If the MIE file already exists, the program is not run
 C  -----------------------------------------------------------           	              
               INQUIRE(FILE=FICMIE,EXIST=EX)
 	    
@@ -1892,32 +1892,32 @@ C  -----------------------------------------------------------
 	  
 	       ELSE   
       
-C* Calcul du fichier de MIE (pour WAREF)
+C* Computation of the MIE file (for WAREF)
 C  ------------------------------------ 
                  CALL SOS_MIE(MIE_NBMU,XMU,XHR,
      &		                RN_LND_WAREF(I),IN_LND_WAREF(I),
      &                        ALPHAO,ALPHAF,
      &                        FICMIE_TMP,FICLOGMIE,IER)
-     	          IF (IER.NE.0) GOTO 993   ! cas d'erreur
+     	          IF (IER.NE.0) GOTO 993   ! error case
 
                  COMMAND=
      &           'mv '//FICMIE_TMP(1:LFICTMP)//' '//FICMIE(1:LFICS)
-                 LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+                 LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
                  LCOM = LCOM + (4+LFICTMP)
                  IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
                  INQUIRE(FILE=FICMIE,EXIST=EX)
-                 IF (EX) THEN !Si le fichier de MIE existe on détruit le fichier temporaire (généré par autre traitement)
+                 IF (EX) THEN !If the MIE file exists, the temporary file (generated by another process) is deleted
                     OPEN(UNIT=3,FILE=FICMIE_TMP,FORM='UNFORMATTED')
                     CLOSE(3,STATUS='DELETE') 
-                 ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de MIE
+                 ELSE !Otherwise it is moved to the storage space of the MIE files
                     CALL SYSTEM(COMMAND)  
                  ENDIF
          
               ENDIF
 	 
-C* Calcul des sections efficaces d'extinction et de diffusion 
-C  et des fonctions de phase I, Q, U du constituant I pour WAREF
+C* Computation of the extinction and scattering cross sections
+C  and of the phase functions I, Q, U of the component I for WAREF
 C  ------------------------------------------------------------- 
             
 	       IF (TRACE) THEN
@@ -1941,18 +1941,18 @@ C  -------------------------------------------------------------
      &                    VAR_LND(I),CTE_NOT_DEFINED_VALUE_DBLE,
      &                    WAREF,MIE_NBMU,XMU,TRACE,
      &			     KMAT1I,KMAT2I,SOMME_NR,P11I,P12I,P33I,IER)
-              IF (IER.NE.0) GOTO 995   ! cas d'erreur  
+              IF (IER.NE.0) GOTO 995   ! error case
 
     	     
-C* Stockage des coefficients d'extinction de chaque mode
+C* Storage of the extinction coefficients of each mode
 C  ---------------------------------------------------------------
-	       IF (I.EQ.1)  KMAT1c = KMAT1I	!mode coarse
-	       IF (I.EQ.2)  KMAT1f = KMAT1I	!mode fine
+	       IF (I.EQ.1)  KMAT1c = KMAT1I	!coarse mode
+	       IF (I.EQ.2)  KMAT1f = KMAT1I	!fine mode
       	    	        
-  114	    CONTINUE	 !Fin boucle sur les mode coarse et fine de la LND bimodale
+  114	    CONTINUE	 !End of loop on the coarse and fine modes of the bimodal LND
 
 
-C* Calcul des coefficients CVI de chaque mode
+C* Computation of the coefficients CVI of each mode
 C  ---------------------------------------------------------------
            CVI(1)=   (RTAUct_WAREF * TA_WAREF) / KMAT1c
 	    CVI(2)=   ( (1.-RTAUct_WAREF)*TA_WAREF) / KMAT1f
@@ -1967,10 +1967,10 @@ C  ---------------------------------------------------------------
 	       WRITE(88,*,err=921) ' '   
 	    ENDIF
 			    
-	  ENDIF !Fin test si utilisation du rapport AOT_coarse / AOT_tot
+	  ENDIF !End of test on the use of the ratio AOT_coarse / AOT_tot
 
 		
-C* Normalisation à 1 de la somme des coefficients CVI de chaque mode
+C* Normalisation to 1 of the sum of the coefficients CVI of each mode
 C  -----------------------------------------------------------------
          NTOT = CVI(1) + CVI(2)
 	  CVI(1) = CVI(1) / NTOT
@@ -1990,14 +1990,14 @@ C  -----------------------------------------------------------------
             WRITE (88,*,ERR=921) "  "
 	  ENDIF
 	    
-C* Pour chacun des deux modes (1 : coarse, 2 : fine)
+C* For each of the two modes (1 : coarse, 2 : fine)
 C  ------------------------------------------------- 
 	        
 	  DO 112 I=1,2
 	    	    
 	    IF(CVI(I).EQ.0.) GOTO 112
 		
-C* Constitution du nom du fichier MIE (pour la longueur d'onde de simulation)
+C* Building of the name of the MIE file (for the simulation wavelength)
 C  ----------------------------------	               
 	    X = VAR_LND(I)   
 	    RMAX = RMODAL_LND(I) * DEXP(X*X) *
@@ -2018,10 +2018,10 @@ C  ----------------------------------
      &	        FICMIE(1:LFICS)	
 	    ENDIF	
 	 
-	    !Affichage ecran
+	    !Screen display
 	    WRITE(6,*) "  MIE file : ", FICMIE(1:LFICS)
 	    
-C* Si le fichier MIE existe déjà, le programme n'est pas lancé
+C* If the MIE file already exists, the program is not run
 C  -----------------------------------------------------------           	              
            INQUIRE(FILE=FICMIE,EXIST=EX)
 	    
@@ -2030,32 +2030,32 @@ C  -----------------------------------------------------------
 	  
 	    ELSE   
       
-C* Calcul du fichier de MIE  (pour la longueur d'onde de simulation)
+C* Computation of the MIE file (for the simulation wavelength)
 C  ------------------------ 
               CALL SOS_MIE(MIE_NBMU,XMU,XHR,
      &                     RN_LND(I),IN_LND(I),ALPHAO,ALPHAF,
      &                     FICMIE_TMP,FICLOGMIE,IER)
-     	       IF (IER.NE.0) GOTO 993   ! cas d'erreur
+     	       IF (IER.NE.0) GOTO 993   ! error case
  
               COMMAND=
      &        'mv '//FICMIE_TMP(1:LFICTMP)//' '//FICMIE(1:LFICS)
-              LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !On positionne la recherche après le dernier espace vide du début de chaine
+              LCOM = INDEX(COMMAND((5+LFICTMP):CTE_LENCOM),' ')   !The search starts after the last blank at the beginning of the string
               LCOM = LCOM + (4+LFICTMP)
               IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
               INQUIRE(FILE=FICMIE,EXIST=EX)
-              IF (EX) THEN !Si le fichier de MIE existe on détruit le fichier temporaire (généré par autre traitement)
+              IF (EX) THEN !If the MIE file exists, the temporary file (generated by another process) is deleted
                  OPEN(UNIT=3,FILE=FICMIE_TMP,FORM='UNFORMATTED')
                  CLOSE(3,STATUS='DELETE') 
-              ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de MIE
+              ELSE !Otherwise it is moved to the storage space of the MIE files
                  CALL SYSTEM(COMMAND)  
               ENDIF
         
            ENDIF
 	 
-C* Calcul des sections efficaces d'extinction et de diffusion 
-C  et des fonctions de phase I, Q, U du constituant I
-C   (pour la longueur d'onde de simulation)
+C* Computation of the extinction and scattering cross sections
+C  and of the phase functions I, Q, U of the component I
+C   (for the simulation wavelength)
 C  ---------------------------------------------------------- 
 	    IF (TRACE) THEN
 	       IF (I.EQ.1) THEN
@@ -2078,10 +2078,10 @@ C  ----------------------------------------------------------
      &                    VAR_LND(I),CTE_NOT_DEFINED_VALUE_DBLE,
      &                    WA,MIE_NBMU,XMU,TRACE,
      &			     KMAT1I,KMAT2I,SOMME_NR,P11I,P12I,P33I,IER)
-           IF (IER.NE.0) GOTO 995   ! cas d'erreur  
+           IF (IER.NE.0) GOTO 995   ! error case
 
 		 
-C* Calcul des coefficients d'extinction et de diffusion du mélange
+C* Computation of the extinction and scattering coefficients of the mixture
 C  ---------------------------------------------------------------
 	    KMAT1 = KMAT1 + CVI(I)*KMAT1I
 	    KMAT2 = KMAT2 + CVI(I)*KMAT2I
@@ -2090,13 +2090,13 @@ C  ---------------------------------------------------------------
 	       P11(J) = P11(J) + CVI(I)*P11I(J)*KMAT2I
 	       P12(J) = P12(J) + CVI(I)*P12I(J)*KMAT2I
 	       P33(J) = P33(J) + CVI(I)*P33I(J)*KMAT2I	       
-  113	    CONTINUE  !Fin boucle sur les angles de gauss
+  113	    CONTINUE  !End of loop on the Gauss angles
     
-  112	  CONTINUE	 !Fin boucle sur les mode coarse et fine de la LND bimodale
+  112	  CONTINUE	 !End of loop on the coarse and fine modes of the bimodal LND
 	    
 	 		
 		
-C* Normalisation des fonctions de phase du mélange
+C* Normalisation of the phase functions of the mixture
 C  -----------------------------------------------
 	DO 120 J=-MIE_NBMU,MIE_NBMU   
 	    P11(J) = P11(J) / KMAT2
@@ -2104,46 +2104,46 @@ C  -----------------------------------------------
 	    P33(J) = P33(J) / KMAT2
   120	CONTINUE
 
-C* Cas de particules sphériques : P22(J) = P11(J)
+C* Case of spherical particles: P22(J) = P11(J)
 C  -----------------------------------------------------
        DO 1024 J=-MIE_NBMU,MIE_NBMU
           P22(J)=P11(J)
  1024  CONTINUE	 
  
-C* Calcul des paramètres alpha, beta, gamma, delta, zeta
-C  avec application ou non de la troncature
+C* Computation of the parameters alpha, beta, gamma, delta, zeta
+C  with or without truncation
 C  -----------------------------------------------------  
 	CALL SOS_DECOMPO_LEGENDRE(ITRONC,TRACE,MIE_NBMU,XMU,XHR,OS_NB,
      &				     P11,TTT,P12,P22,P33,COEF_TRONCA,Z1,
      &				     ALP,BETA11,BETA22,
      &                           GAMMA12,DELTA33,ZETA,IER)     
-       IF (IER.NE.0) GOTO 996   ! cas d'erreur	 
+       IF (IER.NE.0) GOTO 996   ! error case
 
           	 
-      ENDIF	!Fin test sur Modalite IMOD=3 (LND bimodale) 
+      ENDIF	!End of test on modality IMOD=3 (bimodal LND)
 
 
 
 
 C ==============================================================================
-C* Données externes :
-C* --> Fonctions de phase externes et coefficients de diffusion et d'extinction
+C* External data:
+C* --> External phase functions and scattering and extinction coefficients
 C*
-C*     NB : Développé sur la base des sorties de l'outil Oleg Dubovik (LOA)
-C*          qui fournit les propriétés de diffusion primaire de particules
-C*          spheroides homogenes orientees de facon aleatoire.
-C*          Un paramètre précisant le nombre d'angles decrivant les fonctions
-C*          à toutefois du être ajouté.
+C*     NB: Developed on the basis of the outputs of the Oleg Dubovik tool (LOA)
+C*          which gives the primary scattering properties of homogeneous
+C*          randomly oriented spheroid particles.
+C*          A parameter giving the number of angles describing the functions
+C*          had to be added, though.
 C*
-C*          Bien faire attention au fait qu'on lit un rapport -F12 / F11.
-C*          Importance du signe : F12 < 0 pour la diffusion rayleigh.
+C*          Be careful that a ratio -F12 / F11 is read.
+C*          Importance of the sign: F12 < 0 for Rayleigh scattering.
 
 C ==============================================================================
 
       IF(IMOD.EQ.4) THEN
 	 
     	
-C* Lecture du fichier de données externes
+C* Reading of the external data file
 C  -----------------------------------------------------------------
          OPEN(UNIT=20,FILE=FICEXTDATA,STATUS='OLD',ERR=940)
 
@@ -2161,7 +2161,7 @@ C  -----------------------------------------------------------------
 
 
 
-	  !Controle du nombre d'angles par rapport a la taille des tableaux
+	  !Check of the number of angles with respect to the size of the arrays
 	  IF (NB_FICEXT_ANGLES.GT.CTE_MAXNB_ANG_EXT) GOTO 950
 	
 	  READ(20,*,ERR=941) 
@@ -2191,11 +2191,11 @@ C  -----------------------------------------------------------------
      &	                               F33sF11_EXT(J)
             ENDDO 
 	     WRITE (88,*,ERR=921) " "
-         ENDIF !Fichier Trace
+         ENDIF !Trace file
 	 
 
-C* Passage aux fonctions F12, F22 et F33 pour les mu des angles 
-C* decrivant les fonctions externes
+C* Conversion to the functions F12, F22 and F33 for the mu of the angles
+C* describing the external functions
 C  -----------------------------------------------------------------	 
 	  DO J=1,NB_FICEXT_ANGLES
 	     MU_EXT(J)  = DCOS(ANG_EXT(J)*INCTE_PI/180.D+00)
@@ -2204,44 +2204,44 @@ C  -----------------------------------------------------------------
 	     F33_EXT(J) = F33sF11_EXT(J)*F11_EXT(J)
          ENDDO 
 	 
-C* Passage aux fonctions F11, F12, F22 et F33 pour les mu de Gauss 
+C* Conversion to the functions F11, F12, F22 and F33 for the Gauss mu
 C  -----------------------------------------------------------------	
 
-C*      P11 : L'appel de la routine se fait en passant XMU et P11
-C*            qui poitent sur le premier element utile
-C*            (car le domaine couvert est plus grand que celui utile
-C*             et qu'il y a un debut de table a indice negatif)
+C*      P11 : The routine is called by passing XMU and P11
+C*            which point to the first useful element
+C*            (since the covered domain is larger than the useful one
+C*             and the array starts at a negative index)
 C*      ---	
 	  CALL SOS_INTERPO_SPLINT(NB_FICEXT_ANGLES, MU_EXT, F11_EXT,
      &	                          2*MIE_NBMU+1, XMU(-MIE_NBMU), 
      &                           P11(-MIE_NBMU), IER)	
-	  IF (IER.NE.0) GOTO 945   ! cas d'erreur
+	  IF (IER.NE.0) GOTO 945   ! error case
 	
 C*      P12 :
 C*      ---	
 	  CALL SOS_INTERPO_SPLINT(NB_FICEXT_ANGLES, MU_EXT, F12_EXT,
      &	                          2*MIE_NBMU+1, XMU(-MIE_NBMU), 
      &                           P12(-MIE_NBMU), IER)	
-	  IF (IER.NE.0) GOTO 945   ! cas d'erreur
+	  IF (IER.NE.0) GOTO 945   ! error case
 	
 C*      P22 :
 C*      ---	
 	  CALL SOS_INTERPO_SPLINT(NB_FICEXT_ANGLES, MU_EXT, F22_EXT,
      &	                          2*MIE_NBMU+1, XMU(-MIE_NBMU), 
      &                           P22(-MIE_NBMU), IER)	
-	  IF (IER.NE.0) GOTO 945   ! cas d'erreur
+	  IF (IER.NE.0) GOTO 945   ! error case
 		
 C*      P33 :
 C*      ---	
 	  CALL SOS_INTERPO_SPLINT(NB_FICEXT_ANGLES, MU_EXT, F33_EXT,
      &	                          2*MIE_NBMU+1, XMU(-MIE_NBMU), 
      &                           P33(-MIE_NBMU), IER)		
-	  IF (IER.NE.0) GOTO 945   ! cas d'erreur 
+	  IF (IER.NE.0) GOTO 945   ! error case
 	
-	!C* Ajouter module de recomposition pour fichier TRACE
-	!C* Entetes de fichiers
-	!AJUSTER DEFINITION DE LA LIMITE DE TABLE F11, etc. en dur ==> dans SOS.h
-	!Attention signe : -F12sF11
+	!C* Add a recomposition module for the TRACE file
+	!C* File headers
+	!ADJUST DEFINITION OF THE TABLE LIMIT F11, etc. hard-coded ==> in SOS.h
+	!Careful with the sign: -F12sF11
 	 
 	  IF (TRACE) THEN
 	    WRITE (88,*,ERR=921) " Functions F11, F12, F22 and F33 for"
@@ -2261,29 +2261,29 @@ C*      ---
 	       TETA=DACOS(XMU(J))*180./INCTE_PI
               WRITE (88,402,ERR=921) TETA,P11(J),P12(J),P22(J),P33(J)
            ENDDO 	  		
-         ENDIF !Fichier Trace	 
+         ENDIF !Trace file
 	 
 	 	
 	
 	
 	 
-C* Calcul des paramètres alpha, beta, gamma, delta, zeta
-C  avec application ou non de la troncature
+C* Computation of the parameters alpha, beta, gamma, delta, zeta
+C  with or without truncation
 C  -----------------------------------------------------
 	  CALL SOS_DECOMPO_LEGENDRE(ITRONC,TRACE,MIE_NBMU,XMU,XHR,OS_NB,
      &				       P11,TTT,P12,P22,P33,COEF_TRONCA,Z1,
      &				       ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)  
-         IF (IER.NE.0) GOTO 996   ! cas d'erreur
+         IF (IER.NE.0) GOTO 996   ! error case
 
-      ENDIF	!Fin test sur Modalite IMOD=4 (données externes)
+      ENDIF	!End of test on modality IMOD=4 (external data)
       
       
       
 
 
 C ==============================================================================
-C* Définition d'un mélange de modèles par l'utilisateur 
+C* Definition of a mixture of models by the user
 C ==============================================================================
 
       IF(IMOD.EQ.5) THEN
@@ -2292,7 +2292,7 @@ C ==============================================================================
 
     	  LFIC=INDEX(FICMIXTURE_AER,' ')-1
 
-C* Lecture du fichier de définition du mélange de modes aérosols
+C* Reading of the file defining the mixture of aerosol modes
 C  -----------------------------------------------------------------
          OPEN(UNIT=20,FILE=FICMIXTURE_AER,STATUS='OLD',ERR=960)
 	 
@@ -2302,7 +2302,7 @@ C  -----------------------------------------------------------------
 	
          DO 122 NMOD=1,NB_MODES_MELANGE 
 
-            !Lecture du type de modèle et controle par rapport aux modèles disponibles
+            !Reading of the model type and check against the available models
 	     READ(20,'(a)',ERR=961) LIGNE_TEXTE
             IFIN=INDEX(LIGNE_TEXTE,':')
             READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) CMODEL
@@ -2313,11 +2313,11 @@ C  -----------------------------------------------------------------
                MEL_MODEL_TYPE(NMOD)=1
             ELSE IF (CMODEL.EQ."JUNGE") THEN 
                MEL_MODEL_TYPE(NMOD)=2
-            ELSE  !Ni LND, ni Junge
+            ELSE  !Neither LND nor Junge
                GOTO 962
             ENDIF
 
-            !Lecture des paramètre du modèle
+            !Reading of the model parameters
             IF (CMODEL.EQ."LND") THEN
 
                READ(20,'(a)',ERR=961) LIGNE_TEXTE
@@ -2351,8 +2351,8 @@ C  -----------------------------------------------------------------
                ENDIF
             ENDIF
 
-            !Lecture des indices de réfraction 
-            !à la longueur d'onde des simulations de luminance
+            !Reading of the refractive indices
+            !at the wavelength of the radiance simulations
 	     READ(20,'(a)',ERR=961) LIGNE_TEXTE
             IFIN=INDEX(LIGNE_TEXTE,':')
 	     READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) RN_WASIMU_LU
@@ -2360,8 +2360,8 @@ C  -----------------------------------------------------------------
             IFIN=INDEX(LIGNE_TEXTE,':')
 	     READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) IN_WASIMU_LU
 
-            !Lecture des indices de réfraction 
-            !à la longueur d'onde de référence des AOT
+            !Reading of the refractive indices
+            !at the reference wavelength of the AOT
 	     READ(20,'(a)',ERR=961) LIGNE_TEXTE
             IFIN=INDEX(LIGNE_TEXTE,':')
 	     READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) RN_WAREF_LU
@@ -2374,7 +2374,7 @@ C  -----------------------------------------------------------------
             MEL_MODEL_INDEX_WASIMU(NMOD,1) = RN_WASIMU_LU
             MEL_MODEL_INDEX_WASIMU(NMOD,2) = IN_WASIMU_LU
  
-            !Lecture de l'AOT à WAREF
+            !Reading of the AOT at WAREF
 	     READ(20,'(a)',ERR=961) LIGNE_TEXTE
             IFIN=INDEX(LIGNE_TEXTE,':')
 	     READ(LIGNE_TEXTE(IFIN+1:LENLINE),*) AOT_TAUX
@@ -2382,7 +2382,7 @@ C  -----------------------------------------------------------------
             MEL_MODEL_AOT(NMOD) = TA_WAREF*AOT_TAUX
 
             SOM_TAUX_AOT = SOM_TAUX_AOT + AOT_TAUX
- 122     CONTINUE !Fin de boucle sur les modèles du fichier utilisateur
+ 122     CONTINUE !End of loop on the models of the user file
 	
 	  CLOSE(20)
 
@@ -2441,10 +2441,10 @@ C  -----------------------------------------------------------------
             WRITE (88,*,ERR=921)  
      &      "Sommation of AOT ratios:",SOM_TAUX_AOT
 	     WRITE (88,*,ERR=921) " "
-         ENDIF !Fichier Trace
+         ENDIF !Trace file
 
 
-         !Test que la somme des taux de proportion d'AOT sur les différents modes vaut 1	 
+         !Test that the sum of the AOT proportion rates over the different modes is 1
          IF (DABS(SOM_TAUX_AOT-1.D+00).GT.CTE_GAP_TOLER_SUM_RATES) THEN
             IF (TRACE) THEN
                WRITE (88,*,ERR=921)   
@@ -2454,7 +2454,7 @@ C  -----------------------------------------------------------------
      &         "CTE_GAP_TOLER_SUM_RATES:", CTE_GAP_TOLER_SUM_RATES
 	        WRITE (88,*,ERR=921) "Processing stopped"
             ENDIF 
-            GOTO 963	!Ecart à 1 trop important ==> sortie en erreur
+            GOTO 963	!Difference to 1 too large ==> exit with error
          ELSE
             IF (SOM_TAUX_AOT.NE.1.D+00) THEN
                  DO NMOD=1,NB_MODES_MELANGE 
@@ -2481,21 +2481,21 @@ C  -----------------------------------------------------------------
          
 
 
-C* Boucles de calcul sur les modes:
+C* Computation loops on the modes:
 C  --------------------------------  
            !----------------
-           !CALCULS A WAREF: Estimation des coefficients de pondération Alpha
+           !COMPUTATIONS AT WAREF: Estimation of the weighting coefficients Alpha
            !----------------
            SOM_COEF_ALPHA = 0.
 		
            DO 124 NMOD=1,NB_MODES_MELANGE
 		
-              IF (MEL_MODEL_TYPE(NMOD).EQ.1) THEN   !Cas granu LND           
+              IF (MEL_MODEL_TYPE(NMOD).EQ.1) THEN   !LND size distribution case
 	          X = MEL_MODEL_PARAM(NMOD,2)
 	          RMAX = MEL_MODEL_PARAM(NMOD,1) * DEXP(X*X) *
      &	                 DEXP(X*DSQRT(-2.D+00*LOG(CTE_COEF_NRMAX)))
 
-	       ELSE					  !Cas granu JUNGE
+	       ELSE					  !JUNGE size distribution case
 	          RMAX = MEL_MODEL_PARAM(NMOD,3)
 	       ENDIF
 
@@ -2512,9 +2512,9 @@ C  --------------------------------
 	          WRITE(88,*,err=921) ' '     
               ENDIF
 
-              !Constitution du nom du fichier MIE (pour indices de réfraction du Mode
-              !                                    à la longueur d'onde de référence
-              !                                    et limite ALPHAF estimée à WAMIN)    
+              !Building of the name of the MIE file (for refractive indices of the Mode
+              !                                    at the reference wavelength
+              !                                    and limit ALPHAF estimated at WAMIN)
               CALL SOS_NOM_FICMIE(NBMU_GAUSS,FICANGLES_USER,
      &	                           MEL_MODEL_INDEX_WAREF(NMOD,1),
      &	                           MEL_MODEL_INDEX_WAREF(NMOD,2),
@@ -2527,10 +2527,10 @@ C  --------------------------------
 	           WRITE (88,*,ERR=921) "MIE file: ", FICMIE(1:LFICS)
 	       ENDIF	
 	 
-	       !Affichage écran
+	       !Screen display
 	       WRITE(6,*) "  MIE file : ", FICMIE(1:LFICS)
 	    
-              !Si le fichier MIE existe déjà, le programme n'est pas lancé     
+              !If the MIE file already exists, the program is not run
               !-----------------------------------------------------------     
               INQUIRE(FILE=FICMIE,EXIST=EX)
 	    
@@ -2540,14 +2540,14 @@ C  --------------------------------
 	  
 	       ELSE   
       
-                 !Calcul du fichier de MIE (pour limite ALPHAF)
+                 !Computation of the MIE file (for limit ALPHAF)
                  !--------------------------------------------- 
                  CALL SOS_MIE(MIE_NBMU,XMU,XHR,
      &	                       MEL_MODEL_INDEX_WAREF(NMOD,1),
      &	                       MEL_MODEL_INDEX_WAREF(NMOD,2),
      &                        ALPHAO,ALPHAF,
      &                        FICMIE_TMP,FICLOGMIE,IER)
-     	          IF (IER.NE.0) GOTO 993   ! cas d'erreur
+     	          IF (IER.NE.0) GOTO 993   ! error case
 
                  COMMAND=
      &           'mv '//FICMIE_TMP(1:LFICTMP)//' '//FICMIE(1:LFICS)
@@ -2556,22 +2556,22 @@ C  --------------------------------
                  IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
                  INQUIRE(FILE=FICMIE,EXIST=EX)
-                 IF (EX) THEN !Si le fichier de MIE existe on détruit le fichier temporaire (généré par autre traitement)
+                 IF (EX) THEN !If the MIE file exists, the temporary file (generated by another process) is deleted
                     OPEN(UNIT=3,FILE=FICMIE_TMP,FORM='UNFORMATTED')
                     CLOSE(3,STATUS='DELETE') 
-                 ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de MIE
+                 ELSE !Otherwise it is moved to the storage space of the MIE files
                     CALL SYSTEM(COMMAND)  
                  ENDIF
          
               ENDIF
 	 
-              ! Calcul des sections efficaces d'extinction et de diffusion 
-              ! et des fonctions de phase I, Q, U du constituant I pour WAREF
+              ! Computation of the extinction and scattering cross sections
+              ! and of the phase functions I, Q, U of the component I for WAREF
               ! ------------------------------------------------------------- 
  	       
-              !Appel de SOS_GRANU pour le modèle IGRANU=MEL_MODEL_TYPE(NMOD)
-              !et les paramètres VARGRANU1 = MEL_MODEL_PARAM(NMOD,1)
-              !et VARGRANU2 = MEL_MODEL_PARAM(NMOD,2)
+              !Call of SOS_GRANU for the model IGRANU=MEL_MODEL_TYPE(NMOD)
+              !and the parameters VARGRANU1 = MEL_MODEL_PARAM(NMOD,1)
+              !and VARGRANU2 = MEL_MODEL_PARAM(NMOD,2)
               CALL SOS_GRANU(FICMIE,MEL_MODEL_TYPE(NMOD),
      &                       MEL_MODEL_PARAM(NMOD,1),
      &                       MEL_MODEL_PARAM(NMOD,2),
@@ -2579,19 +2579,19 @@ C  --------------------------------
      &                       WAREF,MIE_NBMU,XMU,TRACE,
      &			        KMAT1I,KMAT2I,SOMME_NR,P11I,P12I,P33I,IER)
 
-              IF (IER.NE.0) GOTO 995   ! cas d'erreur  
+              IF (IER.NE.0) GOTO 995   ! error case
 
     	     
-              ! Calcul des coefficients Alpha avant normalisation
-              ! Le calcul doit être fait à WAREF car l'AOT de référence est à cette longueur d'onde
+              ! Computation of the coefficients Alpha before normalisation
+              ! The computation must be made at WAREF since the reference AOT is at this wavelength
               ! ---------------------------------------------------------------------	
               TAUEXTI = MEL_MODEL_AOT(NMOD)
               COEF_ALPHA(NMOD) = TAUEXTI/KMAT1I
               SOM_COEF_ALPHA = SOM_COEF_ALPHA + COEF_ALPHA(NMOD)
    
-  124	    CONTINUE	 !Fin boucle sur les modes
+  124	    CONTINUE	 !End of loop on the modes
 
-           ! Finalisation du calcul des coefficients de pondération des modes
+           ! Finalisation of the computation of the weighting coefficients of the modes
            ! ----------------------------------------------------------------
            DO NMOD=1,NB_MODES_MELANGE
               COEF_ALPHA(NMOD) = COEF_ALPHA(NMOD) / SOM_COEF_ALPHA
@@ -2611,19 +2611,19 @@ C  --------------------------------
 
 
            !----------------
-           !CALCULS A WASIMU: Application du mélange des modes
+           !COMPUTATIONS AT WASIMU: Application of the mixture of modes
            !----------------
            KMAT1 = 0.
            KMAT2 = 0.
 
            DO 125 NMOD=1,NB_MODES_MELANGE
 		
-              IF (MEL_MODEL_TYPE(NMOD).EQ.1) THEN   !Cas granu LND           
+              IF (MEL_MODEL_TYPE(NMOD).EQ.1) THEN   !LND size distribution case
 	          X = MEL_MODEL_PARAM(NMOD,2)
 	          RMAX = MEL_MODEL_PARAM(NMOD,1) * DEXP(X*X) *
      &	                 DEXP(X*DSQRT(-2.D+00*LOG(CTE_COEF_NRMAX)))
 
-	       ELSE					  !Cas granu JUNGE
+	       ELSE					  !JUNGE size distribution case
 	          RMAX = MEL_MODEL_PARAM(NMOD,3)
 	       ENDIF
 
@@ -2640,19 +2640,19 @@ C  --------------------------------
 	          WRITE(88,*,err=921) ' '     
               ENDIF
 
-              IF (WA.EQ.WAREF) THEN	!Si WA == WAREF cela signigie que la routine est appelée pour WAREF
-					!==> On doit faire les calculs de Mie pour les indices à WAREF
+              IF (WA.EQ.WAREF) THEN	!If WA == WAREF, the routine is called for WAREF
+					!==> The Mie computations must be made for the indices at WAREF
                  RN = MEL_MODEL_INDEX_WAREF(NMOD,1) 
                  IN = MEL_MODEL_INDEX_WAREF(NMOD,2) 
-              ELSE !WASIMU		!Si WA != WAREF cela signigie que la routine est appelée pour WA
-					!==> On doit faire les calculs de Mie pour les indices à WA
+              ELSE !WASIMU		!If WA != WAREF, the routine is called for WA
+					!==> The Mie computations must be made for the indices at WA
                  RN = MEL_MODEL_INDEX_WASIMU(NMOD,1) 
                  IN = MEL_MODEL_INDEX_WASIMU(NMOD,2) 
               ENDIF
 
-              !Constitution du nom du fichier MIE (pour indices de réfraction du Mode
-              !                                    à la longueur d'onde de simulation
-              !                                    et limite ALPHAF estimée à WAMIN)    
+              !Building of the name of the MIE file (for refractive indices of the Mode
+              !                                    at the simulation wavelength
+              !                                    and limit ALPHAF estimated at WAMIN)
               CALL SOS_NOM_FICMIE(NBMU_GAUSS,FICANGLES_USER,
      &	                           RN,IN,ALPHAO,ALPHAF,FICS)       
 	       FICMIE = DIRS(1:LDIRS)//'/'//FICS
@@ -2663,10 +2663,10 @@ C  --------------------------------
 	           WRITE (88,*,ERR=921) "MIE file: ", FICMIE(1:LFICS)
 	       ENDIF	
 	 
-	       !Affichage écran
+	       !Screen display
 	       WRITE(6,*) "  MIE file : ", FICMIE(1:LFICS)
 	    
-              !Si le fichier MIE existe déjà, le programme n'est pas lancé     
+              !If the MIE file already exists, the program is not run
               !-----------------------------------------------------------     
               INQUIRE(FILE=FICMIE,EXIST=EX)
 	    
@@ -2676,12 +2676,12 @@ C  --------------------------------
 	  
 	       ELSE   
       
-                 !Calcul du fichier de MIE (pour limite ALPHAF)
+                 !Computation of the MIE file (for limit ALPHAF)
                  !--------------------------------------------- 
                  CALL SOS_MIE(MIE_NBMU,XMU,XHR,
      &	                       RN,IN,ALPHAO,ALPHAF,
      &                        FICMIE_TMP,FICLOGMIE,IER)
-     	          IF (IER.NE.0) GOTO 993   ! cas d'erreur
+     	          IF (IER.NE.0) GOTO 993   ! error case
 
                  COMMAND=
      &           'mv '//FICMIE_TMP(1:LFICTMP)//' '//FICMIE(1:LFICS)
@@ -2690,22 +2690,22 @@ C  --------------------------------
                  IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1020
 
                  INQUIRE(FILE=FICMIE,EXIST=EX)
-                 IF (EX) THEN !Si le fichier de MIE existe on détruit le fichier temporaire (généré par autre traitement)
+                 IF (EX) THEN !If the MIE file exists, the temporary file (generated by another process) is deleted
                     OPEN(UNIT=3,FILE=FICMIE_TMP,FORM='UNFORMATTED')
                     CLOSE(3,STATUS='DELETE') 
-                 ELSE !Sinon on le positionne dans l'espace de stockage des fichiers de MIE
+                 ELSE !Otherwise it is moved to the storage space of the MIE files
                     CALL SYSTEM(COMMAND)  
                  ENDIF
          
               ENDIF
 	 
-              ! Calcul des sections efficaces d'extinction et de diffusion 
-              ! et des fonctions de phase I, Q, U du constituant I pour WAREF
+              ! Computation of the extinction and scattering cross sections
+              ! and of the phase functions I, Q, U of the component I for WAREF
               ! ------------------------------------------------------------- 
             	       
-              !Appel de SOS_GRANU pour le modèle IGRANU=MEL_MODEL_TYPE(NMOD)
-              !et les paramètres VARGRANU1 = MEL_MODEL_PARAM(NMOD,1)
-              !et VARGRANU2 = MEL_MODEL_PARAM(NMOD,2)
+              !Call of SOS_GRANU for the model IGRANU=MEL_MODEL_TYPE(NMOD)
+              !and the parameters VARGRANU1 = MEL_MODEL_PARAM(NMOD,1)
+              !and VARGRANU2 = MEL_MODEL_PARAM(NMOD,2)
               CALL SOS_GRANU(FICMIE,MEL_MODEL_TYPE(NMOD),
      &                       MEL_MODEL_PARAM(NMOD,1),
      &                       MEL_MODEL_PARAM(NMOD,2),
@@ -2713,11 +2713,11 @@ C  --------------------------------
      &                       WA,MIE_NBMU,XMU,TRACE,
      &			        KMAT1I,KMAT2I,SOMME_NR,P11I,P12I,P33I,IER)
 
-              IF (IER.NE.0) GOTO 995   ! cas d'erreur  
+              IF (IER.NE.0) GOTO 995   ! error case
 
     	     
-              ! Calcul des termes pour les sections efficaces d'extinction et de diffusion du mélange
-              ! Calcul des fonctions de la matrice de phase du mélange
+              ! Computation of the terms of the extinction and scattering cross sections of the mixture
+              ! Computation of the functions of the phase matrix of the mixture
               ! ---------------------------------------------------------------------	
               KMAT1 = KMAT1 + COEF_ALPHA(NMOD)*KMAT1I
               KMAT2 = KMAT2 + COEF_ALPHA(NMOD)*KMAT2I
@@ -2726,52 +2726,52 @@ C  --------------------------------
 	          P11(J) = P11(J) + P11I(J)*COEF_ALPHA(NMOD)*KMAT2I
 	          P12(J) = P12(J) + P12I(J)*COEF_ALPHA(NMOD)*KMAT2I
 	          P33(J) = P33(J) + P33I(J)*COEF_ALPHA(NMOD)*KMAT2I
-  134	       CONTINUE  !Fin boucle sur les angles de gauss
+  134	       CONTINUE  !End of loop on the Gauss angles
              
-  125	    CONTINUE	 !Fin boucle sur les modes
+  125	    CONTINUE	 !End of loop on the modes
 
-           ! Finalisation du calcul des fonctions de la matrice de phase du mélange
+           ! Finalisation of the computation of the functions of the phase matrix of the mixture
 	    ! ----------------------------------------------------------------------	     
 	    DO 135 J=-MIE_NBMU,MIE_NBMU	     
 	       P11(J) = P11(J) / KMAT2
 	       P12(J) = P12(J) / KMAT2
 	       P33(J) = P33(J) / KMAT2
-  135	    CONTINUE  !Fin boucle sur les angles de gauss
+  135	    CONTINUE  !End of loop on the Gauss angles
 
-C* Cas de particules sphériques : P22(J) = P11(J)
+C* Case of spherical particles: P22(J) = P11(J)
 C  -----------------------------------------------------
        DO 1034 J=-MIE_NBMU,MIE_NBMU
           P22(J)=P11(J)
  1034  CONTINUE
 	 
-C* Calcul des paramètres alpha, beta, gamma, delta, zeta
-C  avec application ou non de la troncature
+C* Computation of the parameters alpha, beta, gamma, delta, zeta
+C  with or without truncation
 C  -----------------------------------------------------
 	  CALL SOS_DECOMPO_LEGENDRE(ITRONC,TRACE,MIE_NBMU,XMU,XHR,OS_NB,
      &				       P11,TTT,P12,P22,P33,COEF_TRONCA,Z1,
      &				       ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)  
-         IF (IER.NE.0) GOTO 996   ! cas d'erreur
+         IF (IER.NE.0) GOTO 996   ! error case
 
-      ENDIF	!Fin test sur Modalite IMOD=5 (mélange utilisateur)
+      ENDIF	!End of test on modality IMOD=5 (user mixture)
       
       
             
       
       
 C ======================================
-C* Calculs communs pour tous les modèles
+C* Computations common to all the models
 C ======================================
 	 
-C* Calcul de l'albédo de simple diffusion
+C* Computation of the single scattering albedo
 C-------------------------------------------
       PIZ=KMAT2/KMAT1
 
-C* Troncature de l'albédo de simple diffusion des aérosols
+C* Truncation of the aerosol single scattering albedo
 C---------------------------------------------------------
       PIZTR = PIZ*(1.-COEF_TRONCA/2.)/(1.-PIZ*COEF_TRONCA/2.)      
     
-C* Ecriture du fichier trace
+C* Writing of the trace file
 C-------------------------------------------
       IF (TRACE) THEN
         WRITE(88,*,err=921) ' '
@@ -2821,7 +2821,7 @@ C-------------------------------------------
      & 	'  Beta11(0) non-normalized - no trunca. applied: ',Z1
               WRITE(88,*,err=921) 
      &	       '  Asymmetry factor - no trunca. applied: ',BETA11(1)/3.
-     	    ENDIF !Fin test si troncature   
+     	    ENDIF !End of test on truncation
            WRITE(88,*,err=921) ' '
 	    WRITE(88,*,err=921) '  1st column : Scattering angle '
 	    WRITE(88,*,err=921) 
@@ -2860,49 +2860,49 @@ C-------------------------------------------
 	 	   	   	   	   	   
       END IF
 
-C* Enregistrement des paramètres de granulométrie dans le fichier Resultat
+C* Recording of the size distribution parameters in the Result file
 C  -----------------------------------------------------------------------
  1111 OPEN(1,FILE=FICGRANU,ERR=913)
 
-      ! Section efficace d'extinction
+      ! Extinction cross section
       WRITE(1,40,ERR=923) KMAT1
 
-      ! Section efficace de diffusion
+      ! Scattering cross section
       WRITE(1,41,ERR=923) KMAT2
      
-      ! Facteur d'asymétrie (non tronqué)
+      ! Asymmetry factor (not truncated)
       WRITE(1,42,ERR=923) 
      &	 ( COEF_TRONCA/2.+(1.-COEF_TRONCA/2.)*BETA11(1)/3. )
 
-      ! Coefficient de troncature      
+      ! Truncation coefficient
       WRITE(1,46,ERR=923) COEF_TRONCA
       
-      ! Albédo de simple diffusion (éventuellement tronqué)      
+      ! Single scattering albedo (possibly truncated)
       WRITE(1,47,ERR=923) PIZTR
 
-      ! Info sur le contenu des colonnes suivantes 
+      ! Information on the content of the next columns
       WRITE(1,39,ERR=923) 
       WRITE(1,48,ERR=923) OS_NB
       WRITE(1,49,ERR=923)
 
-      ! Paramètres de la matrice de phase (éventuellement tronqués)       
+      ! Parameters of the phase matrix (possibly truncated)
       DO K=0,OS_NB
          WRITE(1,50,ERR=923) ALP(K),BETA11(K),GAMMA12(K),ZETA(K)
       ENDDO
 
  
 
-C* Fermeture fichier
+C* File closing
 C-------------------
-      CLOSE(99)	! Fermeture du fichier trace MIE
-      CLOSE(88)      ! Fermeture du fichier trace GRANU
-      CLOSE(1)	! Fermeture du fichier résultat GRANU
+      CLOSE(99)	! Closing of the MIE trace file
+      CLOSE(88)      ! Closing of the GRANU trace file
+      CLOSE(1)	! Closing of the GRANU result file
            
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
             
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
  925  WRITE(6,*) '  SOS_AEROSOLS : ERROR_925: '
       WRITE(6,*) '  => Error while getting SOS_ABS_ROOT variable'
@@ -3060,7 +3060,7 @@ C---------
   222 FORMAT(I4,1X,D21.14,2X,F7.3,2X,D21.14,2X)
   
  9999 RETURN
-      END   	!FIN DU PROGRAMME SOS_AEROSOLS
+      END   	!END OF PROGRAM SOS_AEROSOLS
 
  
  
@@ -3068,98 +3068,98 @@ C---------
 C==============================================================================
 C PROCEDURE: SOS_NOM_FICMIE
 C ==========
-C      Cette procédure genere le nom du fichier de Mie en fonction de :
-C      	- l'indice de réfraction : partie réelle RN
-C	- l'indice de réfraction : partie imaginaire IN
-C	- le paramètre de taille minimal ALPHAO
-C	- le paramètre de taille maximal ALPHAF
-C       - le nombre d'angles de Gauss utilises NBMU_GAUSS
-C       - le nom du fichier d'angles utilisateur FICANGLES_USER
-C          (en supprimant son arborescence) 
+C      This procedure generates the name of the Mie file from:
+C      	- the refractive index: real part RN
+C	- the refractive index: imaginary part IN
+C	- the minimum size parameter ALPHAO
+C	- the maximum size parameter ALPHAF
+C      - the number of Gauss angles used NBMU_GAUSS
+C      - the name of the user angle file FICANGLES_USER
+C          (without its directory tree)
 C
-C      On impose d'avoir :
-C         RN au format F5.3 : precision a 1.E-O3 pres.
-C         IN au format F8.5 : precision a 1.E-O5 pres pour valeur negative.
-C         ALPHAO au format F6.4 : 1.E-04 <= ALPHA0 < 10
-C         ALPHAF au format F8.2 : 1.E-02 <= ALPHA0 < 1.E+05
-C         NBMU_GAUSS au format I4 : 1 < NBMU_GAUSS < 9999
+C      The following formats are imposed:
+C         RN with format F5.3 : precision to 1.E-O3.
+C         IN with format F8.5 : precision to 1.E-O5 for a negative value.
+C         ALPHAO with format F6.4 : 1.E-04 <= ALPHA0 < 10
+C         ALPHAF with format F8.2 : 1.E-02 <= ALPHA0 < 1.E+05
+C         NBMU_GAUSS with format I4 : 1 < NBMU_GAUSS < 9999
 C
-C      Le nom du fichier de Mie sera sous la forme:
+C      The name of the Mie file will be:
 C
-C      MIE-RN-IN-ALPHAO-ALPHAF-MUnb-NomFicUser avec 
-C      - RN au format F5.3 (ex : 1.400)
-C      - IN (oppose a la valeur vraie negative) au format F7.5 (ex : 0.00800)
-C      - ALPHAO au format F6.4 (ex : 0.0001)
-C      - ALPHAF au format F8.2 (ex : 00500.00)
-C      - MUnb le nombre d'angles de Gauss (ex : MU40)
-C      - NomFicUser le nom du fichier utilisateur (sans arborescence) (ex : MyAngles)
+C      MIE-RN-IN-ALPHAO-ALPHAF-MUnb-NomFicUser with
+C      - RN with format F5.3 (e.g. 1.400)
+C      - IN (opposite of the true negative value) with format F7.5 (e.g. 0.00800)
+C      - ALPHAO with format F6.4 (e.g. 0.0001)
+C      - ALPHAF with format F8.2 (e.g. 00500.00)
+C      - MUnb the number of Gauss angles (e.g. MU40)
+C      - NomFicUser the name of the user file (without directory tree) (e.g. MyAngles)
 C
-C      On convertit RN en une chaine de caractères CRN(1:4) 
-C      Pour cela on passe du Format F5.3 * 1000 => A4
-C           Le premier caractère CRN(1) est le chiffre unite de RN,
-C           Le second caractère CRN(2) est la premiere decimale de RN,
+C      RN is converted into a character string CRN(1:4)
+C      For this, Format F5.3 * 1000 => A4
+C           The first character CRN(1) is the units digit of RN,
+C           The second character CRN(2) is the first decimal of RN,
 C           etc.
 C
 C
-C Description des paramètres entrée / sortie
+C Description of input / output parameters
 C ------------------------------------------
-C	NBMU_GAUSS (I4)	: (E) Nombre d'angles de Gauss utilises
-C       FICANGLES_USER (CHARACTER*CTE_LENFIC2)	: (E) Nom du fichier des angles 
-C                                                 "utilisateurs" (chemin complet)
-C	RN (double)	: (E) partie réelle de l'indice de réfraction
-C	IN (double)	: (E) partie imaginaire de l'indice de réfraction
-C       ALPHAO (double) : (E) paramètre de taille minimal
-C       ALPHAF (double) : (E) paramètre de taille maximal
-C	FICS (CHARACTER*CTE_LENFIC1) : (S) nom du fichier de Mie (sans arborescence)	
+C	NBMU_GAUSS (I4)	: (I) Number of Gauss angles used
+C       FICANGLES_USER (CHARACTER*CTE_LENFIC2)	: (I) Name of the "user"
+C                                                 angles file (complete path)
+C	RN (double)	: (I) real part of the refractive index
+C	IN (double)	: (I) imaginary part of the refractive index
+C       ALPHAO (double) : (I) minimum size parameter
+C       ALPHAF (double) : (I) maximum size parameter
+C	FICS (CHARACTER*CTE_LENFIC1) : (O) name of the Mie file (without directory tree)
 C
-C Constante utilise:
+C Constant used:
 C ------------------
-C    CTE_LENFIC1 : Longueur des noms de fichiers sans arborescence.
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
+C     CTE_LENFIC1 : Length of file names without directory tree.
+C     CTE_LENFIC2 : Length of file names with directory tree.
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Aucun
+C None
 C==============================================================================
       SUBROUTINE SOS_NOM_FICMIE(NBMU_GAUSS,FICANGLES_USER,
      &                          RN,IN,ALPHAO,ALPHAF,FICS) 
 
       IMPLICIT NONE
          
-      DOUBLE PRECISION RN	! partie réelle de l'indice de réfraction.
-      DOUBLE PRECISION IN	! partie imaginaire de l'indice de réfraction.
-      DOUBLE PRECISION ALPHAO   ! valeur de alpha à partir de laquelle 
-      				! on commence le calcul de Mie.				
-      DOUBLE PRECISION ALPHAF   ! valeur de alpha pour laquelle on arrete le calcul.
+      DOUBLE PRECISION RN	! real part of the refractive index.
+      DOUBLE PRECISION IN	! imaginary part of the refractive index.
+      DOUBLE PRECISION ALPHAO   ! value of alpha from which
+      				! the Mie computation starts.
+      DOUBLE PRECISION ALPHAF   ! value of alpha at which the computation stops.
 
-      CHARACTER*CTE_LENFIC2 FICANGLES_USER  ! chemin et nom du fichier des angles "utilisateurs"				
-      CHARACTER*CTE_LENFIC1 FICS	    ! nom du fichier MIE 	
+      CHARACTER*CTE_LENFIC2 FICANGLES_USER  ! path and name of the "user" angles file
+      CHARACTER*CTE_LENFIC1 FICS	    ! name of the MIE file
           
-      CHARACTER*4 CRN		! Chaines de caractères
+      CHARACTER*4 CRN		! Character strings
       CHARACTER*6 CIN 
       CHARACTER*5 CALPHAO   
       CHARACTER*7 CALPHAF
       CHARACTER*4 CNBMU
       
       INTEGER*2 I
-      INTEGER*4 IDEB, IDEB_CH, IFIN, IFIN_CH  ! position de debut et fin d'une chaine de caractères  
-      INTEGER*4 NBMU_GAUSS  ! Nombre d'angles de Gauss utilises 
+      INTEGER*4 IDEB, IDEB_CH, IFIN, IFIN_CH  ! start and end positions of a character string
+      INTEGER*4 NBMU_GAUSS  ! Number of Gauss angles used
       			      	 
 	    
-C --------- Conversion en chaines de caractères des paramètres d'entrée	   
+C --------- Conversion of the input parameters into character strings
       WRITE(CRN,'(I4)') int(RN*1000)  		
-      WRITE(CIN,'(I6)') int(-IN*100000)		!Valeur positive
+      WRITE(CIN,'(I6)') int(-IN*100000)		!Positive value
       
       WRITE(CALPHAO,'(I5)') int(ALPHAO*10000)
       WRITE(CALPHAF,'(I7)') int(ALPHAF*100)
       
       WRITE(CNBMU,'(I4)') NBMU_GAUSS
 
-C --------- Les blancs sont remplaces par des 0	      
+C --------- Blanks are replaced by 0
       DO I=1,4
          IF( CRN(I:I).EQ.' ') CRN(I:I) = '0'
       ENDDO
@@ -3179,32 +3179,32 @@ C --------- Les blancs sont remplaces par des 0
 	 
       FICS = 'MIE'
       
-C -------- Construction de la chaine de caractères pour l'indice RN	    
-      FICS(4:4) = CRN(1:1)     ! Chiffre des unités
-      FICS(5:5) = '.'	       ! Virgule
-      FICS(6:8) = CRN(2:4)     ! Trois premieres decimales   
+C -------- Building of the character string for the index RN
+      FICS(4:4) = CRN(1:1)     ! Units digit
+      FICS(5:5) = '.'	       ! Decimal point
+      FICS(6:8) = CRN(2:4)     ! First three decimals
       FICS(9:9) = '-'
       
-C -------- Construction de la chaine de caractères pour l'indice IN	    
-      FICS(10:10) = CIN(1:1)     ! Chiffre des unités
-      FICS(11:11) = '.'	         ! Virgule
-      FICS(12:16) = CIN(2:6)     ! Cinq premieres decimales   	    
+C -------- Building of the character string for the index IN
+      FICS(10:10) = CIN(1:1)     ! Units digit
+      FICS(11:11) = '.'	         ! Decimal point
+      FICS(12:16) = CIN(2:6)     ! First five decimals
       FICS(17:17) = '-'	
       
-C -------- Construction de la chaine de caractères pour AlphaO	    
-      FICS(18:18) = CALPHAO(1:1)     ! Chiffre des unités
-      FICS(19:19) = '.'	             ! Virgule
-      FICS(20:23) = CALPHAO(2:5)     ! Quatre premieres decimales   	    
+C -------- Building of the character string for AlphaO
+      FICS(18:18) = CALPHAO(1:1)     ! Units digit
+      FICS(19:19) = '.'	             ! Decimal point
+      FICS(20:23) = CALPHAO(2:5)     ! First four decimals
       FICS(24:24) = '-'	
 
-C -------- Construction de la chaine de caractères pour AlphaF	    
-      FICS(25:29) = CALPHAF(1:5)     ! Chiffres des unités
-      FICS(30:30) = '.'	             ! Virgule
-      FICS(31:32) = CALPHAF(6:7)     ! Deux premieres decimales   	    
+C -------- Building of the character string for AlphaF
+      FICS(25:29) = CALPHAF(1:5)     ! Units digits
+      FICS(30:30) = '.'	             ! Decimal point
+      FICS(31:32) = CALPHAF(6:7)     ! First two decimals
       FICS(33:33) = '-'	            
 
-C -------- Construction de la chaine de caractères pour MUgauss
-C --------Structuration pour avoir NBMU_GAUSS a gauche (sans "blancs")	            
+C -------- Building of the character string for MUgauss
+C --------Structured to have NBMU_GAUSS on the left (without "blanks")
       
       FICS(34:35) = 'MU'
       
@@ -3223,13 +3223,13 @@ C --------Structuration pour avoir NBMU_GAUSS a gauche (sans "blancs")
       ENDIF !NBMU_GAUSS < 10
   
        
-C -------- Construction de la chaine de caractères pour NomFicUser
-C -------- Structuration pour avoir NBMU_GAUSS a gauche (sans "blancs")	            
+C -------- Building of the character string for NomFicUser
+C -------- Structured to have NBMU_GAUSS on the left (without "blanks")
 
 
       IF (FICANGLES_USER.NE.'NO_USER_ANGLES') THEN
 
-C       Determination de la position du nom de fichier sans son arborescence          
+C       Determination of the position of the file name without its directory tree
 	  IFIN_CH=INDEX(FICANGLES_USER,' ')
          IFIN_CH=IFIN_CH-1
 	  IF (IFIN_CH.LE.0) IFIN_CH=CTE_LENDIR
@@ -3240,7 +3240,7 @@ C       Determination de la position du nom de fichier sans son arborescence
 	  IDEB_CH=IDEB_CH+IDEB
          IF (IDEB.NE.0) GOTO 10	  
 
-C       Ajout du nom de fichier d'angles "utilisateur" au nom du fichier de MIE    
+C       Addition of the name of the "user" angle file to the name of the MIE file
          IFIN=INDEX(FICS,' ')  
 	  FICS(IFIN:IFIN) = '-'
 	  
@@ -3259,76 +3259,76 @@ C       Ajout du nom de fichier d'angles "utilisateur" au nom du fichier de MIE
 C==============================================================================
 C PROCEDURE: SOS_INIT_PARAMWMO
 C ==========
-C      Cette procédure initialise l'ensemble des paramètres de chaque
-C      constituant de la WMO pour la longueur d'onde de simulation :
-C      	- le rayon modal
-C	- la variance
-C	- concentration volumique
-C	- partie réelle de l'indice de réfraction
-C	- partie imaginaire
+C      This procedure initialises all the parameters of each
+C      WMO component for the simulation wavelength:
+C      	- the modal radius
+C	- the variance
+C	- volume concentration
+C	- real part of the refractive index
+C	- imaginary part
 C
-C      Interpolation lineaire des indices pour la longueur d'onde d'entrée.
+C      Linear interpolation of the indices for the input wavelength.
 C
-C      Force les indices résultats au format F5.3 pour la partie réelle
-C      et F8.5 pour la partie imaginaire (valeur negative).
+C      Forces the result indices to the format F5.3 for the real part
+C      and F8.5 for the imaginary part (negative value).
 C
-C Description des paramètres entrée / sortie
+C Description of input / output parameters
 C ------------------------------------------
-C	FICDATAWMO (CHARACTER*CTE_LENFIC2)	: (E) chemin et nom du fichier Data_WMO
-C	WA (double)	: (E) longueur d'onde selectionnee
-C       VARGRANU1I(CTE_NB_WMO) (double) : (S) rayon modal de chaque constituant
-C       VARGRANU2I(CTE_NB_WMO) (double) : (S) log decimal de la variance de 
-C					  chaque constituant
-C	MR(CTE_NB_WMO) (double)	: (S) partie réelle de l'indice de réfraction
-C       MI(CTE_NB_WMO) (double) : (S) partie imaginaire de l'indice de réfraction
-C	V(CTE_NB_WMO) (double)	: (S) concentration volumique micron3/cm3
-C	IER (I4)	: (S) code d'erreur = 0 si pas d'erreur, sinon =1	
+C	FICDATAWMO (CHARACTER*CTE_LENFIC2)	: (I) path and name of the file Data_WMO
+C	WA (double)	: (I) selected wavelength
+C       VARGRANU1I(CTE_NB_WMO) (double) : (O) modal radius of each component
+C       VARGRANU2I(CTE_NB_WMO) (double) : (O) decimal log of the variance of
+C					  each component
+C	MR(CTE_NB_WMO) (double)	: (O) real part of the refractive index
+C       MI(CTE_NB_WMO) (double) : (O) imaginary part of the refractive index
+C	V(CTE_NB_WMO) (double)	: (O) volume concentration micron3/cm3
+C	IER (I4)	: (O) error code = 0 if no error, =1 otherwise
 C
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier des données de la WMO
-C      Fichier Ascii, format d'un enregistrement :  et 
-C      1ere ligne : 4(1X,F9.5)
-C                   valeur du rayon modal (mic) 
-C		    pour les constituants DL,WS,OC,SO
-C      2eme ligne : 4(1X,F9.5)
-C                   log decimal de la variance 
-C		    pour les constituants DL,WS,OC,SO  
-C      3eme ligne : 2(1X,F9.5,1X,E12.5)
-C                   concentration volumique (mic**3/cm**3) 
-C		    pour les constituants DL,WS,OC,SO        
-C      4eme ligne a la fin : 9(1X,F9.5)
-C                            longueur d'onde, partie réelle et imaginaire
-C			     de l'indice de réfraction de chaque constituant.   
+C   -->Content of the WMO data file
+C      Ascii file, record format:
+C      1st line : 4(1X,F9.5)
+C                   value of the modal radius (mic)
+C		    for the components DL,WS,OC,SO
+C      2nd line : 4(1X,F9.5)
+C                   decimal log of the variance
+C		    for the components DL,WS,OC,SO
+C      3rd line : 2(1X,F9.5,1X,E12.5)
+C                   volume concentration (mic**3/cm**3)
+C		    for the components DL,WS,OC,SO
+C      4th line to the end : 9(1X,F9.5)
+C                            wavelength, real and imaginary part
+C			     of the refractive index of each component.
 C
 C
-C Constantes utilisees :
+C Constants used:
 C --------------------
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
+C     CTE_LENFIC2 : Length of file names with directory tree.
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------    
-C     -Ouverture d'un fichier
-C       Erreur si le fichier des données de la WMO n'existe pas
-C     -Lecture dans un fichier
+C     -Opening of a file
+C       Error if the WMO data file does not exist
+C     -Reading in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Ce programme fait appel a la routine: SOS_INTERPOL
+C  This program calls the routine: SOS_INTERPOL
 C
 C
 C  MOD:VERSION 2.0: 02/03/2016
-C      Conversion de la variance du fichier de données WMO (en log décimal)
-C      en variance conforme à la définition classique des LND: VAR_WMO * LOG(10)
+C      Conversion of the variance of the WMO data file (in decimal log)
+C      into a variance consistent with the classical definition of the LND: VAR_WMO * LOG(10)
 C
 C==============================================================================
       SUBROUTINE SOS_INIT_PARAMWMO(FICDATAWMO,WA,VARGRANU1I,
@@ -3336,43 +3336,43 @@ C==============================================================================
 
       IMPLICIT NONE
       
-C Constantes AEROSOLS
+C AEROSOLS constants
 C -------------------
 
-      INTEGER CTE_NB_WMO	!Nombre de types d'aérosols de la WMO utilises: DL,WS,OC,SO
+      INTEGER CTE_NB_WMO	!Number of WMO aerosol types used: DL,WS,OC,SO
       PARAMETER (CTE_NB_WMO=4)
 
-      INTEGER CTE_NB_AERO	!Dimension des tableaux résultats 
-      PARAMETER (CTE_NB_AERO=5)	!(4 composants WMO, 5 composants Shettle & Fenn)	
+      INTEGER CTE_NB_AERO	!Dimension of the result arrays
+      PARAMETER (CTE_NB_AERO=5)	!(4 WMO components, 5 Shettle & Fenn components)
       
             
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------
 
-      CHARACTER*CTE_LENFIC2 FICDATAWMO	! chemin et nom du fichier Data_WMO
+      CHARACTER*CTE_LENFIC2 FICDATAWMO	! path and name of the file Data_WMO
       
-      DOUBLE PRECISION WA	! Longueur d'onde en microns selectionnee.	
-      DOUBLE PRECISION WA1	! Longueur d'onde en microns lue dans le
-      DOUBLE PRECISION WA2	! fichier Data_WMO.
+      DOUBLE PRECISION WA	! Selected wavelength in microns.
+      DOUBLE PRECISION WA1	! Wavelength in microns read in the
+      DOUBLE PRECISION WA2	! file Data_WMO.
       
-      DOUBLE PRECISION VARGRANU1I(CTE_NB_AERO)   ! Paramètre 1 de la granulométrie
-      						       ! pour chaque modèle de constituant.
-      DOUBLE PRECISION VARGRANU2I(CTE_NB_AERO)   ! Paramètre 2 de la granulométrie
-      						       ! pour chaque modèle de constituant.
+      DOUBLE PRECISION VARGRANU1I(CTE_NB_AERO)   ! Size distribution parameter 1
+      						       ! for each component model.
+      DOUBLE PRECISION VARGRANU2I(CTE_NB_AERO)   ! Size distribution parameter 2
+      						       ! for each component model.
       
-      DOUBLE PRECISION MR(CTE_NB_AERO)   ! partie réelle de l'indice de réfraction
-      					      ! pour chaque modèle d'aérosols.
-      DOUBLE PRECISION MI(CTE_NB_AERO)   ! partie imaginaire de l'indice de réfraction.
-      					      ! pour chaque modèle d'aérosols.
+      DOUBLE PRECISION MR(CTE_NB_AERO)   ! real part of the refractive index
+      					      ! for each aerosol model.
+      DOUBLE PRECISION MI(CTE_NB_AERO)   ! imaginary part of the refractive index.
+      					      ! for each aerosol model.
       DOUBLE PRECISION MR1(CTE_NB_WMO)  !
-      DOUBLE PRECISION MI1(CTE_NB_WMO)  ! utilisé pour le stockage de 
-      DOUBLE PRECISION MR2(CTE_NB_WMO)  ! valeurs intermediaires
+      DOUBLE PRECISION MI1(CTE_NB_WMO)  ! used to store
+      DOUBLE PRECISION MR2(CTE_NB_WMO)  ! intermediate values
       DOUBLE PRECISION MI2(CTE_NB_WMO)  !
       
-      DOUBLE PRECISION V(CTE_NB_WMO)	!Concentration volumique des constituants
+      DOUBLE PRECISION V(CTE_NB_WMO)	!Volume concentration of the components
       
-      INTEGER*4 I	   !Indice.       
-      INTEGER*4 IER        ! code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 I	   !Index.
+      INTEGER*4 IER        ! error code =0 if no error, =-1 otherwise
       
 C* Initialisation
 C  --------------
@@ -3386,52 +3386,52 @@ C  --------------
 	   V(I)=0.
        ENDDO
 
-C* Ouverture du fichier contenant les données de la WMO
+C* Opening of the file containing the WMO data
 C  ---------------------------------------------------	 
        OPEN(8,FILE=FICDATAWMO,STATUS='OLD',ERR=991)
 
-C* Lecture du rayon modal
+C* Reading of the modal radius
 C  ---------------------- 	 
        READ(8,333,err=992) VARGRANU1I(1),VARGRANU1I(2),
      &                     VARGRANU1I(3),VARGRANU1I(4)
      	  
-C* Lecture du log decimal de la variance
+C* Reading of the decimal log of the variance
 C  ------------------------------------- 	 
        READ(8,333,err=992) VARGRANU2I(1),VARGRANU2I(2),
      &                     VARGRANU2I(3),VARGRANU2I(4)      
 
-C* Conversion en variance pour LND compatible avec la définition classique
+C* Conversion to a variance for LND consistent with the classical definition
 C  ------------------------------------- 	 
        DO I=1,4
           VARGRANU2I(I) = VARGRANU2I(I) * DLOG(10.D+00)
        ENDDO
 
-C* Lecture de la concentration volumique
+C* Reading of the volume concentration
 C  ------------------------------------- 	 
        READ(8,444,err=992) V(1),V(2),V(3),V(4) 
 
-C* Determination des indices de réfraction par interpolation lineaire
+C* Determination of the refractive indices by linear interpolation
 C  ------------------------------------------------------------------
 
-C* Initialisation avec les premieres valeurs du fichier
+C* Initialisation with the first values of the file
 C  ---------------------------------------------------- 
        READ(8,555,END=999,err=992)WA1,MR1(1),MI1(1),MR1(2),MI1(2),
      &                            MR1(3),MI1(3),MR1(4),MI1(4)
 
-C* Pour chaque ligne du fichier, on recherche la longueur d'onde
-C  juste superieure a WA selectionnee
+C* For each line of the file, search for the wavelength
+C  just above the selected WA
 C  --------------------------------------------------------------
   882  READ(8,555,END=999,err=992)WA2,MR2(1),MI2(1),MR2(2),MI2(2),
      &                            MR2(3),MI2(3),MR2(4),MI2(4)
      
-       ! WA1<=WA<WA2, interpolation des indices	     
+       ! WA1<=WA<WA2, interpolation of the indices
        IF((WA1.LE.WA).AND.(WA.LE.WA2)) THEN
        
 	  DO I=1,CTE_NB_WMO	  
 	     CALL SOS_INTERPOL(MR1(I),MR2(I),WA1,WA2,WA,MR(I))
 	     CALL SOS_INTERPOL(MI1(I),MI2(I),WA1,WA2,WA,MI(I))
 	     
-C******** Conversion aux formats F5.3 et F8.3	   
+C******** Conversion to the formats F5.3 and F8.3
 	     MR(I) =  DNINT( MR(I)*1000.D+00) / 1000.D+00
 	     MI(I) = -DNINT(-MI(I)*100000.D+00) / 100000.D+00	    
 	  ENDDO
@@ -3439,12 +3439,12 @@ C******** Conversion aux formats F5.3 et F8.3
 	       
        ELSE
        	 
-          WA1=WA2	! Reinitialisation: ligne1 recoit ligne2
+          WA1=WA2	! Re-initialisation: line1 receives line2
 	  DO I=1,CTE_NB_WMO
 	     MR1(I)=MR2(I)
 	     MI1(I)=MI2(I)
      	  ENDDO
-	  GOTO 882	! passage a la ligne suivante
+	  GOTO 882	! next line
 	       
        ENDIF
 
@@ -3453,11 +3453,11 @@ C******** Conversion aux formats F5.3 et F8.3
   881  CONTINUE
        CLOSE(8)
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
        GOTO 9999
               
-C* Cas d'erreur et retour du status -1 au programme appelant
+C* Error case and return of status -1 to the calling program
 C----------------------------------------------------------
   991  WRITE(6,*) 'Error while opening the WMO datafile'
        WRITE(6,*) 'FICDATAWMO :',FICDATAWMO
@@ -3477,81 +3477,81 @@ C---------
  9999  CONTINUE
  
        RETURN
-       END	!FIN DE LA PROCEDURE SOS_INIT_PARAMWMO
+       END	!END OF PROCEDURE SOS_INIT_PARAMWMO
 
 
 C==============================================================================
 C PROCEDURE: SOS_INIT_PARAMSF
 C ==========
-C      Cette procédure initialise l'ensemble des paramètres de chaque
-C      constituant des modèles de Shettle et Fenn pour la longueur d'onde 
-C      et l'humidite relative selectionnees :
-C      	- le rayon modal
-C	- la variance
-C	- partie réelle de l'indice de réfraction
-C	- partie imaginaire
+C      This procedure initialises all the parameters of each
+C      component of the Shettle and Fenn models for the wavelength
+C      and the relative humidity selected:
+C      	- the modal radius
+C	- the variance
+C	- real part of the refractive index
+C	- imaginary part
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C	DIRFIC (CHARACTER*CTE_LENDIR)  : (E) chemin d'acces au fichier de données
-C	WA (double)	      : (E) longueur d'onde selectionne
-C	RH (double)	      : (E) humidite relative
-C       VARGRANU1I(CTE_NB_AERO) (double) : (S) rayon modal de chaque constituant
-C       VARGRANU2I(CTE_NB_AERO) (double) : (S) log decimal de la variance de 
-C					  chaque constituant
-C	MR(CTE_NB_AERO) (double) : (S) partie réelle de l'indice de réfraction
-C       MI(CTE_NB_AERO) (double) : (S) partie imaginaire de l'indice de réfraction
-C	IER (I4) : (S) code d'erreur = 0 si pas d'erreur, sinon =1	
+C	DIRFIC (CHARACTER*CTE_LENDIR)  : (I) access path to the data file
+C	WA (double)	      : (I) selected wavelength
+C	RH (double)	      : (I) relative humidity
+C       VARGRANU1I(CTE_NB_AERO) (double) : (O) modal radius of each component
+C       VARGRANU2I(CTE_NB_AERO) (double) : (O) decimal log of the variance of
+C					  each component
+C	MR(CTE_NB_AERO) (double) : (O) real part of the refractive index
+C       MI(CTE_NB_AERO) (double) : (O) imaginary part of the refractive index
+C	IER (I4)	: (O) error code = 0 if no error, =1 otherwise
 C
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier des paramètres de granulométrie des composants
-C      de Shettle et Fenn :
-C      Fichier Ascii, format d'un enregistrement:
-C      1ere ligne : 5(1X,F9.5)
-C		    log decimal de la variance 
-C		    pour les constituants SR,LR,SU,LU et OM    
-C      2eme ligne a la fin : 1X,F5.2,5(1X,F9.5)
-C			     % d'humidite relative, rayon modal
-C			     de chaque constituant.   
+C   -->Content of the file of the size distribution parameters of the
+C      Shettle and Fenn components:
+C      Ascii file, record format:
+C      1st line : 5(1X,F9.5)
+C                   decimal log of the variance
+C		    for the components SR,LR,SU,LU and OM
+C      2nd line to the end : 1X,F5.2,5(1X,F9.5)
+C			     % of relative humidity, modal radius
+C			     of each component.
 C
-C   -->Contenu des fichiers IRefrac_XX (avec XX = SR, LR ...)
-C      Fichier Ascii, format d'un enregistrement 17(1X,F9.5)
-C      pour chaque ligne: longeur d'onde, partie réelle et partie imaginaire 
-C			  de l'indice de réfraction pour 8 humidites 	
-C			  relatives : 0%, 50%, 70%, 80%, 90%, 95%, 98%, 99%.
+C   -->Content of the files IRefrac_XX (with XX = SR, LR ...)
+C      Ascii file, record format 17(1X,F9.5)
+C      for each line: wavelength, real part and imaginary part
+C			  of the refractive index for 8 relative
+C			  humidities: 0%, 50%, 70%, 80%, 90%, 95%, 98%, 99%.
 C
 C
-C Constantes utilisees :
+C Constants used:
 C --------------------
-C    CTE_LENDIR : Longueur des noms de répertoires.
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_AER_DATASF  : Nom du fichier contenant rayon modal et log variance S&F.
-C    CTE_AER_XX_SF   : Nom des fichiers contenant les indices de réfraction S&F
-C		       pour chaque constituant XX = SR, LR, SU, LU, OM.
+C    CTE_LENDIR : Length of directory names.
+C     CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_AER_DATASF  : Name of the file containing the S&F modal radius and log variance.
+C    CTE_AER_XX_SF   : Name of the files containing the S&F refractive indices
+C		       for each component XX = SR, LR, SU, LU, OM.
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------    
-C     -Ouverture d'un fichier
-C       Erreur si l'un des fichiers de données n'existe pas
-C     -Lecture dans un fichier
+C     -Opening of a file
+C       Error if one of the data files does not exist
+C     -Reading in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Ce programme fait appel a la routine: SOS_INTERPOL
+C  This program calls the routine: SOS_INTERPOL
 C
 C
 C  MOD:VERSION 2.0: 02/03/2016
-C      Conversion de la variance du fichier de données S&F (en log décimal)
-C      en variance conforme à la définition classique des LND: VAR_WMO * LOG(10)
+C      Conversion of the variance of the S&F data file (in decimal log)
+C      into a variance consistent with the classical definition of the LND: VAR_WMO * LOG(10)
 C
 C==============================================================================
       SUBROUTINE SOS_INIT_PARAMSF(DIRFIC,WA,RH,VARGRANU1I,
@@ -3559,65 +3559,65 @@ C==============================================================================
 
       IMPLICIT NONE
       
-C Constantes AEROSOLS
+C AEROSOLS constants
 C -------------------
 
-      INTEGER CTE_NB_SF	        !Nombre des composants des modèles Shettle & Fenn
+      INTEGER CTE_NB_SF	        !Number of components of the Shettle & Fenn models
       PARAMETER (CTE_NB_SF=5)
 
-      INTEGER CTE_NB_RH		!Nombre de valeurs d'humidite relative
+      INTEGER CTE_NB_RH		!Number of relative humidity values
       PARAMETER (CTE_NB_RH=8)
  
-      INTEGER CTE_NB_AERO	!Dimension des tableaux résultats 
-      PARAMETER (CTE_NB_AERO=5)	!(4 composants WMO, 5 composants Shettle & Fenn)	
+      INTEGER CTE_NB_AERO	!Dimension of the result arrays
+      PARAMETER (CTE_NB_AERO=5)	!(4 WMO components, 5 Shettle & Fenn components)
       
             
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------
 
-      CHARACTER*CTE_LENDIR DIRFIC	! Chemin d'acces aux fichiers S&F
-      CHARACTER*CTE_LENFIC2 FICDATASF	! Nom du fichier Data_SF
-      CHARACTER*CTE_LENFIC2 FIC_SR_SF 	! Fichier IRefrac_SR
-      CHARACTER*CTE_LENFIC2 FIC_LR_SF 	! Fichier IRefrac_LR
-      CHARACTER*CTE_LENFIC2 FIC_SU_SF 	! Fichier IRefrac_SU
-      CHARACTER*CTE_LENFIC2 FIC_LU_SF 	! Fichier IRefrac_LU
-      CHARACTER*CTE_LENFIC2 FIC_OM_SF 	! Fichier IRefrac_OM
+      CHARACTER*CTE_LENDIR DIRFIC	! Access path to the S&F files
+      CHARACTER*CTE_LENFIC2 FICDATASF	! Name of the file Data_SF
+      CHARACTER*CTE_LENFIC2 FIC_SR_SF 	! File IRefrac_SR
+      CHARACTER*CTE_LENFIC2 FIC_LR_SF 	! File IRefrac_LR
+      CHARACTER*CTE_LENFIC2 FIC_SU_SF 	! File IRefrac_SU
+      CHARACTER*CTE_LENFIC2 FIC_LU_SF 	! File IRefrac_LU
+      CHARACTER*CTE_LENFIC2 FIC_OM_SF 	! File IRefrac_OM
       
-      DOUBLE PRECISION WA	! Longueur d'onde en microns selectionnee.	
-      DOUBLE PRECISION WA1	! Longueur d'onde en microns lue dans les fichiers
+      DOUBLE PRECISION WA	! Selected wavelength in microns.
+      DOUBLE PRECISION WA1	! Wavelength in microns read in the files
       DOUBLE PRECISION WA2	
       
-      DOUBLE PRECISION RH	! Humidite relative (%)
-      DOUBLE PRECISION RH1	! Humidite relative lue dans les fichiers
+      DOUBLE PRECISION RH	! Relative humidity (%)
+      DOUBLE PRECISION RH1	! Relative humidity read in the files
       DOUBLE PRECISION RH2	!
       
-      DOUBLE PRECISION VARGRANU1I(CTE_NB_AERO)  ! Paramètre 1 de la granulométrie
-      						      ! pour chaque modèle de constituant.
-      DOUBLE PRECISION VARGRANU2I(CTE_NB_AERO)  ! Paramètre 2 de la granulométrie
-      						      ! pour chaque modèle de constituant.
+      DOUBLE PRECISION VARGRANU1I(CTE_NB_AERO)  ! Size distribution parameter 1
+      						      ! for each component model.
+      DOUBLE PRECISION VARGRANU2I(CTE_NB_AERO)  ! Size distribution parameter 2
+      						      ! for each component model.
       
-      DOUBLE PRECISION MR(CTE_NB_AERO)  ! partie réelle de l'indice de réfraction
-      					     ! pour chaque modèle d'aérosols.
-      DOUBLE PRECISION MI(CTE_NB_AERO)  ! partie imaginaire de l'indice de réfraction.
-      					     ! pour chaque modèle d'aérosols.
+      DOUBLE PRECISION MR(CTE_NB_AERO)  ! real part of the refractive index
+      					     ! for each aerosol model.
+      DOUBLE PRECISION MI(CTE_NB_AERO)  ! imaginary part of the refractive index.
+      					     ! for each aerosol model.
       
       DOUBLE PRECISION MR_CPT1		!
-      DOUBLE PRECISION MR_CPT2		! Valeurs intermediaires
+      DOUBLE PRECISION MR_CPT2		! Intermediate values
       DOUBLE PRECISION MI_CPT1		!
       DOUBLE PRECISION MI_CPT2		!
       
       DOUBLE PRECISION RM1(CTE_NB_SF)	!
-      DOUBLE PRECISION RM2(CTE_NB_SF)	! utilise pour le stockage de
-      DOUBLE PRECISION MR1(CTE_NB_RH)   ! valeurs intermediaires 
+      DOUBLE PRECISION RM2(CTE_NB_SF)	! used to store
+      DOUBLE PRECISION MR1(CTE_NB_RH)   ! intermediate values
       DOUBLE PRECISION MR2(CTE_NB_RH)   ! 
       DOUBLE PRECISION MI1(CTE_NB_RH)   ! 
       DOUBLE PRECISION MI2(CTE_NB_RH)   !
 	
-      INTEGER*4 I,H	   ! Indice
-      INTEGER*4 CPT	   ! Compteur 
-      INTEGER*4 IFIN	   ! Indicateur de fin d'une chaine de caractères
+      INTEGER*4 I,H	   ! Index
+      INTEGER*4 CPT	   ! Counter
+      INTEGER*4 IFIN	   ! End flag of a character string
       
-      INTEGER*4 IER        ! code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 IER        ! error code =0 if no error, =-1 otherwise
       
 C* Initialisation
 C  --------------
@@ -3631,8 +3631,8 @@ C  --------------
        ENDDO
 
        
-       ! Initialisation des noms des différents fichiers contenant 
-       ! les données du modèle S&F
+       ! Initialisation of the names of the different files containing
+       ! the data of the S&F model
        
        IFIN=INDEX(DIRFIC,' ')
        IFIN=IFIN-1
@@ -3645,30 +3645,30 @@ C  --------------
        FIC_LU_SF = DIRFIC(1:IFIN)//'/'//CTE_AER_LU_SF
        FIC_OM_SF = DIRFIC(1:IFIN)//'/'//CTE_AER_OM_SF
 
-C* Ouverture du fichier contenant les paramètres de granulométrie
-C* des composants de S&F
+C* Opening of the file containing the size distribution parameters
+C* of the S&F components
 C  --------------------------------------------------------------
        OPEN(9,FILE=FICDATASF,STATUS='OLD',ERR=991)
    	  
-C* Lecture du log decimal de la variance
+C* Reading of the decimal log of the variance
 C  ------------------------------------- 	 
        READ(9,222,err=993) VARGRANU2I(1),VARGRANU2I(2),VARGRANU2I(3),
      &                     VARGRANU2I(4),VARGRANU2I(5) 
 
-C* Conversion en variance pour LND compatible avec la définition classique
+C* Conversion to a variance for LND consistent with the classical definition
 C  ------------------------------------- 	 
        DO I=1,5
           VARGRANU2I(I) = VARGRANU2I(I) * DLOG(10.D+00)
        ENDDO
                     
-C* Lecture du rayon modal en fonction de l'humidite relative
+C* Reading of the modal radius versus the relative humidity
 C  --------------------------------------------------------- 	 
        READ(9,333,err=993) RH1,RM1(1),RM1(2),
      &                      RM1(3),RM1(4),RM1(5)
         
 	CPT=1
 	
-	! Cas ou RH = 0%
+	! Case RH = 0%
 	IF(RH1.EQ.RH) THEN
 	
 	   DO I=1,CTE_NB_SF
@@ -3678,15 +3678,15 @@ C  ---------------------------------------------------------
 	   
 	ENDIF
 
-C* Recherche des valeurs de RH encadrant la valeur selectionnee
+C* Search for the RH values around the selected value
 C  ------------------------------------------------------------
   883   READ(9,333,err=993) RH2,RM2(1),RM2(2),
      &                      RM2(3),RM2(4),RM2(5)
      
-        CPT=CPT+1	! Compteur indiquant la position de 
-			! la valeur RH2 juste superieure a RH
+        CPT=CPT+1	! Counter giving the position of
+			! the value RH2 just above RH
 	
-	! Cas ou RH1<RH<=RH2, interpolation des indices de réfraction
+	! Case RH1<RH<=RH2, interpolation of the refractive indices
 	IF((RH1.LT.RH).AND.(RH.LE.RH2)) THEN
 	
 	   DO I=1,CTE_NB_SF	  
@@ -3694,21 +3694,21 @@ C  ------------------------------------------------------------
      	   ENDDO
 	   GOTO 884
 	       
-        ELSE	! Reinitialisation des valeurs
+        ELSE	! Re-initialisation of the values
        
           RH1=RH2
 	  DO I=1,CTE_NB_SF
 	     RM1(I)=RM2(I)
      	  ENDDO
-	  GOTO 883	! passage a la ligne suivante dans le fichier	       
+	  GOTO 883	! next line in the file
 	  
        ENDIF
        
   884  CONTINUE
 
 
-C* Ouverture des fichiers contenant l'indice de réfraction pour 
-C  chaque constituant des modèles S&F
+C* Opening of the files containing the refractive index for
+C  each component of the S&F models
 C  -----------------------------------------------------------
        OPEN(11,FILE=FIC_SR_SF,STATUS='OLD',ERR=992)
        OPEN(12,FILE=FIC_LR_SF,STATUS='OLD',ERR=992)
@@ -3718,42 +3718,42 @@ C  -----------------------------------------------------------
   
        DO I=1,CTE_NB_SF
 
-C* Determination des indices de réfraction par interpolation lineaire
+C* Determination of the refractive indices by linear interpolation
 C  ------------------------------------------------------------------
 
-C* Initialisation avec les premieres valeurs du fichier
+C* Initialisation with the first values of the file
 C  ----------------------------------------------------
           READ((I+10),555,END=999,err=993)WA1,MR1(1),MI1(1),MR1(2),
      &                             MI1(2),MR1(3),MI1(3),MR1(4),MI1(4),
      &				   MR1(5),MI1(5),MR1(6),MI1(6),MR1(7),
      &				   MI1(7),MR1(8),MI1(8)
 
-C* Pour chaque ligne du fichier, on recherche la longueur d'onde
-C  juste superieure a celle selectionnee
+C* For each line of the file, search for the wavelength
+C  just above the selected one
 C  --------------------------------------------------------------
   885     READ((I+10),555,END=999,err=993)WA2,MR2(1),MI2(1),MR2(2),
      &                             MI2(2),MR2(3),MI2(3),MR2(4),MI2(4),
      &				   MR2(5),MI2(5),MR2(6),MI2(6),MR2(7),
      &				   MI2(7),MR2(8),MI2(8)
      
-          ! Cas ou WA1<=WA<=WA2, interpolation des données
+          ! Case WA1<=WA<=WA2, interpolation of the data
 	  IF((WA1.LE.WA).AND.(WA.LE.WA2)) THEN
 	  
-	     ! Cas ou RH = 0%, interpolation de WA mais pas de RH
+	     ! Case RH = 0%, interpolation in WA but not in RH
 	     IF(CPT.EQ.1) THEN
 	        CALL SOS_INTERPOL(MR1(CPT),MR2(CPT),WA1,WA2,WA,MR(I))
 		 CALL SOS_INTERPOL(MI1(CPT),MI2(CPT),WA1,WA2,WA,MI(I))
 	     
 	     ELSE
-	      ! Interpolations pour la partie réelle de l'indice de réfraction	     
-		! Interpolation de WA pour RH1(CPT-1) et RH2(CPT) encadrant RH
+	      ! Interpolations for the real part of the refractive index
+		! Interpolation in WA for RH1(CPT-1) and RH2(CPT) around RH
 		 CALL SOS_INTERPOL(MR1(CPT-1),MR2(CPT-1),
      &		                  WA1,WA2,WA,MR_CPT1)
 	        CALL SOS_INTERPOL(MR1(CPT),MR2(CPT),WA1,WA2,WA,MR_CPT2)
-		! Interpolation de RH
+		! Interpolation in RH
 	        CALL SOS_INTERPOL(MR_CPT1,MR_CPT2,RH1,RH2,RH,MR(I))
 	      
-	      ! Interpolations pour la partie imaginaire
+	      ! Interpolations for the imaginary part
 	        CALL SOS_INTERPOL(MI1(CPT-1),MI2(CPT-1),
      &				  WA1,WA2,WA,MI_CPT1)
 	        CALL SOS_INTERPOL(MI1(CPT),MI2(CPT),WA1,WA2,WA,MI_CPT2)
@@ -3762,16 +3762,16 @@ C  --------------------------------------------------------------
 		
           ELSE
        
-            WA1=WA2	! Reinitilisation 
+            WA1=WA2	! Re-initialisation
 	     DO H=1,CTE_NB_RH
 	        MR1(H)=MR2(H)
 	        MI1(H)=MI2(H)
      	     ENDDO
-	     GOTO 885	! Passage a la ligne suivante du fichier
+	     GOTO 885	! Next line of the file
 	       
           ENDIF
 	  
-C* Conversion aux formats F5.3 et F8.3	
+C* Conversion to the formats F5.3 and F8.3
 	  MR(I) =  DNINT( MR(I)*1000.D+00) / 1000.D+00
 	  MI(I) = -DNINT(-MI(I)*100000.D+00) / 100000.D+00
 	  	    
@@ -3786,11 +3786,11 @@ C* Conversion aux formats F5.3 et F8.3
        CLOSE(14)
        CLOSE(15)
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
        GOTO 9999
               
-C* Cas d'erreur et retour du status -1 au programme appelant
+C* Error case and return of status -1 to the calling program
 C----------------------------------------------------------
   991  WRITE(6,*) 
      &     'Error while opening the Shettle&Fenn component  datafile'
@@ -3819,7 +3819,7 @@ C---------
  9999  CONTINUE
  
        RETURN
-       END	!FIN DE LA PROCEDURE SOS_INIT_PARAMSF
+       END	!END OF PROCEDURE SOS_INIT_PARAMSF
 
 
 
@@ -3827,17 +3827,17 @@ C---------
 C==============================================================================
 C PROCEDURE: SOS_INTERPOL
 C ==========
-C      Cette procédure permet d'interpoler lineairement en X une fonction f
-C      dont on connait les valeurs (X1,Y1) et (X2,Y2).
+C      This procedure linearly interpolates in X a function f
+C      whose values (X1,Y1) and (X2,Y2) are known.
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C	X1 (double) : (E)
-C	X2 (double) : (E)
-C	Y1 (double) : (E) Valeur f(X1)
-C	Y2 (double) : (E) Valeur f(X2)
-C	X (double)  : (E) Abscisse pour laquelle on interpole la valeur f(X)
-C   Y (double)  : (S) Valeur f(X) interpolee
+C	X1 (double) : (I)
+C	X2 (double) : (I)
+C	Y1 (double) : (I) Value f(X1)
+C	Y2 (double) : (I) Value f(X2)
+C	X (double)  : (I) Abscissa at which the value f(X) is interpolated
+C   Y (double)  : (O) Interpolated value f(X)
 C 
 C
 C==============================================================================
@@ -3845,7 +3845,7 @@ C==============================================================================
 
       IMPLICIT NONE
 
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------
 
       DOUBLE PRECISION Y	
@@ -3855,70 +3855,70 @@ C*-----------------------------------------
       DOUBLE PRECISION X1
       DOUBLE PRECISION X2      
       
-C* Calcul du paramètre interpole
+C* Computation of the interpolated parameter
 C  -----------------------------
       Y = ((Y2-Y1)/(X2-X1))*(X-X2) + Y2
 
-      END	!FIN DE LA PROCEDURE SOS_INTERPOL
+      END	!END OF PROCEDURE SOS_INTERPOL
 
 
             
 C==============================================================================
 C PROCEDURE: SOS_DECOMPO_LEGENDRE
 C ==========
-C       Cette procédure calcule les paramètres alpha, beta, gamma delta et zeta
-C	de la decomposition de la focntion de phase en polynomes de Legendre.
-C	Application eventuelle de la troncature.
+C       This procedure computes the parameters alpha, beta, gamma delta and zeta
+C	of the decomposition of the phase function in Legendre polynomials.
+C	Possible application of the truncation.
 C
-C       Les fonctions de phase sont stockees dans des tableaux definis jusqu'à
-C       CTE_MIE_NBMU_MAX mais sont utilisees jusqu'à MIE_NBMU (angles effectifs).
+C       The phase functions are stored in arrays defined up to
+C       CTE_MIE_NBMU_MAX but are used up to MIE_NBMU (actual angles).
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C	ITRONC (I4) : (E/S) Option de troncature (1 pour la realiser).
-C                           Mise a 0 en sortie si la troncature est trop faible.
-C	TRACE (logical) : (E)  =vrai si écriture dans le fichier trace
-C      MIE_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles
-C	XMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (E) Cosinus des angles de Gauss.
-C	XHR(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (E) Poids des angles de Gauss.
-C	P11(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double)  : (E) Fonction de phase calculée 
-C					         à partir des fonctions la théorie de MIE.
-C	P12(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double)  : (E) Elément P12 de la matrice de phase.
-C	P33(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	(double) : (E) Elément P33 de la matrice de phase.
-C	TTT(-CTE_MIE_NBMU_MAX:CTE_MIE_NBM_MAXU) (double) : (S) Copie de la fonction de phase (P11) 
-C					 	               avant troncature.
-C	COEF_TRONCA (double)	     : (S) Coefficient de troncature.
-C	Z1 (double)		     : (S) Valeur de BETA11(0) avant normalisation.
-C	ALP(0:CTE_OS_NB_MAX) (double)     : (S) Paramètres alpha(k).
-C	BETA11(0:CTE_OS_NB_MAX) (double)  : (S) Paramètres beta11(k).
-C	BETA22(0:CTE_OS_NB_MAX) (double)  : (S) Paramètres beta22(k).
-C	GAMMA12(0:CTE_OS_NB_MAX) (double) : (S) Paramètres gamma12(k).
-C	ZETA(0:CTE_OS_NB_MAX) (double)    : (S) Paramètres zeta(k).
-C	DELTA33(0:CTE_OS_NB_MAX) (double)  : (S) Paramètres delta33(k).
-C	IER (I4)		     : (S) Code d'erreur =0 si pas d'erreur, sinon =1.	
+C	ITRONC (I4) : (I/O) Truncation option (1 to apply it).
+C                           Set to 0 as output if the truncation is too small.
+C	TRACE (logical) : (I)  =true if writing in the trace file
+C      MIE_NBMU (I4) : (I) Number of actually useful (positive) angles
+C	 XMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (I) Cosines of the Gauss angles.
+C	XHR(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (I) Weights of the Gauss angles.
+C	P11(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double)  : (I) Phase function computed
+C					         from the functions of the MIE theory.
+C	P12(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double)  : (I) Element P12 of the phase matrix.
+C	P33(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	(double) : (I) Element P33 of the phase matrix.
+C	TTT(-CTE_MIE_NBMU_MAX:CTE_MIE_NBM_MAXU) (double) : (O) Copy of the phase function (P11)
+C					 	               before truncation.
+C	COEF_TRONCA (double)	     : (O) Truncation coefficient.
+C	Z1 (double)		     : (O) Value of BETA11(0) before normalisation.
+C	ALP(0:CTE_OS_NB_MAX) (double)     : (O) Parameters alpha(k).
+C	BETA11(0:CTE_OS_NB_MAX) (double)  : (O) Parameters beta11(k).
+C	BETA22(0:CTE_OS_NB_MAX) (double)  : (O) Parameters beta22(k).
+C	GAMMA12(0:CTE_OS_NB_MAX) (double) : (O) Parameters gamma12(k).
+C	ZETA(0:CTE_OS_NB_MAX) (double)    : (O) Parameters zeta(k).
+C	DELTA33(0:CTE_OS_NB_MAX) (double)  : (O) Parameters delta33(k).
+C	IER (I4)		     : (O) Error code =0 if no error, =1 otherwise.
 C
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C     Aucun
+C None
 C
-C Constantes utilisees :
+C Constants used:
 C --------------------
-C    CTE_MIE_NBMU_MAX : Nombre maximal d'angles positifs.
-C    CTE_OS_NB_MAX :  Valeur maximale pour l'ordre limite du développement en 
-C                     polynomes de Legendre.
-C    SOS_PH_SEUIL_TRONCA : Valeur seuil pour la troncature.
+C    CTE_MIE_NBMU_MAX : Maximum number of positive angles.
+C    CTE_OS_NB_MAX :  Maximum value of the limit order of the expansion in
+C                     Legendre polynomials.
+C    SOS_PH_SEUIL_TRONCA : Threshold for the truncation.
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ecriture dans un fichier
+C     -Writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C==============================================================================
       SUBROUTINE SOS_DECOMPO_LEGENDRE(ITRONC,TRACE,MIE_NBMU,XMU,XHR,
@@ -3929,98 +3929,98 @@ C==============================================================================
 
       IMPLICIT NONE
 
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------
       DOUBLE PRECISION XMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)  
-                                                  !Cosinus des angles de Gauss.
+                                                  !Cosines of the Gauss angles.
       DOUBLE PRECISION XHR(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)  
-                                                  !Poids des angles de Gauss.
+                                                  !Weights of the Gauss angles.
       
       DOUBLE PRECISION P11(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Fonction de phase calculée à partir des fonctions de 
-		       !la théorie de MIE.
+                       !Phase function computed from the functions of
+		       !the MIE theory.
       DOUBLE PRECISION P12(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P12 de la matrice de phase.
+                       !Element P12 of the phase matrix.
       DOUBLE PRECISION P22(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P22 de la matrice de phase.
+                       !Element P22 of the phase matrix.
       DOUBLE PRECISION P33(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P33 de la matrice de phase.
+                       !Element P33 of the phase matrix.
 
       DOUBLE PRECISION TTT(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Copie de la fonction de phase (P11) avant troncature.
+                       !Copy of the phase function (P11) before truncation.
 		       
 		
       DOUBLE PRECISION PL(-1:CTE_OS_NB_MAX+1) 
-                       !Polynomes de Legendre a l'ordre L calcule pour un angle.
+                       !Legendre polynomials of order L computed for one angle.
       DOUBLE PRECISION POL(0:CTE_OS_NB_MAX+1) 
-                       !Fonction de Legendre d'ordre S=2 et d'ordre L variable
-		       !(calcule pour un angle).
+                       !Legendre function of order S=2 and variable order L
+		       !(computed for one angle).
 		       			
-      DOUBLE PRECISION D	!Variable pour le calcul de POL.
-      DOUBLE PRECISION E	!Variable pour le calcul de POL.
+      DOUBLE PRECISION D	!Variable for the computation of POL.
+      DOUBLE PRECISION E	!Variable for the computation of POL.
       		       
       DOUBLE PRECISION X
-      DOUBLE PRECISION XRMU	!Valeur utilisee du tableau des angles de Gauss.
+      DOUBLE PRECISION XRMU	!Value used from the array of Gauss angles.
 				
       DOUBLE PRECISION XX	
       DOUBLE PRECISION XXX
 
-      DOUBLE PRECISION COEF_TRONCA	!Coefficient de troncature.    
-      DOUBLE PRECISION AA	!Pente de la droite de troncature.
+      DOUBLE PRECISION COEF_TRONCA	!Truncation coefficient.
+      DOUBLE PRECISION AA	!Slope of the truncation line.
       DOUBLE PRECISION X1	
       DOUBLE PRECISION X2
 
 
-      DOUBLE PRECISION CO1	!Variable pour le calcul des ALP(k) et ZETA(k).
-      DOUBLE PRECISION CO2	!Variable pour le calcul des ALP(k) et ZETA(k).
-      DOUBLE PRECISION CO3	!Variable pour le calcul des ALP(k) et ZETA(k).
+      DOUBLE PRECISION CO1	!Variable for the computation of ALP(k) and ZETA(k).
+      DOUBLE PRECISION CO2	!Variable for the computation of ALP(k) and ZETA(k).
+      DOUBLE PRECISION CO3	!Variable for the computation of ALP(k) and ZETA(k).
 
-      DOUBLE PRECISION SOM1  	!Variable pour le calcul des ALP(k) et ZETA(k).
-      DOUBLE PRECISION SOM2	!Variable pour le calcul des ALP(k) et ZETA(k).
-      DOUBLE PRECISION SOM3	!Variable pour le calcul des ALP(k) et ZETA(k).
-      DOUBLE PRECISION SOM4	!Variable pour le calcul des ALP(k) et ZETA(k).
+      DOUBLE PRECISION SOM1  	!Variable for the computation of ALP(k) and ZETA(k).
+      DOUBLE PRECISION SOM2	!Variable for the computation of ALP(k) and ZETA(k).
+      DOUBLE PRECISION SOM3	!Variable for the computation of ALP(k) and ZETA(k).
+      DOUBLE PRECISION SOM4	!Variable for the computation of ALP(k) and ZETA(k).
       
-      DOUBLE PRECISION Z1	!Valeur de BETA11(0) avant normalisation.
+      DOUBLE PRECISION Z1	!Value of BETA11(0) before normalisation.
 
-      DOUBLE PRECISION ALP(0:CTE_OS_NB_MAX)	! Paramètres alpha(k).
-      DOUBLE PRECISION BETA11(0:CTE_OS_NB_MAX)	! Paramètres beta11(k).
-      DOUBLE PRECISION BETA22(0:CTE_OS_NB_MAX)	! Paramètres beta22(k).
-      DOUBLE PRECISION GAMMA12(0:CTE_OS_NB_MAX)	! Paramètres gamma12(k).
-      DOUBLE PRECISION ZETA(0:CTE_OS_NB_MAX)	! Paramètres zeta(k).
-      DOUBLE PRECISION DELTA33(0:CTE_OS_NB_MAX)	! Paramètres delta33(k).
+      DOUBLE PRECISION ALP(0:CTE_OS_NB_MAX)	! Parameters alpha(k).
+      DOUBLE PRECISION BETA11(0:CTE_OS_NB_MAX)	! Parameters beta11(k).
+      DOUBLE PRECISION BETA22(0:CTE_OS_NB_MAX)	! Parameters beta22(k).
+      DOUBLE PRECISION GAMMA12(0:CTE_OS_NB_MAX)	! Parameters gamma12(k).
+      DOUBLE PRECISION ZETA(0:CTE_OS_NB_MAX)	! Parameters zeta(k).
+      DOUBLE PRECISION DELTA33(0:CTE_OS_NB_MAX)	! Parameters delta33(k).
                         
-	!   Angles bornes pour la troncature (pour conversion en double precision)
+	!   Bounding angles for the truncation (for conversion to double precision)
 	!-----------------------------------
-      DOUBLE PRECISION MU1_TRONCA ! cosinus des angles Theta1 et Theta2 pour la définition
-      DOUBLE PRECISION MU2_TRONCA ! du segment tronquant la fonction de phase
+      DOUBLE PRECISION MU1_TRONCA ! cosines of the angles Theta1 and Theta2 for the definition
+      DOUBLE PRECISION MU2_TRONCA ! of the segment truncating the phase function
 
-      INTEGER*4 MIE_NBMU   ! Nombre d'angles (positifs) effectivement utiles 
-      INTEGER*4 ITRONC	   ! Option de troncature (1 pour la realiser).
-      INTEGER*4 OS_NB 	   ! Ordre des développements des fonctions de phase 
-			   ! en Polynomes de Legendre.      
-      INTEGER*4 K          ! Indice de tableau.
-      INTEGER*4 KK	   ! Indice du tableau des angles de Gauss pour le mu
-      			   ! le plus proche de 0.94 par valeur superieure.			               
+      INTEGER*4 MIE_NBMU   ! Number of actually useful (positive) angles
+      INTEGER*4 ITRONC	   ! Truncation option (1 to apply it).
+      INTEGER*4 OS_NB 	   ! Order of the expansions of the phase functions
+			   ! in Legendre polynomials.
+      INTEGER*4 K          ! Array index.
+      INTEGER*4 KK	   ! Index of the array of Gauss angles for the mu
+      			   ! closest to 0.94 from above.
       INTEGER*4 NN
       INTEGER*4 MM				
-      INTEGER*4 I	   ! Indice.  
-      INTEGER*4 J	   ! Indice.      
-      INTEGER*4 IER	   ! Code d'erreur =0 si pas d'erreur, =1 sinon.         
+      INTEGER*4 I	   ! Index.
+      INTEGER*4 J	   ! Index.
+      INTEGER*4 IER	   ! Error code =0 if no error, =1 otherwise.
 
-      LOGICAL TESS	   !Variable pour le calcul de Troncature. 
-      LOGICAL TRACE	   !=vrai si écriture dans le fichier trace 
+      LOGICAL TESS	   !Variable for the computation of the truncation.
+      LOGICAL TRACE	   !=true if writing in the trace file
     
 
 
 
-C* Copie de la fonction de phase en intensite avant la troncature.
+C* Copy of the phase function in intensity before the truncation.
 C-----------------------------------------------------------------
       DO 55 J=-MIE_NBMU,MIE_NBMU
          TTT(J)=P11(J)
   55  CONTINUE 
       
 C==============
-C* TRONCATURE
+C* TRUNCATION
 C============== 
       IF(ITRONC.EQ.0) GO TO 59
 
@@ -4028,14 +4028,14 @@ C==============
       MU2_TRONCA = CTE_AER_MU2_TRONCA
 
 
-C* Troncature de la fonction de phase en intensite pour les angles 
-C* inferieurs a 19.95 degres (mu = 0.94).
+C* Truncation of the phase function in intensity for the angles
+C* below 19.95 degrees (mu = 0.94).
 C------------------------------------------------------------------------------
 
-C* Determination des angles de Gauss juste inferieurs a 36.87 degres (mu=0.8)
-C* et a 19.95 degres (mu = 0.94)
-C* Détermination des angles de Gauss juste inférieurs à 36.87 degrés (mu=0.8 : MU1_TRONCA)
-C* et à 19.95 degrés (mu = 0.94 : MU2_TRONCA) par exemple typiquement pour les aérosols.
+C* Determination of the Gauss angles just below 36.87 degrees (mu=0.8)
+C* and 19.95 degrees (mu = 0.94)
+C* Determination of the Gauss angles just below 36.87 degrees (mu=0.8 : MU1_TRONCA)
+C* and 19.95 degrees (mu = 0.94 : MU2_TRONCA), for instance, typically for aerosols.
 C--------------------------------------------------------------------
       TESS=.TRUE.
       DO 56 J=1,MIE_NBMU
@@ -4067,13 +4067,13 @@ C--------------------------------------------------------------------
 	 WRITE(88,*,err=921) ""
       ENDIF
 
-C* Determination de la pente de la droite "log10(p(cos(teta))) = AA * teta + BB"
-C* passant par les valeurs de log10 (p) pour les mu de Gauss ci-dessus.
+C* Determination of the slope of the line "log10(p(cos(teta))) = AA * teta + BB"
+C* going through the values of log10 (p) for the Gauss mu above.
 C--------------------------------------------------------------------------
       AA=
      &(DLOG10(P11(KK))-DLOG10(P11(K)))/(DACOS(XMU(KK))-DACOS(XMU(K)))
 
-C* Application de la troncature
+C* Application of the truncation
 C-------------------------------
       X1=DLOG10(P11(KK))
       X2=DACOS(XMU(KK))
@@ -4087,15 +4087,15 @@ C-------------------------------
   59  CONTINUE
 
 
-C* Calcul des paramètres BETA11(k) de la decomposition de la fonction
-C* de phase (éventuellement tronquée) en polynomes de Legendre.
+C* Computation of the parameters BETA11(k) of the decomposition of the
+C* (possibly truncated) phase function in Legendre polynomials.
 C------------------------------------------------------------------
       DO 61 J=-MIE_NBMU,MIE_NBMU
          IF(J.EQ.0) GO TO 61
          X=P11(J)*XHR(J)
          XRMU=XMU(J)
 
-C* Calcul des polynomes de Legendre d'ordre K, pour la valeur de mu fixee.
+C* Computation of the Legendre polynomials of order K, for the fixed value of mu.
 C------------------------------------------------------------------------
          DO 60 K=0,OS_NB
             PL(-1)=0.
@@ -4111,7 +4111,7 @@ C------------------------------------------------------------------------
 
 
 
-C* Calcul du coefficient de troncature
+C* Computation of the truncation coefficient
 C--------------------------------------
       IF (ITRONC.EQ.1) THEN
          COEF_TRONCA=2*(1-BETA11(0))
@@ -4119,8 +4119,8 @@ C--------------------------------------
          COEF_TRONCA=0.0
       ENDIF
 
-C* Si le coefficient de troncature est inferieur au seuil Seuil_Tronca
-C* la troncature est annulee.   
+C* If the truncation coefficient is below the threshold Seuil_Tronca
+C* the truncation is cancelled.
 C----------------------------------------------------------------------	
       IF((ITRONC.EQ.1).AND.(COEF_TRONCA.LT.CTE_PH_SEUIL_TRONCA)) THEN
       
@@ -4130,9 +4130,9 @@ C----------------------------------------------------------------------
    
 	 ENDIF
 	 
-C* Recopie de la fonction de phase en intensite avant la troncature
-C* et re-initialisation des paramètres de la decomposition de la matrice
-C* de phase
+C* Copy back of the phase function in intensity before the truncation
+C* and re-initialisation of the parameters of the decomposition of the matrix
+C* computations
 C-------------------------------------------------------------------
       	 DO 66 J=-MIE_NBMU,MIE_NBMU
             P11(J)=TTT(J)
@@ -4149,13 +4149,13 @@ C-------------------------------------------------------------------
  67      CONTINUE
   
 	 GOTO 59 
-      ENDIF    !Fin test si troncature trop faible.
+      ENDIF    !End of test whether the truncation is too small.
   
 
-C* Calcul des paramètres GAMMA12(k), BETA22(K) et DELTA33(k) de la decomposition des 
-C* fonctions de phase polarisees P12, P22 et P33 en polynomes ou fonctions de Legendre.
-C* Application de l'eventuelle troncature par le rapport de la fonction de phase
-C* en intensité tronquée sur celle initiale: P11(J)/TTT(J).
+C* Computation of the parameters GAMMA12(k), BETA22(K) and DELTA33(k) of the decomposition of the
+C* polarised phase functions P12, P22 and P33 in Legendre polynomials or functions.
+C* Application of the possible truncation through the ratio of the truncated
+C* phase function in intensity to the initial one: P11(J)/TTT(J).
 C-----------------------------------------------------------------------------
       DO 11 J=-MIE_NBMU,MIE_NBMU       
 	 IF(J.EQ.0)  GO TO 11
@@ -4177,7 +4177,7 @@ C-----------------------------------------------------------------------------
   12     CONTINUE
     	
 	 
-         X=XHR(J)*P22(J)*(P11(J)/TTT(J))	!Parentheses necessaires pour assurer la non-regression stricte
+         X=XHR(J)*P22(J)*(P11(J)/TTT(J))	!Parentheses needed to ensure strict non-regression
          XX=XHR(J)*P33(J)*P11(J)/TTT(J)
          DO 14 K=0,OS_NB
             PL(K+1)=((2.*K+1.)*XRMU*PL(K)-K*PL(K-1))/(K+1.)
@@ -4194,7 +4194,7 @@ C-----------------------------------------------------------------------------
    15 CONTINUE
 
 
-C* Calcul des paramètres ALP(k) et ZETA(k) en fonctions des BETA22(k) et DELTA33(k).
+C* Computation of the parameters ALP(k) and ZETA(k) from BETA22(k) and DELTA33(k).
 C----------------------------------------------------------------------------------
       DO 16 I=2,OS_NB
          CO1=4*(2*I+1.)/I/(I-1.)/(I+1.)/(I+2.)
@@ -4223,8 +4223,8 @@ C-------------------------------------------------------------------------------
          ALP(I)=CO2-CO1*(SOM1-SOM4)
   16  CONTINUE
 
-C* Normalisation des paramètres ALP(K), BETA(K), GAMMA(K), DELTA(K) et ZETA(K)
-C* de la matrice de phase.
+C* Normalisation of the parameters ALP(K), BETA(K), GAMMA(K), DELTA(K) and ZETA(K)
+C* of the phase matrix.
 C----------------------------------------------------------------------------
       Z1=BETA11(0)
       DO 20 K=0,OS_NB
@@ -4236,11 +4236,11 @@ C----------------------------------------------------------------------------
          ZETA(K)=ZETA(K)/Z1
   20  CONTINUE
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
        GOTO 9999
 
-C* Cas d'erreur et retour du status -1 au programme appelant
+C* Error case and return of status -1 to the calling program
 C----------------------------------------------------------
   921  WRITE(6,*) 'Error while writing GRANU logfile'
        IER=-1
@@ -4250,7 +4250,7 @@ C----------------------------------------------------------
  9999  CONTINUE
  
        RETURN
-       END	!FIN DE LA PROCEDURE SOS_DECOMPO_LEGENDRE
+       END	!END OF PROCEDURE SOS_DECOMPO_LEGENDRE
        
        
        
@@ -4259,132 +4259,132 @@ C----------------------------------------------------------
 C*==============================================================================
 C* PROCEDURE: SOS_GRANU
 C* ==========
-C      Cette procédure calcule la fonction de phase P(mu) et les fonctions
-C      de phase polarisee Q(mu) et U(mu) à partir des calculs de MIE realises
-C      par le programme "SOS_MIE", pour une longueur d'onde donnée et pour
-C      une distribution en taille des particules donnée (renseignee par igranu).
+C      This procedure computes the phase function P(mu) and the polarised
+C      phase functions Q(mu) and U(mu) from the MIE computations made
+C      by the program "SOS_MIE", for a given wavelength and for
+C      a given particle size distribution (given by igranu).
 C
-C      Si igranu = 1 => Distribution Log-Normale : 
+C      If igranu = 1 => Log-Normal distribution:
 C                N(r) = exp(-0.5 *(ln(r/rm)/sig)**2) / r
-C		 varGranu1 = rm : rayon modal en microns,
+C		 varGranu1 = rm : modal radius in microns,
 C		 varGranu2 = sig : variance.
 C
-C      Si igranu = 2 => Loi de Junge : N(r) = Nr0 = R0**(-xnu) pour r < R0
-C				           N(r) = r**(-xnu) pour r > R0
-C				           N(r) = 0 pour r > Rmax
-C		 varGranu1 = R0 : rayon minimal en microns,
-C		 varGranu2 = xnu : puissance appliquée au rayon (pente de la loi de Junge).
-C		 varGranu3 = Rmax : rayon maximal en microns,
+C      If igranu = 2 => Junge law: N(r) = Nr0 = R0**(-xnu) for r < R0
+C				           N(r) = r**(-xnu) for r > R0
+C				           N(r) = 0 for r > Rmax
+C		 varGranu1 = R0 : minimum radius in microns,
+C		 varGranu2 = xnu : power applied to the radius (slope of the Junge law).
+C		 varGranu3 = Rmax : maximum radius in microns,
 
 C
-C       Les fonctions de phase sont stockees dans des tableaux definis jusqu'à
-C       CTE_MIE_NBMU_MAX mais sont utilisees jusqu'à MIE_NBMU (angles effectifs).
+C       The phase functions are stored in arrays defined up to
+C       CTE_MIE_NBMU_MAX but are used up to MIE_NBMU (actual angles).
 C
 C
-C Description des paramètres
+C Description of parameters
 C ----------------------------
-C       FICMIE(CHARACTER*CTE_LENFIC2)  (E) : Nom du fichier MIE 
-C                                 (répertoire + nom fichier + extension).
-C       IGRANU  (I4)         (E) : Numéro du modèle de granulométrie à utiliser.
-C       VARGRANU1 (double)   (E) : Paramètre 1 de la granulométrie.
-C	 VARGRANU2 (double)   (E) : Paramètre 2 de la granulométrie
-C	 VARGRANU3 (double)   (E) : Paramètre 2 de la granulométrie
-C	 WA  (double)         (E) : Longueur d'onde en microns.
-C       MIE_NBMU (I4) 	 (E) : Nombre d'angles (positifs) effectivement utiles
-C	 XMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (E) Cosinus des angles de Gauss.
-C	 TRACE (logical)      (E) : = vrai,si écriture dans le fichier trace
-C                                 (No d'unite logique du fichier trace =88).
-C	 KMAT1 (double)       (S) : Section efficace d'extinction (micron^2).
-C	 KMAT2 (double)       (S) : Section efficace de diffusion (micron^2).
-C	 SOMME_NR (double)    (S) : Nombre de particules integre sur la granulométrie.
-C       P11 (double)         (S) : Fonction de phase calculée à partir des 
-C                                  fonctions de la théorie de MIE. 
-C       P12 (double)         (S) : Elément P12 de la matrice de phase.
-C	 P33 (double)         (S) : Elément P33 de la matrice de phase.
-C       IER  (I4)            (S) : Code d'erreur =0 si pas d'erreur, =-1 sinon.   
+C       FICMIE(CHARACTER*CTE_LENFIC2)  (I) : Name of the MIE file
+C                                 (directory + file name + extension).
+C       IGRANU  (I4)         (I) : Number of the size distribution model to use.
+C       VARGRANU1 (double)   (I) : Size distribution parameter 1.
+C	 VARGRANU2 (double)   (I) : Size distribution parameter 2
+C	 VARGRANU3 (double)   (I) : Size distribution parameter 3
+C	 WA  (double)         (I) : Wavelength in microns.
+C       MIE_NBMU (I4) 	 (I) : Number of actually useful (positive) angles
+C	 XMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (I) Cosines of the Gauss angles.
+C	 TRACE (logical)      (I) : = true if writing in the trace file
+C                                 (logical unit number of the trace file =88).
+C	 KMAT1 (double)       (O) : Extinction cross section (micron^2).
+C	 KMAT2 (double)       (O) : Scattering cross section (micron^2).
+C	 SOMME_NR (double)    (O) : Number of particles integrated over the size distribution.
+C       P11 (double)         (O) : Phase function computed from the
+C                                  functions of the MIE theory.
+C       P12 (double)         (O) : Element P12 of the phase matrix.
+C	 P33 (double)         (O) : Element P33 of the phase matrix.
+C       IER  (I4)               (O) : Error code =0 if no error, =-1 otherwise.
 C
 C
-C Autre résultat fourni par la procédure
+C Other result provided by the procedure
 C ----------------------------------------
-C   Informations dans le fichier de trace (optionnel)
-C   (No d'unite logique du fichier trace =88 , 
-C    fichier cree/ouvert par le programe appelant)
+C      Information in the trace file (optional)
+C   (logical unit number of the trace file =88,
+C    file created/opened by the calling program)
 C
 C
 C
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier de MIE
-C       Fichier binaire non formatte, cree par SOS_MIE
-C       1 enregistrement d'entete avec
-C                Indice de réfraction (partie réelle)
-C                Indice de réfraction (partie imaginaire)
-C                Paramètre de taille limite
-C                Nombre d'angles de Gauss positifs
+C   -->Content of the MIE file
+C       Unformatted binary file, created by SOS_MIE
+C       1 header record with
+C                Refractive index (real part)
+C                Refractive index (imaginary part)
+C                Limit size parameter
+C                Number of positive Gauss angles
 C
-C      1 enregistrement pour chaque valeur du paramètre de taille avec:
-C        - Paramètre de taille (réel),
-C        - Coefficient d'efficacite en extinction (réel),
-C        - Coefficient d'efficacite en diffusion (réel),
-C        - Facteur d'anisotropie (double précision),
-C        - Tableau de la fonction de phase Imie(mu) (réel),
-C        - Tableau de la fonction de phase polarisee Qmie(mu) (réel),
-C        - Tableau de la fonction de phase polarisee Umie(mu) (réel).
+C      1 record for each value of the size parameter with:
+C        - Size parameter (real),
+C        - Extinction efficiency factor (real),
+C        - Scattering efficiency factor (real),
+C        - Asymmetry factor (double precision),
+C        - Array of the phase function Imie(mu) (real),
+C        - Array of the polarised phase function Qmie(mu) (real),
+C        - Array of the polarised phase function Umie(mu) (real).
 C
-C    --> Les tableaux ont une taille utile limitée à MIE_NBMU : 
-C        ils sont lus avec cette limitation.
+C    --> The arrays have a useful size limited to MIE_NBMU:
+C        they are read with this limitation.
 C
 C
-C Constantes utilisees :  
+C Constants used:
 C----------------------
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    INCTE_PI : valeur de PI
-C    CTE_MIE_NBMU_MAX : Nombre maximal d'angles positifs.
-C    CTE_OS_NB_MAX :  Valeur maximale pour l'ordre limite du développement en 
-C                     polynomes de Legendre.
+C     CTE_LENFIC2 : Length of file names with directory tree.
+C    INCTE_PI : Value of PI
+C    CTE_MIE_NBMU_MAX : Maximum number of positive angles.
+C    CTE_OS_NB_MAX :  Maximum value of the limit order of the expansion in
+C                     Legendre polynomials.
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Incoherence sur le nombre d'angles de Gauss
-C     -Ouverture d'un fichier
-C       Erreur si le fichier de MIE ou des angles de Gauss n'existe pas
-C     -Lecture/écriture dans un fichier
+C     -Inconsistency of the number of Gauss angles
+C     -Opening of a file
+C       Error if the MIE file or the Gauss angle file does not exist
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C        
 C   
 C
 C
 C* MOD:VERSION 2.0: 24/06/2008 
-C	   - Les coefficients KMAT1 et KMAT2 sont normalisés à une particule
-C            ==> La routine sort des sections efficaces d'extinction et de diffusion
-C                (en mic^2) au lieu de coefficient d'extinction et de diffusion (/mic).
-C          - Introduction du calcul de rayon effectif et variance effective.
+C	   - The coefficients KMAT1 and KMAT2 are normalised to one particle
+C            ==> The routine outputs extinction and scattering cross sections
+C                (in mic^2) instead of extinction and scattering coefficients (/mic).
+C          - Introduction of the computation of the effective radius and effective variance.
 C
 C MOD:VERSION 3.0: 10/01/2010
-C          - Passage d'une dimension des tableaux de CTE_MIE_NBMU à CTE_MIE_NBMU_MAX
-C          - Boucle sur les fonctions de phase jusqu'à MIE_NBMU
-C          - Modification de la ligne de lecture  des tableaux de fonctions de phase 
-C            par valeur de paramètre de taille Alpha
-C            ==> limitation aux bornes utiles -MIE_NBMU:MIE_NBMU de l'enregistrement effectif
-C                des fichiers de MIE
+C          - One dimension of the arrays changed from CTE_MIE_NBMU to CTE_MIE_NBMU_MAX
+C          - Loop on the phase functions up to MIE_NBMU
+C          - Change of the reading line of the arrays of phase functions
+C            per value of the size parameter Alpha
+C            ==> limited to the useful bounds -MIE_NBMU:MIE_NBMU of the actual record
+C                of the MIE files
 C
 C MOD:VERSION 4.0: 03/02/2016
-C          - La formulation N(r) = exp(-0.5 *(log10(r/rm)/sig)**2) / r
-C            pour sig = log10(variance) est abandonnée en faveur 
-C            d'une formulation classique du modèle LND:
+C          - The formulation N(r) = exp(-0.5 *(log10(r/rm)/sig)**2) / r
+C            for sig = log10(variance) is abandoned in favour
+C            of a classical formulation of the LND model:
 C			    N(r) = exp(-0.5 *(log(r/rm)/sig)**2) / r	
-C	     pour sig = variance.
+C	     for sig = variance.
 C
 C MOD:VERSION 4.1: 08/10/2020
-C          - Ajout de l'argument VARGRANU3 pour définir le rayon Rmax d'une 
-C            granulométrie de Junge
+C          - Addition of the argument VARGRANU3 to define the radius Rmax of a
+C            Junge size distribution
 C          
 C==============================================================================
 
@@ -4396,95 +4396,95 @@ C==============================================================================
       IMPLICIT NONE
 
 
-C* Definition des variables
+C* Definition of variables
 C----------------------------------------------------------------------------
       
-      CHARACTER*CTE_LENFIC2 FICMIE	! Chemin et nom du fichier MIE
+      CHARACTER*CTE_LENFIC2 FICMIE	! Path and name of the MIE file
       
-      DOUBLE PRECISION VARGRANU1   	! Paramètre 1 de la granulométrie.
-      DOUBLE PRECISION VARGRANU2   	! Paramètre 2 de la granulométrie.
-      DOUBLE PRECISION VARGRANU3   	! Paramètre 3 de la granulométrie.
-      DOUBLE PRECISION RM		!Rayon modal d'une granulométrie LND.
-      DOUBLE PRECISION SIG		!Variance d'une granulométrie LND
-      DOUBLE PRECISION B		!Variable intermedaire.
-      DOUBLE PRECISION R0		!Rayon seuil min d'une granulométrie en loi de Junge
-      DOUBLE PRECISION RMAX		!Rayon seuil max d'une granulométrie en loi de Junge
-      DOUBLE PRECISION XNU		!Puissance d'une granulométrie en loi de Junge.
-      DOUBLE PRECISION NR0		!Nombre de particules pour un rayon < r0 
-                                	!d'une loi de Junge.
+      DOUBLE PRECISION VARGRANU1   	! Size distribution parameter 1.
+      DOUBLE PRECISION VARGRANU2   	! Size distribution parameter 2.
+      DOUBLE PRECISION VARGRANU3   	! Size distribution parameter 3.
+      DOUBLE PRECISION RM		!Modal radius of an LND size distribution.
+      DOUBLE PRECISION SIG		!Variance of an LND size distribution
+      DOUBLE PRECISION B		!Intermediate variable.
+      DOUBLE PRECISION R0		!Min threshold radius of a Junge law size distribution
+      DOUBLE PRECISION RMAX		!Max threshold radius of a Junge law size distribution
+      DOUBLE PRECISION XNU		!Power of a Junge law size distribution.
+      DOUBLE PRECISION NR0		!Number of particles for a radius < r0
+                                	!of a Junge law.
 					
-      DOUBLE PRECISION REFF		!Rayon effectif de la granulométrie (microns).
-      DOUBLE PRECISION VEFF		!Variance effective de la granulométrie.
+      DOUBLE PRECISION REFF		!Effective radius of the size distribution (microns).
+      DOUBLE PRECISION VEFF		!Effective variance of the size distribution.
       
-      DOUBLE PRECISION WA		!Longueur d'onde en microns.
+      DOUBLE PRECISION WA		!Wavelength in microns.
 
       DOUBLE PRECISION XMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)
-                                        !Cosinus des angles de Gauss.
-      DOUBLE PRECISION TETA     	!Angle de diffusion.
+                                        !Cosines of the Gauss angles.
+      DOUBLE PRECISION TETA     	!Scattering angle.
       
-      DOUBLE PRECISION KMAT1		! Section efficace d'extinction (micron^2).
-      DOUBLE PRECISION KMAT2 		! Section efficace de diffusion (micron^2). 
+      DOUBLE PRECISION KMAT1		! Extinction cross section (micron^2).
+      DOUBLE PRECISION KMAT2 		! Scattering cross section (micron^2).
       
       DOUBLE PRECISION P11(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Fonction de phase calculée à partir des fonctions de 
-		       !la théorie de MIE.
+                       !Phase function computed from the functions of
+		       !the MIE theory.
       DOUBLE PRECISION P12(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P12 de la matrice de phase.
+                       !Element P12 of the phase matrix.
       DOUBLE PRECISION P33(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)	
-                       !Elément P33 de la matrice de phase.
+                       !Element P33 of the phase matrix.
 		      
-      DOUBLE PRECISION XG	!Facteur d'anisotropie.
+      DOUBLE PRECISION XG	!Asymmetry factor.
 
 
-      DOUBLE PRECISION ALPHAF	!Valeur maximale du paramètre de taille contenue
-      				!dans le fichier des calculs de MIE.
+      DOUBLE PRECISION ALPHAF	!Maximum value of the size parameter contained
+      				!in the file of the MIE computations.
 
-      DOUBLE PRECISION R	!Rayon de particule pour le paramètre de taille 
-      				!ALPHA et la longueur d'onde du traitement WA.
-      DOUBLE PRECISION PR	!Pas entre deux valeurs successives des rayons de
-      				!particules (en microns).
-      DOUBLE PRECISION NR	!NR*PR = Nombre de particules de rayon compris
-      				!entre R et R + PR (par micron**3).
+      DOUBLE PRECISION R	!Particle radius for the size parameter
+      				!ALPHA and the processing wavelength WA.
+      DOUBLE PRECISION PR	!Step between two successive values of the particle
+      				!radii (in microns).
+      DOUBLE PRECISION NR	!NR*PR = Number of particles with a radius between
+      				!R and R + PR (per micron**3).
 
-      DOUBLE PRECISION SOMME_NR	!Integration sur les rayons de NR * PR 
-      				!==> nb de particule par unite de volume.
-      DOUBLE PRECISION SOMME_R2	!Integration sur les rayons de R^2 * NR * PR.
-      DOUBLE PRECISION SOMME_R3	!Integration sur les rayons de R^3 * NR * PR.
-      DOUBLE PRECISION SOMME_R4	!Integration sur les rayons de R^4 * NR * PR.
-      DOUBLE PRECISION R2NRPR	!Valeur de R*R * NR * PR.
+      DOUBLE PRECISION SOMME_NR	!Integration over the radii of NR * PR
+      				!==> nb of particles per unit volume.
+      DOUBLE PRECISION SOMME_R2	!Integration over the radii of R^2 * NR * PR.
+      DOUBLE PRECISION SOMME_R3	!Integration over the radii of R^3 * NR * PR.
+      DOUBLE PRECISION SOMME_R4	!Integration over the radii of R^4 * NR * PR.
+      DOUBLE PRECISION R2NRPR	!Value of R*R * NR * PR.
       
-      DOUBLE PRECISION RN	!partie réelle de l'indice de réfraction.
-      DOUBLE PRECISION RI	!partie imaginaire de l'indice de réfraction.
+      DOUBLE PRECISION RN	!real part of the refractive index.
+      DOUBLE PRECISION RI	!imaginary part of the refractive index.
 	
       DOUBLE PRECISION X1		
 
       
-      REAL*4 ALPHA		!Valeur du paramètre de taille.
-      REAL*4 PAS		!Pas entre deux valeurs de ALPHA.
-      REAL*4 QEXT		!Coefficient d'efficacite en extinction.
-      REAL*4 QSCA		!Coefficient d'efficacite en diffusion.
+      REAL*4 ALPHA		!Value of the size parameter.
+      REAL*4 PAS		!Step between two values of ALPHA.
+      REAL*4 QEXT		!Extinction efficiency factor.
+      REAL*4 QSCA		!Scattering efficiency factor.
       REAL*4 IMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)         
-                                !Fonction de phase : Imie(mu) pour ALPHA.
+                                !Phase function: Imie(mu) for ALPHA.
       REAL*4 QMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)         
-                                !Fonction de phase polarisee : Qmie(mu).
+                                !Polarised phase function: Qmie(mu).
       REAL*4 UMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)         
-                                !Fonction de phase polarisee : Umie(mu).
+                                !Polarised phase function: Umie(mu).
 
-      INTEGER*4 MIE_NBMU  	! Nombre d'angles (positifs) effectivement utiles 
-      INTEGER*4 IGRANU  	! Numéro du modèle de granulométrie.
-      INTEGER*4 J	   	! Indice.
-      INTEGER*4 NBMUMIE	   	! Nombre d'angle de GAUSS positifs utilises pour 
-      			   	! les calculs de MIE (enregistrement du fichier MIE).			   
-      INTEGER*4 IER        	! Code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 MIE_NBMU  	! Number of actually useful (positive) angles
+      INTEGER*4 IGRANU  	! Number of the size distribution model.
+      INTEGER*4 J	   	! Index.
+      INTEGER*4 NBMUMIE	   	! Number of positive GAUSS angles used for
+      			   	! the MIE computations (record of the MIE file).
+      INTEGER*4 IER        	! Error code =0 if no error, =-1 otherwise
 
-      LOGICAL TRACE        	! = vrai,si écriture dans le fichier trace.
+      LOGICAL TRACE        	! = true if writing in the trace file.
       
 
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0
 
-C* Initialisation des tableaux de fonction de phase
+C* Initialisation of the phase function arrays
 C------------------------------------------------------
       DO 102 J=-MIE_NBMU,MIE_NBMU
          P11(J)=0.
@@ -4492,41 +4492,41 @@ C------------------------------------------------------
          P33(J)=0.
   102 CONTINUE
 
-C* Initialisation des coefficient d'extinction et de diffusion
+C* Initialisation of the extinction and scattering coefficients
 C-------------------------------------------------------------
       KMAT1=0.
       KMAT2=0.
 
-C* Initialisation des cumuls d'integration sur la granulométrie
+C* Initialisation of the integration sums over the size distribution
 C-------------------------------------------------------------
       SOMME_NR=0.
       SOMME_R2=0.
       SOMME_R3=0.
       SOMME_R4=0.
                   
-C* Ouverture des fichiers 
+C* Opening of the files
 C------------------------------------------------------
-C     Fichier MIE
+C     MIE file
       OPEN (1,FILE=FICMIE,FORM='UNFORMATTED',
      &      STATUS='OLD',ERR=991)
  
-C* Lecture de l'entete du fichier de MIE
+C* Reading of the header of the MIE file
 C-------------------------------------------      
       READ(1,ERR=992) RN,RI,ALPHAF,NBMUMIE
         
-C* Controle paramètre
+C* Parameter check
 C--------------------
       IF (NBMUMIE.NE.MIE_NBMU) GOTO 996
 
-C* Lecture des fonctions calculées par la théorie de MIE
-C* pour chaque valeur du paramètre de taille ALPHA
+C* Reading of the functions computed by the MIE theory
+C* for each value of the size parameter ALPHA
 C*
-C*      Lecture des tableaux de fonctions de phase
-C*      qui ont ete enregistres avec des bornes 
-C*      limitées au dimensionnement utile -MIE_NBMU:MIE_NBMU
+C*      Reading of the arrays of phase functions
+C*      that were written with bounds
+C*      limited to the useful dimension -MIE_NBMU:MIE_NBMU
 C*       
-C  (boucle sur l'etiquette 123,
-C   condition d'arret : fin du fichier MIE)
+C  (loop on label 123,
+C   stop condition: end of the MIE file)
 C------------------------------------------------------
       PAS = 0.0001
 
@@ -4535,15 +4535,15 @@ C------------------------------------------------------
      &                    (QMIE(J),J=-MIE_NBMU,MIE_NBMU),
      &                    (UMIE(J),J=-MIE_NBMU,MIE_NBMU)
 		
-C* Calcul du rayon de particule associe a ALPHA pour la longueur d'onde WA
+C* Computation of the particle radius associated with ALPHA for the wavelength WA
 C--------------------------------------------------------------------------
          R=ALPHA*WA/2.D+00/INCTE_PI
 	 
-C* Test sur la limite du fichier de MIE
+C* Test on the limit of the MIE file
 C--------------------------------------
          IF (ALPHA.GE.(ALPHAF-PAS)) GOTO 40
 		
-C* Estimation du pas pour la valeur de ALPHA suivante
+C* Estimation of the step for the next value of ALPHA
 C------------------------------------------------------
          IF (ALPHA.GT.0.10)  PAS=0.001
          IF (ALPHA.GT.1.00 ) PAS=0.01
@@ -4552,12 +4552,12 @@ C------------------------------------------------------
          IF (ALPHA.GT.100.)  PAS=1.00
 
 
-C* Expression des différentes granulométries possibles:
+C* Expression of the different possible size distributions:
 C------------------------------------------------------
 
-C*  Distribution log-normale :
+C*  Log-normal distribution:
 C***************************
-C*  RM : Rayon modal (microns).
+C*  RM : Modal radius (microns).
 C*  SIG : Variance
 C------------------------------
 		
@@ -4569,9 +4569,9 @@ C------------------------------
             NR = dexp(-B*B/2.)/(R*SIG*sqrt(2*INCTE_PI))
          ENDIF
 
-C*  Loi de Junge : NR = plateau Rmin**(-XNU) pour r <= Rmin
+C*  Junge law: NR = plateau Rmin**(-XNU) for r <= Rmin
 C****************
-C*  R0 : Rayon minimal (microns).
+C*  R0 : Minimum radius (microns).
 C---------------------------
          IF (IGRANU.eq.2) THEN
             R0  = VARGRANU1
@@ -4580,7 +4580,7 @@ C---------------------------
 
             NR0= (R0)**(-XNU)
 
-	     IF (R.GT.RMAX) GOTO 40 !Sortie de boucle sur taille des particules
+	     IF (R.GT.RMAX) GOTO 40 !Exit of the loop on the particle size
             IF (R.LE.R0) THEN
 	       NR = NR0
 	     ELSE
@@ -4589,8 +4589,8 @@ C---------------------------
          ENDIF
 
 
-C* Calcul des coefficients d'extinction (kMAT1) et de diffusion (KMAT2).
-C* Calcul des fonctions de phase en intensite (P11) et en polarisation(P12 et P33).
+C* Computation of the extinction (kMAT1) and scattering (KMAT2) coefficients.
+C* Computation of the phase functions in intensity (P11) and polarisation (P12 and P33).
 C-------------------------------------------------------------------------------
          PR=WA*PAS/2./INCTE_PI
          X1=NR*PR*INCTE_PI*R**2
@@ -4604,23 +4604,23 @@ C-------------------------------------------------------------------------------
             P33(J)=P33(J)+UMIE(J)*X1
    1     CONTINUE
    
-C* Calcul du nombre de particules total
+C* Computation of the total number of particles
 C-------------------------------------------------------------------------------
       SOMME_NR = SOMME_NR + NR*PR
  
-C* Calcul des termes pour le rayon effectif et volume moyen
+C* Computation of the terms for the effective radius and mean volume
 C-------------------------------------------------------------------------------
       R2NRPR = R*R*NR*PR
       SOMME_R2 = SOMME_R2 + R2NRPR
       SOMME_R3 = SOMME_R3 + R2NRPR*R
       SOMME_R4 = SOMME_R4 + R2NRPR*R*R
         
-C* Passage a la valeur suivante de ALPHA
+C* Next value of ALPHA
 C-----------------------------------------
       GOTO 123 	
    40 CONTINUE
 
-C* Calcul du rayon effectif et de la variance effective
+C* Computation of the effective radius and effective variance
 C-------------------------------------------------------------------------------      
       IF (TRACE) THEN
          REFF = SOMME_R3 / SOMME_R2
@@ -4628,12 +4628,12 @@ C-------------------------------------------------------------------------------
      &	         (SOMME_R4 - 2.*REFF*SOMME_R3) / (REFF*REFF * SOMME_R2)
       END IF  
 
-C* Calcul du volume d'une particule moyenne de la granulométrie
+C* Computation of the volume of a mean particle of the size distribution
 C-------------------------------------------------------------------------------    
 c      VMOY = (4.D+00*CTE_PI/3.D+00)*SOMME_R3 / SOMME_NR
       
-C* Normalisation des fonctions de phase.
-C* Copie de la fonction de phase en intensite.
+C* Normalisation of the phase functions.
+C* Copy of the phase function in intensity.
 C------------------------------------------------------
       DO 55 J=-MIE_NBMU,MIE_NBMU
          P11(J)=P11(J)/KMAT2
@@ -4642,16 +4642,16 @@ C------------------------------------------------------
   55  CONTINUE
   
 
-C* Normalisation à une particule des coefficients 
-C* de diffusion et d'extinction.
-C* ==> Conversion en sections efficaces de diffusion
-C*     et d'extinction
+C* Normalisation to one particle of the scattering
+C* and extinction coefficients.
+C* ==> Conversion to scattering and extinction
+C*     cross sections
 C------------------------------------------------------  
        KMAT1= KMAT1 / SOMME_NR
        KMAT2= KMAT2 / SOMME_NR
 
        
-C* Ecriture du fichier trace
+C* Writing of the trace file
 C-------------------------------------------
       IF (TRACE) THEN
         WRITE(88,*,err=921) ' '
@@ -4722,16 +4722,16 @@ C-------------------------------------------
  
 
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(1)
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
 
       
-C* Cas d'erreur et retour du status -1 au programme appelant
+C* Error case and return of status -1 to the calling program
 C----------------------------------------------------------
   991 WRITE(6,*) 'Erreur a l''ouverture du fichier MIE'
       IER=-1
@@ -4764,7 +4764,7 @@ C---------
  
   
       RETURN
-      END    !FIN DE LA PROCEDURE SOS_GRANU
+      END    !END OF PROCEDURE SOS_GRANU
       
       
       
@@ -4775,47 +4775,47 @@ C---------
 C*==============================================================================
 C* PROCEDURE: SOS_INTERPO_SPLINT
 C* ==========
-C      Cette procédure interpole une fonction definie par (XIN, YIN) sur NBIN noeuds
-C      aux abscisses XOUT pour NBOUT noeuds (XOUT, YOUT).
+C      This procedure interpolates a function defined by (XIN, YIN) on NBIN nodes
+C      at the abscissas XOUT for NBOUT nodes (XOUT, YOUT).
 C
-C      La demarche repose sur l'utilisation des fonctions SPLINE et SPLINT
-C         - Les noeuds (XIN, YIN) sont en premier tries par ordre croissant d'abscisse XIN.
-C         - La fonction SPLINE calcule les derivees secondes de YIN_TRIE en XIN_TRIE
-C           à partir des valeurs YIN_TRIE de la fonction aux abscisses XIN_TRIE et des
-C           valeurs de derivee premiere de la fonction au premier et dernier noeud 
-C           (min et max de XIN_TRIE).
-C	  - La fonction SPLINT calcule les valeurs YOUT aux abscisses XOUT en fonction
-C           des valeurs de la fonction et de sa derivee seconde predecemment calcules
-C           aux abscisses XIN_TRIE.
+C      The approach relies on the functions SPLINE and SPLINT
+C         - The nodes (XIN, YIN) are first sorted by increasing abscissa XIN.
+C         - The function SPLINE computes the second derivatives of YIN_TRIE at XIN_TRIE
+C           from the values YIN_TRIE of the function at the abscissas XIN_TRIE and the
+C           values of the first derivative of the function at the first and last nodes
+C           (min and max of XIN_TRIE).
+C	  - The function SPLINT computes the values YOUT at the abscissas XOUT from
+C           the values of the function and of its second derivative previously computed
+C           at the abscissas XIN_TRIE.
 C
-C Description des paramètres
+C Description of parameters
 C ----------------------------
-C       NBIN (I4)		(E) : Nombre d'elements des tableaux XIN et YIN
-C       XIN(1:NBIN)   (double)	(E) : Tableau des abscisses de la fonction pour lesquels l'ordonnée est connue.
-C       YIN(1:NBIN)   (double)	(E) : Tableau des valeurs connues de la fonction (correspond aux abscisses XIN).
-C       NBOUT (I4)		(E) : Nombre d'elements des tableaux XOUT et YOUT
-C       XOUT(1:NBOUT) (double)	(E) : Tableau des abscisses souhaites de la fonction.
-C       YOUT(1:NBOUT) (double)	(S) : Tableau des valeurs estimees de la fonction aux abscisses XOUT.
-C       IER  (I4)               (S) : Code d'erreur =0 si pas d'erreur, =-1 sinon.   
+C       NBIN (I4)		(I) : Number of elements of the arrays XIN and YIN
+C       XIN(1:NBIN)   (double)	(I) : Array of the abscissas of the function for which the ordinate is known.
+C       YIN(1:NBIN)   (double)	(I) : Array of the known values of the function (at the abscissas XIN).
+C       NBOUT (I4)		(I) : Number of elements of the arrays XOUT and YOUT
+C       XOUT(1:NBOUT) (double)	(I) : Array of the requested abscissas of the function.
+C       YOUT(1:NBOUT) (double)	(O) : Array of the estimated values of the function at the abscissas XOUT.
+C       IER  (I4)               (O) : Error code =0 if no error, =-1 otherwise.
 C
-C Constantes utilisees :  
+C Constants used:
 C----------------------
-C  Aucune
+C   None
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     - Retour d'erreur de la routine SOS_SPLINT.
+C     - Error return of the routine SOS_SPLINT.
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C        
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Ce programme fait appel aux routines: SOS_SPLINE et SOS_SPLINT
+C  This program calls the routines: SOS_SPLINE and SOS_SPLINT
 C
 C==============================================================================
 
@@ -4824,35 +4824,35 @@ C==============================================================================
       IMPLICIT NONE
 
 
-C* Definition des variables
+C* Definition of variables
 C----------------------------------------------------------------------------
-      INTEGER*4 NBIN  	! Nombre de noeuds (XIN,YIN) de la fonction Y 
-      INTEGER*4 NBOUT  	! Nombre de noeuds (XOUT,YOUT) de la fonction Y 
-      INTEGER*4 J	! Indice.
-      INTEGER*4 K	! Indice.	   
-      INTEGER*4 IER     ! Code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 NBIN  	! Number of nodes (XIN,YIN) of the function Y
+      INTEGER*4 NBOUT  	! Number of nodes (XOUT,YOUT) of the function Y
+      INTEGER*4 J	! Index.
+      INTEGER*4 K	! Index.
+      INTEGER*4 IER     ! Error code =0 if no error, =-1 otherwise
       
-      DOUBLE PRECISION XIN(NBIN)   !Valeurs des abscisses des noeuds (XIN,YIN) 
-      DOUBLE PRECISION YIN(NBIN)   !Valeurs des ordonnées des noeuds (XIN,YIN) 
-      DOUBLE PRECISION XOUT(NBOUT)  !Valeurs des abscisses des noeuds (XOUT,YOUT) 
-      DOUBLE PRECISION YOUT(NBOUT)  !Valeurs recherchees des ordonnées des noeuds (XOUT,YOUT) 
+      DOUBLE PRECISION XIN(NBIN)   !Values of the abscissas of the nodes (XIN,YIN)
+      DOUBLE PRECISION YIN(NBIN)   !Values of the ordinates of the nodes (XIN,YIN)
+      DOUBLE PRECISION XOUT(NBOUT)  !Values of the abscissas of the nodes (XOUT,YOUT)
+      DOUBLE PRECISION YOUT(NBOUT)  !Requested values of the ordinates of the nodes (XOUT,YOUT)
 
-      DOUBLE PRECISION XIN_TRIE(NBIN)   !Valeurs croissantes des abscisses des noeuds (XIN,YIN) 
-      DOUBLE PRECISION YIN_TRIE(NBIN)   !Valeurs des ordonnées des noeuds (XIN,YIN) pour XIN trie par ordre croissant
-      DOUBLE PRECISION VAL		!Valeur temporaire
+      DOUBLE PRECISION XIN_TRIE(NBIN)   !Increasing values of the abscissas of the nodes (XIN,YIN)
+      DOUBLE PRECISION YIN_TRIE(NBIN)   !Values of the ordinates of the nodes (XIN,YIN) for XIN sorted in increasing order
+      DOUBLE PRECISION VAL		!Temporary value
       
-      DOUBLE PRECISION DY1	!Derivee d'ordre 1 de YIN_TRIE en abscisse XIN_TRIE(1)
-      DOUBLE PRECISION DYN	!Derivee d'ordre 1 de YIN_TRIE en abscisse XIN_TRIE(NBIN)
-      DOUBLE PRECISION DSEC_YIN_TRIE(NBIN)  !Valeurs des derivees secondes de la fonction YIN_TRIE 
-      					    !aux noeuds XIN_TRIE  
+      DOUBLE PRECISION DY1	!First derivative of YIN_TRIE at the abscissa XIN_TRIE(1)
+      DOUBLE PRECISION DYN	!First derivative of YIN_TRIE at the abscissa XIN_TRIE(NBIN)
+      DOUBLE PRECISION DSEC_YIN_TRIE(NBIN)  !Values of the second derivatives of the function YIN_TRIE
+      					    !at the nodes XIN_TRIE
     
 
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0
 
       
-C* Trie des tables (XIN, YIN) par ordre croissant de XIN
+C* Sorting of the tables (XIN, YIN) by increasing XIN
 C------------------------------------------------------
       DO J=1,NBIN
          XIN_TRIE(J)=XIN(J)
@@ -4862,11 +4862,11 @@ C------------------------------------------------------
       DO J=1,NBIN	     
 	 DO K=J+1,NBIN
 	    IF (XIN_TRIE(J).GT.XIN_TRIE(K)) THEN		    		    
-	       !Permutation des valeurs XIN(J) et XIN(K)
+	       !Swap of the values XIN(J) and XIN(K)
 	        VAL=XIN_TRIE(J)
 	        XIN_TRIE(J)=XIN_TRIE(K)
 	        XIN_TRIE(K)=VAL
-	       !Permutation des valeurs YIN(J) et YIN(K)
+	       !Swap of the values YIN(J) and YIN(K)
 		 VAL=YIN_TRIE(J)
 		 YIN_TRIE(J)=YIN_TRIE(K)
 		 YIN_TRIE(K)=VAL   	    	    
@@ -4875,20 +4875,20 @@ C------------------------------------------------------
       ENDDO 
    
       
-C* Calcul des derivees secondes de YIN_TRIE en XIN_TRIE
+C* Computation of the second derivatives of YIN_TRIE at XIN_TRIE
 C------------------------------------------------------
       DO J=1,NBIN
          DSEC_YIN_TRIE(J)=0.D+00
       ENDDO
 
-C     Derivees d'ordre 1 de YIN_TRIE en XIN_TRIE(1) et XIN_TRIE(NBIN)
+C     First derivatives of YIN_TRIE at XIN_TRIE(1) and XIN_TRIE(NBIN)
       DY1 = (YIN_TRIE(2) - YIN_TRIE(1)) / (XIN_TRIE(2) - XIN_TRIE(1))
       DYN = (YIN_TRIE(NBIN) - YIN_TRIE(NBIN-1)) / 
      &      (XIN_TRIE(NBIN) - XIN_TRIE(NBIN-1))
       
       CALL SOS_SPLINE(NBIN,XIN_TRIE,YIN_TRIE,DY1,DYN,DSEC_YIN_TRIE)
 
-C* Application pour l'interpolation SPLINT aux abscisses XOUT
+C* Application of the SPLINT interpolation at the abscissas XOUT
 C------------------------------------------------------------       
        DO J=1,NBOUT
 	 
@@ -4899,12 +4899,12 @@ C------------------------------------------------------------
       ENDDO
             
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
 
       
-C* Cas d'erreur et retour du status -1 au programme appelant
+C* Error case and return of status -1 to the calling program
 C----------------------------------------------------------
   901 WRITE(6,*) '  ERROR for SOS_INTERPO_SPLINT'
       GOTO 9999  
@@ -4912,7 +4912,7 @@ C----------------------------------------------------------
  9999 CONTINUE
   
       RETURN
-      END    !FIN DE LA PROCEDURE SOS_INTERPO_SPLINT     
+      END    !END OF PROCEDURE SOS_INTERPO_SPLINT
       
 
 
@@ -4920,32 +4920,32 @@ C----------------------------------------------------------
 C*==============================================================================
 C* PROCEDURE: SOS_SPLINE
 C* ==========
-C      Cette procédure calcule les valeurs de derivees secondes d'une fonction definie
-C      par (X, Y) sur N noeuds (supposes tries par ordre croissant de X)
-C      et par ses valeurs de derivees premieres aux noeuds extremes (X(1),DY1) et (X(N),DYN).
+C      This procedure computes the values of the second derivatives of a function defined
+C      by (X, Y) on N nodes (assumed sorted by increasing X)
+C      and by its first derivatives at the extreme nodes (X(1),DY1) and (X(N),DYN).
 C
-C      La routine renvoie les valeurs de derivees secondes en chaque point X.
+C      The routine returns the values of the second derivatives at each point X.
 C
-C Description des paramètres
+C Description of parameters
 C ----------------------------
-C       N  (I4)		(E) : Nombre d'elements des tableaux X, Y et DSEC_Y
-C       X(1:N) (double)	(E) : Tableau des abscisses de la fonction pour lesquels l'ordonnée est connue.
-C       Y(1:N) (double)	(E) : Tableau des valeurs connues de la fonction (correspond aux abscisses X).
-C       DY1    (double)	(E) : Derivee premiere de la fonction en X(1).
-C       DYN    (double)	(E) : Derivee premiere de la fonction en X(N).
-C       DSEC_Y(1:N) (double) (S) : Tableau des valeurs de derivees secondes de la fonction aux abscisses X.
+C       N  (I4)		(I) : Number of elements of the arrays X, Y and DSEC_Y
+C       X(1:N) (double)	(I) : Array of the abscissas of the function for which the ordinate is known.
+C       Y(1:N) (double)	(I) : Array of the known values of the function (at the abscissas X).
+C       DY1    (double)	(I) : First derivative of the function at X(1).
+C       DYN    (double)	(I) : First derivative of the function at X(N).
+C       DSEC_Y(1:N) (double) (O) : Array of the values of the second derivatives of the function at the abscissas X.
 C
-C Constantes utilisees :  
+C Constants used:
 C----------------------
-C  Aucune    
+C   None
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C  Aucun         
+C None
 C
 C==============================================================================
 
@@ -4953,12 +4953,12 @@ C==============================================================================
 
       IMPLICIT NONE
 
-      INTEGER*4 N		 !Nb d'elements des tableaux d'entrée (X,Y) et et de sortie (DSEC_Y)
-      DOUBLE PRECISION X(N)	 !Tableau des abscisses de la fonction 
-      DOUBLE PRECISION Y(N)	 !Tableau des valeurs de la fonction aux abscisses X
-      DOUBLE PRECISION DY1   !Derivee premiere de la fonction en X(1)
-      DOUBLE PRECISION DYN	 !Derivee premiere de la fonction en X(N)
-      DOUBLE PRECISION DSEC_Y(N) !Tableau des valeurs de derivees secondes de la fonction aux abscisses X
+      INTEGER*4 N		 !Nb of elements of the input (X,Y) and output (DSEC_Y) arrays
+      DOUBLE PRECISION X(N)	 !Array of the abscissas of the function
+      DOUBLE PRECISION Y(N)	 !Array of the values of the function at the abscissas X
+      DOUBLE PRECISION DY1   !First derivative of the function at X(1)
+      DOUBLE PRECISION DYN	 !First derivative of the function at X(N)
+      DOUBLE PRECISION DSEC_Y(N) !Array of the values of the second derivatives of the function at the abscissas X
       
       DOUBLE PRECISION U(N)
 
@@ -4967,9 +4967,9 @@ C==============================================================================
       DOUBLE PRECISION QN
       DOUBLE PRECISION UN
       
-      INTEGER*4 K ! Indice.
+      INTEGER*4 K ! Index.
       
-C* Definition des variables
+C* Definition of variables
 C----------------------------------------------------------------------------
 
 
@@ -4999,7 +4999,7 @@ C----------------------------------------------------------------------------
         DSEC_Y(K)=DSEC_Y(K)*DSEC_Y(K+1)+U(K)
 12    CONTINUE
       RETURN
-      END   !FIN DE LA PROCEDURE SOS_SPLINE   
+      END   !END OF PROCEDURE SOS_SPLINE
 
 
 
@@ -5009,33 +5009,33 @@ C*==============================================================================
 C* PROCEDURE: SOS_SPLINT
 C* ==========
 C
-C      Cette procédure interpole une fonction en un point XVAL à partir
-C      de trois vecteurs de même dimension X(1:N), Y(1:N) et DSEC_Y(1:N) 
-C      qui donnent respectivement les abscisses, les ordonnées et les 
-C      dérivées secondes de la fonction.
+C      This procedure interpolates a function at a point XVAL from
+C      three vectors of the same dimension X(1:N), Y(1:N) and DSEC_Y(1:N)
+C      giving respectively the abscissas, the ordinates and the
+C      second derivatives of the function.
 C
-C Description des paramètres
+C Description of parameters
 C ----------------------------
-C       N  (I4)		(E) : Nombre d'elements des tableaux X, Y et DSEC_Y
-C       X(1:N) (double)	(E) : Tableau des abscisses de la fonction pour lesquels l'ordonnée est connue.
-C       Y(1:N) (double)	(E) : Tableau des valeurs connues de la fonction (correspond aux abscisses X).
-C       DSEC_Y(1:N) (double) (E) : Tableau des valeurs de derivees secondes de la fonction aux abscisses X.
-C       XVAL (double)	(E) : Valeur de l'abscisse pour laquelle la fonction doit etre interpolee.
-C       YVAL (double)	(S) : Valeur de la fonction interpolee en XVAL.
-C       IER  (I4)       (S) : Code d'erreur =0 si pas d'erreur, =-1 sinon.   
+C       N  (I4)		(I) : Number of elements of the arrays X, Y and DSEC_Y
+C       X(1:N) (double)	(I) : Array of the abscissas of the function for which the ordinate is known.
+C       Y(1:N) (double)	(I) : Array of the known values of the function (at the abscissas X).
+C       DSEC_Y(1:N) (double) (I) : Array of the values of the second derivatives of the function at the abscissas X.
+C       XVAL (double)	(I) : Value of the abscissa at which the function must be interpolated.
+C       YVAL (double)	(O) : Value of the function interpolated at XVAL.
+C       IER  (I4)               (O) : Error code =0 if no error, =-1 otherwise.
 C
-C Constantes utilisees :  
+C Constants used:
 C----------------------
-C  Aucune    
+C   None
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C  Identite des abscisses de la fonction pour les indices estimant les valeurs 
-C  qui encadrent l'abscisse souhaitee.       
+C  Identical abscissas of the function for the indices bounding the
+C  requested abscissa.
 C
 C==============================================================================
 
@@ -5043,28 +5043,28 @@ C==============================================================================
 
       IMPLICIT NONE
 
-      INTEGER*4 N	!Nb d'elements des tableaux d'entrée (X,Y et DSEC_Y)
+      INTEGER*4 N	!Nb of elements of the input arrays (X,Y and DSEC_Y)
       INTEGER*4 KLO	!Lower value of index
       INTEGER*4 KHI	!Higher value of index   
-      INTEGER*4 K	! Indice
-      INTEGER*4 IER     ! Code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 K	! Index
+      INTEGER*4 IER     ! Error code =0 if no error, =-1 otherwise
       
-      DOUBLE PRECISION X(N)	 !Tableau des abscisses de la fonction 
-      DOUBLE PRECISION Y(N)	 !Tableau des valeurs de la fonction aux abscisses X
-      DOUBLE PRECISION DSEC_Y(N) !Tableau des valeurs de derivees secondes de la fonction aux abscisses X
+      DOUBLE PRECISION X(N)	 !Array of the abscissas of the function
+      DOUBLE PRECISION Y(N)	 !Array of the values of the function at the abscissas X
+      DOUBLE PRECISION DSEC_Y(N) !Array of the values of the second derivatives of the function at the abscissas X
 
-      DOUBLE PRECISION XVAL	!Valeur de l'abscisse pour laquelle la fonction doit etre interpolee.
-      DOUBLE PRECISION YVAL	!Valeur de la fonction interpolee en XVAL.
+      DOUBLE PRECISION XVAL	!Value of the abscissa at which the function must be interpolated.
+      DOUBLE PRECISION YVAL	!Value of the function interpolated at XVAL.
       
       DOUBLE PRECISION A,B
       DOUBLE PRECISION H
 
 
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0
       
-C* Definition des variables
+C* Definition of variables
 C----------------------------------------------------------------------------
       
       KLO=1
@@ -5090,11 +5090,11 @@ C----------------------------------------------------------------------------
       
       IF (IER.EQ.-1) GOTO 901
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status -1 au programme appelant
+C* Error case and return of status -1 to the calling program
 C----------------------------------------------------------
   901 WRITE(6,*) '  ERROR for SPLINT interpolation'
       WRITE(6,*) '  --> Bad X table input'
@@ -5102,4 +5102,4 @@ C----------------------------------------------------------
      
  9999 CONTINUE      
       RETURN
-      END    !FIN DE LA PROCEDURE SOS_SPLINT     
+      END    !END OF PROCEDURE SOS_SPLINT

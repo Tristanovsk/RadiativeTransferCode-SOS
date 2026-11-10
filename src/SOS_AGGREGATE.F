@@ -19,153 +19,153 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_AGGREGATE.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Ponderation et aggregation des sorties de SOS.F pour chaque exponentielle de la méthode CKD
-C*      - Aggregation des paramètres I Q U pour chaque ordre de la decomposition en serie de Fourier 
-C*	 - Aggregation des transmissions atmosphériques
-C*	 - Aggregation des épaisseurs optiques
+C* FILE: SOS_AGGREGATE.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: Weighting and aggregation of the outputs of SOS.F for each exponential of the CKD method
+C*      - Aggregation of the parameters I Q U for each order of the Fourier series decomposition
+C*	 - Aggregation of the atmospheric transmissions
+C*	 - Aggregation of the optical thicknesses
 C*
-C* AUTEUR: 
+C* AUTHOR:
 C*   CS GROUP France, X.Lenot, B.Lafrance
 C* DATE: 06/06/2013
 C*
-C* MOD:VERSION:6.0: Creation du fichier pour adapter les OS à la méthode CKD (absorption atmosphérique)
+C* MOD:VERSION:6.0: File creation to adapt the OS to the CKD method (atmospheric absorption)
 C*
 C* MOD:VERSION:6.1: 01/09/2020
-C*     Passage du nom du fichier temporaire FICOS_AGG_TMP pour permettre
-C*     plusieurs lancement simultanés depuis le même répertoire.
+C*     The name of the temporary file FICOS_AGG_TMP is passed as argument to allow
+C*     several simultaneous runs from the same directory.
 C*
 C* MOD:VERSION:6.2: 31/08/2022
-C*    - Renommage des constantes de SOS_* en CTE_*
-C*    - Suppression des arguments TRACE et IDLOG (non utilisés)
+C*    - Constants renamed from SOS_* to CTE_*
+C*    - Removal of the arguments TRACE and IDLOG (not used)
 C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Definition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisees :
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_OS_NBMU_MAX : Nombre maximal d'angles positifs pour la resolution de l'ETR
+C Constants used:
+C    CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_OS_NBMU_MAX : Maximum number of positive angles for solving the RTE
 C----------------------------------------------------------------------------
 #include "SOS.h"
 #define INCTE_PI DACOS(-1.D+00)
 
 C==============================================================================
-C PROGRAMME: SOS_AGGREGATE
+C PROGRAM: SOS_AGGREGATE
 C ==========      
-C      Programme qui pondère les paramètres I, Q, U, les transmissions et épaisseurs optiques
-C      calculées pour une exponentielle de la méthode CKD, et qui les aggrege avec les memes paramètres
-C      calcules precedemment.
+C      Program that weights the parameters I, Q, U, the transmissions and optical thicknesses
+C      computed for one exponential of the CKD method, and aggregates them with the same parameters
+C      computed previously.
 C
-C Donnees en entrée du programme 
+C Input data of the program
 C ------------------------------
-C    -->Les paramètres/arguments du programme
+C    -->Parameters/arguments of the program
 C
-C             NBMU (I4) : (E) Nombre d'angles effectifs pour les calculs de luminances      			               
+C             NBMU (I4) : (I) Number of actual angles for radiance computations
 C
-C             AIK (I4) : (E) Coefficient de ponderationde l'exponentielle CKD traitee      			               
+C             AIK (I4) : (I) Weighting coefficient of the processed CKD exponential
 C
-C             FICOS_TMP (CHARACTER) : (E) Nom complet du fichier resultat des OS obtenus precedemment
-C                                     (repertoire + nom fichier + extension)
+C             FICOS_TMP (CHARACTER) : (I) Complete name of the OS result file obtained previously
+C                                     (directory + file name + extension)
 C
-C             TTOT_TRONC_TMP (DOUBLE) : (E) Epaisseur optique totale au sol 
-C				            (obtenue precedemment) (tronquee)    
+C             TTOT_TRONC_TMP (DOUBLE) : (I) Total optical thickness at ground
+C				            (obtained previously) (truncated)
 C
-C             TTOT_VRAI_TMP (DOUBLE) : (E) Epaisseur optique totale au sol 
-C				           (obtenue precedemment) (non tronquee)    
+C             TTOT_VRAI_TMP (DOUBLE) : (I) Total optical thickness at ground
+C				           (obtained previously) (not truncated)
 C
-C             TAUOUT_TMP (DOUBLE) : (E) Epaisseur optique au niveau de sortie pour le champ montant
-C			               (obtenue precedemment) (tronquee)    
+C             TAUOUT_TMP (DOUBLE) : (I) Optical thickness at the output level for the upward field
+C			               (obtained previously) (truncated)
 C
-C             TDIFMUS_TMP (DOUBLE) : (E) Transmission diffuse pour la direction d'incidence solaire
-C      				      de l'atmosphere equivalente (obtenue precedemment)  
+C             TDIFMUS_TMP (DOUBLE) : (I) Diffuse transmission for the solar incidence direction
+C      				      of the equivalent atmosphere (obtained previously)
 C
-C             TDIFMUG_TMP (DOUBLE) : (E) Tableau 1D de 2*CTE_OS_NBMU_MAX + 1 elements
-C			     	             contenant la transmission diffuse de l'atmosphere equivalente
-C				             pour les angles de Gauss et les angles fournis par l'utilisateur
-C   				         (obtenue precedemment)
+C             TDIFMUG_TMP (DOUBLE) : (I) 1D array of 2*CTE_OS_NBMU_MAX + 1 elements
+C			     	             containing the diffuse transmission of the equivalent atmosphere
+C				             for the Gauss angles and the angles provided by the user
+C   				         (obtained previously)
 C
-C             EMOINS_TMP (DOUBLE) : (E) Flux diffus eclairant le sol, normalisé par le flux solaire incident au TOA.
+C             EMOINS_TMP (DOUBLE) : (I) Diffuse flux illuminating the ground, normalised by the incident solar flux at TOA.
 C
-C             EPLUS_TMP (DOUBLE) : (E)  Flux diffus emergeant au TOA, normalisé par le flux solaire incident au TOA.
+C             EPLUS_TMP (DOUBLE) : (I)  Diffuse flux emerging at TOA, normalised by the incident solar flux at TOA.
 C        
-C             FICOS (CHARACTER) : (E) Nom complet du fichier resultat des OS (resultats aggreges)
-C                                     (repertoire + nom fichier + extension)
+C             FICOS (CHARACTER) : (I) Complete name of the OS result file (aggregated results)
+C                                     (directory + file name + extension)
 C
-C             TTOT_TRONC (DOUBLE) : (S) Epaisseur optique totale au sol 
-C				           (resultats aggreges) (tronquee)    
+C             TTOT_TRONC (DOUBLE) : (O) Total optical thickness at ground
+C				           (aggregated results) (truncated)
 C
-C             TTOT_VRAI (DOUBLE) : (S) Epaisseur optique totale au sol 
-C				          (resultats aggreges) (non tronquee)    
+C             TTOT_VRAI (DOUBLE) : (O) Total optical thickness at ground
+C				          (aggregated results) (not truncated)
 C
-C             TAUOUT (DOUBLE) : (S) Epaisseur optique au niveau de sortie pour le champ montant
-C			               (resultats aggreges) (tronquee)    
+C             TAUOUT (DOUBLE) : (O) Optical thickness at the output level for the upward field
+C			               (aggregated results) (truncated)
 C
-C             TDIFMUS (DOUBLE) : (S) Transmission diffuse pour la direction d'incidence solaire
-C      				  de l'atmosphere equivalente (resultats aggreges)  
+C             TDIFMUS (DOUBLE) : (O) Diffuse transmission for the solar incidence direction
+C      				  of the equivalent atmosphere (aggregated results)
 C
-C             TDIFMUG (DOUBLE) : (S) Tableau 1D de 2*CTE_OS_NBMU_MAX + 1 elements
-C			     	         contenant la transmission diffuse de l'atmosphere equivalente
-C				         pour les angles de Gauss et les angles fournis par l'utilisateur
-C   				         (resultats aggreges)
+C             TDIFMUG (DOUBLE) : (O) 1D array of 2*CTE_OS_NBMU_MAX + 1 elements
+C			     	         containing the diffuse transmission of the equivalent atmosphere
+C				         for the Gauss angles and the angles provided by the user
+C   				         (aggregated results)
 C
-C             EMOINS (DOUBLE) : (S) Flux diffus eclairant le sol, normalisé par le flux solaire incident au TOA
-C   				        (resultats aggreges)
+C             EMOINS (DOUBLE) : (O) Diffuse flux illuminating the ground, normalised by the incident solar flux at TOA
+C   				        (aggregated results)
 C
-C             EPLUS (DOUBLE) : (S) Flux diffus emergeant au TOA, normalisé par le flux solaire incident au TOA
-C   				       (resultats aggreges)
+C             EPLUS (DOUBLE) : (O) Diffuse flux emerging at TOA, normalised by the incident solar flux at TOA
+C   				       (aggregated results)
 C    
-C      	IER (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+C      	IER (I4) : (O) error code =0 if no error, =-1 otherwise
 C
-C    -->Fichiers
-C   Fichier resultat des OS (decomposition en series de Fourier)
+C    -->Files
+C   OS result file (Fourier series decomposition)
 C
 C
-C Resultats fournis par le programme
+C Results provided by the program
 C ----------------------------------
-C   Fichier resultat des OS (decomposition en series de Fourier)
-C   Transmissions diffuses
-C   Epaisseurs optiques (sol et au niveau de sortie)
+C   OS result file (Fourier series decomposition)
+C   Diffuse transmissions
+C   Optical thicknesses (ground and output level)
 C
-C   Si un ou des fichiers de meme noms existent deja, ils sont ecrases
+C   If one or several files with the same names already exist, they are overwritten
 C
 C
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
 C
-C   -->Contenu du fichier resultat des OS
-C       Fichier binaire non formatte, cree par SOS_OS
-C       Il contient les paramètres de Stokes Q , U et I pour un ordre S
-C       du développement en series de Fourier, en fonction de l'angle mu
-C       (valeurs en double précision).
+C   -->Content of the OS result file
+C       Unformatted binary file, created by SOS_OS
+C       It contains the Stokes parameters Q, U and I for an order S
+C       of the Fourier series expansion, versus the angle mu
+C       (double precision values).
 C
-C   -->Contenu du fichier temporaire FICOS_TMP
-C       Identique au fichier de resultat des OS.
-C       Fichier fourni en entrée avec les paramètres calcules precedemment
+C   -->Content of the temporary file FICOS_TMP
+C       Same as the OS result file.
+C       Input file with the parameters computed previously
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C  None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------        
-C     -Decodage des paramètres incorrect
-C     -Erreur dans un sous-programme
-C     -Erreur a l'ouverture du fichier Trace
-C     -Paramètres non valables
+C     -Incorrect decoding of parameters
+C     -Error in a subroutine
+C     -Error when opening the trace file
+C     -Invalid parameters
 C
-C     Affichage d'un message à l'écran, arret du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C   
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Aucun
+C  None
 C
 C============================================================================
 
@@ -178,183 +178,183 @@ C============================================================================
      &                     IER)
      
 
-C* Definition des variables   
+C* Definition of variables
 C*------------------------------------------------------
 				
      
-      DOUBLE PRECISION TDIFMUS  !Transmission diffuse pour la direction d'incidence solaire
-      				    !de l'atmosphere equivalente
+      DOUBLE PRECISION TDIFMUS  !Diffuse transmission for the solar incidence direction
+      				    !of the equivalent atmosphere
 				
       DOUBLE PRECISION TDIFMUG(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				!Transmission diffuse pour les angles de Gauss de l'atmosphere equivalente
+      				!Diffuse transmission for the Gauss angles of the equivalent atmosphere
 
-      DOUBLE PRECISION EMOINS   ! Flux diffus eclairant le sol, normalisé par
-      				    ! le flux solaire incident au TOA.
+      DOUBLE PRECISION EMOINS   ! Diffuse flux illuminating the ground, normalised by
+      				    ! the incident solar flux at TOA.
                                 
-      DOUBLE PRECISION EPLUS    ! Flux diffus emergeant au TOA, normalisé par
-      				    ! le flux solaire incident au TOA.
+      DOUBLE PRECISION EPLUS    ! Diffuse flux emerging at TOA, normalised by
+      				    ! the incident solar flux at TOA.
                                 
-      DOUBLE PRECISION TDIFMUS_TMP  !Transmission diffuse pour la direction d'incidence solaire
-      				        !de l'atmosphere equivalente (calcul pour un septuor ik1*ik2*ik3*ik4*ik5*ik6*ik7)
+      DOUBLE PRECISION TDIFMUS_TMP  !Diffuse transmission for the solar incidence direction
+      				        !of the equivalent atmosphere (computed for a septet ik1*ik2*ik3*ik4*ik5*ik6*ik7)
 				
       DOUBLE PRECISION TDIFMUG_TMP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				!Transmission diffuse pour les angles de Gauss de l'atmosphere equivalente
-				!  (calcul pour un octuor ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8 de décomposition CKD)
+      				!Diffuse transmission for the Gauss angles of the equivalent atmosphere
+				!  (computed for an octet ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8 of the CKD decomposition)
 
-      DOUBLE PRECISION EMOINS_TMP   ! Flux diffus eclairant le sol, normalisé par
-      				        ! le flux solaire incident au TOA.
-                                    ! (calcul pour un octuor ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
+      DOUBLE PRECISION EMOINS_TMP   ! Diffuse flux illuminating the ground, normalised by
+      				        ! the incident solar flux at TOA.
+                                    ! (computed for an octet ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
 
-      DOUBLE PRECISION EPLUS_TMP    ! Flux diffus emergeant au TOA, normalisé par
-      				        ! le flux solaire incident au TOA.
-                                    ! (calcul pour un octuor ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
+      DOUBLE PRECISION EPLUS_TMP    ! Diffuse flux emerging at TOA, normalised by
+      				        ! the incident solar flux at TOA.
+                                    ! (computed for an octet ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
 
-      DOUBLE PRECISION TTOT_TRONC ! Epaisseur optique totale au sol (tronquee).
-      DOUBLE PRECISION TTOT_VRAI  ! Epaisseur optique totale au sol (non tronquee).
+      DOUBLE PRECISION TTOT_TRONC ! Total optical thickness at ground (truncated).
+      DOUBLE PRECISION TTOT_VRAI  ! Total optical thickness at ground (not truncated).
 
-      DOUBLE PRECISION TTOT_TRONC_TMP ! Epaisseur optique totale au sol (tronquee).
-                                      ! (calcul pour un octuor ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
+      DOUBLE PRECISION TTOT_TRONC_TMP ! Total optical thickness at ground (truncated).
+                                      ! (computed for an octet ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
 
-      DOUBLE PRECISION TTOT_VRAI_TMP  ! Epaisseur optique totale au sol (non tronquee).	
-					   ! (calcul pour un octuor ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
+      DOUBLE PRECISION TTOT_VRAI_TMP  ! Total optical thickness at ground (not truncated).
+					   ! (computed for an octet ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
 
-      DOUBLE PRECISION TAUOUT	! Epaisseur optique au niveau de
-      					! sortie des resultats pour le champ montant (tronquee).
-      DOUBLE PRECISION TAUOUT_TMP 	! Epaisseur optique au niveau de
-      				  	! sortie des resultats pour le champ montant (tronquee).
-				 	! (calcul pour un octuor ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
+      DOUBLE PRECISION TAUOUT	! Optical thickness at the
+      					! output level of the results for the upward field (truncated).
+      DOUBLE PRECISION TAUOUT_TMP 	! Optical thickness at the
+      				  	! output level of the results for the upward field (truncated).
+				 	! (computed for an octet ik1*ik2*ik3*ik4*ik5*ik6*ik7*ik8)
 
 
-      ! Paramètres de Stokes resultant de l'aggregation
+      ! Stokes parameters resulting from the aggregation
       DOUBLE PRECISION I3_RES(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes I pour un ordre S
-      				! du développement en series de Fourier,
-				! en fonction de l'angle mu.
+      				! Stokes parameter I for an order S
+      				! of the Fourier series expansion,
+				! versus the angle mu.
       DOUBLE PRECISION Q3_RES(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes Q.
+      				! Stokes parameter Q.
       DOUBLE PRECISION U3_RES(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes U.
+      				! Stokes parameter U.
 
-      ! Paramètres de Stokes correspondant a l'iteration en cours
+      ! Stokes parameters of the current iteration
       DOUBLE PRECISION I3_TMP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes I pour un ordre S
-      				! du développement en series de Fourier,
-				! en fonction de l'angle mu.
+      				! Stokes parameter I for an order S
+      				! of the Fourier series expansion,
+				! versus the angle mu.
       DOUBLE PRECISION Q3_TMP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes Q.
+      				! Stokes parameter Q.
       DOUBLE PRECISION U3_TMP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes U.
+      				! Stokes parameter U.
 
-      ! Paramètres de Stokes issus des iterations precedentes
+      ! Stokes parameters from the previous iterations
       DOUBLE PRECISION I3_RES_TMP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes I pour un ordre S
-      				! du développement en series de Fourier,
-				! en fonction de l'angle mu.
+      				! Stokes parameter I for an order S
+      				! of the Fourier series expansion,
+				! versus the angle mu.
       DOUBLE PRECISION Q3_RES_TMP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes Q.
+      				! Stokes parameter Q.
       DOUBLE PRECISION U3_RES_TMP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				! Paramètre de Stokes U.
+      				! Stokes parameter U.
 
-      DOUBLE PRECISION AIK  !Coefficient de ponderation
+      DOUBLE PRECISION AIK  !Weighting coefficient
 
-      DOUBLE PRECISION TRANS  !Transmission atmosphérique
+      DOUBLE PRECISION TRANS  !Atmospheric transmission
 
-      INTEGER*4 NBMU    ! nombre d'angles utiles		
+      INTEGER*4 NBMU    ! number of useful angles
 
-      CHARACTER*CTE_LENFIC2 FICOS_TMP      ! Nom du fichier temporaire resultat des OS (calcul pour une itération)
+      CHARACTER*CTE_LENFIC2 FICOS_TMP      ! Name of the temporary OS result file (computation for one iteration)
 
-      CHARACTER*CTE_LENFIC2 FICOS_AGG_TMP   ! Nom du fichier temporaire resultat des OS (calcul aggrégé)
+      CHARACTER*CTE_LENFIC2 FICOS_AGG_TMP   ! Name of the temporary OS result file (aggregated computation)
 
-      CHARACTER*CTE_LENFIC2 FICOS       ! Nom du fichier résultat final des OS (incluant toutes les aggrégations)
+      CHARACTER*CTE_LENFIC2 FICOS       ! Name of the final OS result file (including all aggregations)
 
-      INTEGER*4 IER        !code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 IER        !error code =0 if no error, =-1 otherwise
 
-      LOGICAL EX	! Verifie l'existence d'un fichier
+      LOGICAL EX	! Checks the existence of a file
 
-      INTEGER*4 I,J   	! Indice de tableau
+      INTEGER*4 I,J   	! Array index
 
-      INTEGER*4 IOS16,IOS17   	! Statuts de fichiers
+      INTEGER*4 IOS16,IOS17   	! File statuses
 
-      INTEGER*4 LFICOS ! longueur de la chaine de caractere FICOS
-      INTEGER*4 LFICOSTMP ! longueur de la chaine de caractere FICOS_TMP
-      INTEGER*4 LFICOSAGGTMP ! longueur de la chaine de caractere FICOS_AGG_TMP
+      INTEGER*4 LFICOS ! length of the character string FICOS
+      INTEGER*4 LFICOSTMP ! length of the character string FICOS_TMP
+      INTEGER*4 LFICOSAGGTMP ! length of the character string FICOS_AGG_TMP
 
-      INTEGER*4 LCOM     	        ! longueur de la chaine de caractere COMMAND
+      INTEGER*4 LCOM     	        ! length of the character string COMMAND
       
-      CHARACTER*CTE_LENCOM  COMMAND     ! Chaine de commande pour appel system.
+      CHARACTER*CTE_LENCOM  COMMAND     ! Command string for system call.
 
  	  
       	        		 
 
-C* Initiatlisation de valeurs
+C* Initialisation of values
 C ---------------------------
 
-C*    Init des valeurs des statuts de fichiers
+C*    Init of the file status values
       IOS16=0
       IOS17=0
 
 
-C*    Longueur des chaines de caracteres
+C*    Length of character strings
       LFICOS=INDEX(FICOS,' ')-1 
       LFICOSTMP=INDEX(FICOS_TMP,' ')-1 
       LFICOSAGGTMP=INDEX(FICOS_AGG_TMP,' ')-1 
 
-C* Controle de l'existence du fichier de Matrice de reflexion
+C* Check of the existence of the reflection matrix file
 C  ----------------------------------------------------------	
       INQUIRE(FILE=FICOS(1:LFICOS),EXIST=EX)
 
 	  
 C--------------------------------------------------------------
 C
-C       ******  AGGREGATION DES RESULTATS   ******
+C       ******  AGGREGATION OF RESULTS   ******
 C
 C--------------------------------------------------------------
       
      	 	
  
 C************************************************************************ 
-C* Paramètres de Stokes
-C* Les valeurs IQU des decompositions en serie de Fourier sont lues
-C* dans le fichier temporaire, pondérées par le coeff AIK de pondération
-C* et additionnées aux valeurs IQU stockées dans le fichier résultat
+C* Stokes parameters
+C* The IQU values of the Fourier series decompositions are read
+C* in the temporary file, weighted by the weighting coefficient AIK
+C* and added to the IQU values stored in the result file
 C************************************************************************ 
  
-C* Ouverture des fichiers a lire
+C* Opening of the files to read
 C------------------------------------------------     
-C     Ouverture du fichier temporaire des OS
+C     Opening of the temporary OS file
       OPEN(UNIT=16,FILE=FICOS_TMP,FORM='UNFORMATTED',
      &     STATUS='OLD',ERR=1101) 
 
       IF (EX.EQV..FALSE.) THEN  
 
-C* Cas d'une premiere iteration: le fichier resultat n'existe pas encore
-C* On affecte la valeur IOSTAT17 du fichier de sortie a une valeur 
-C* différente de 0 => le fichier ne sera pas lu
+C* Case of a first iteration: the result file does not exist yet
+C* The value IOSTAT17 of the output file is set to a value
+C* different from 0 => the file will not be read
 	
 	  IOS17=-1
 
       ELSE
 
-C* Ouverture du fichier resultat des OS
+C* Opening of the OS result file
           OPEN(UNIT=17,FILE=FICOS,FORM='UNFORMATTED',
      &         STATUS='OLD',ERR=1201) 
       
       ENDIF 
       
 
-C* Ouverture du fichier de sortie
+C* Opening of the output file
 C------------------------------------------------     
-C     Ouverture du fichier temporaire de sortie
+C     Opening of the temporary output file
       OPEN(UNIT=18,FILE=FICOS_AGG_TMP,FORM='UNFORMATTED',
      &     STATUS='NEW',ERR=1301) 
      
-C* Aggregation des paramètres IQU pour chaque ordre de la serie de Fourier 
+C* Aggregation of the IQU parameters for each order of the Fourier series
 C-------------------------------------------------------------------------
     
-C*    Boucle sur l'ordre IS
+C*    Loop on order IS
       IS=0
 
-C*    Initialisation des valeurs lues dans les fichiers
+C*    Initialisation of the values read in the files
       DO J=-NBMU,NBMU 
       
 	     Q3_TMP(J)=0.
@@ -366,9 +366,9 @@ C*    Initialisation des valeurs lues dans les fichiers
 	  
       ENDDO
       
-C*    Lecture du fichier TMP qui a ete enregistre avec des 
-C*    bornes de tableaux limitées au dimensionnement 
-C*    utile -NBMU:NBMU
+C*    Reading of the TMP file that was written with
+C*    array bounds limited to the useful
+C*    dimension -NBMU:NBMU
    10 IF (IOS16.EQ.0) THEN
    
    	    READ(16,IOSTAT=IOS16,err=1102) (Q3_TMP(J),J=-NBMU,NBMU),
@@ -377,9 +377,9 @@ C*    utile -NBMU:NBMU
  
       ENDIF
       
-C*    Lecture du fichier Resultat qui a ete enregistre avec des 
-C*    bornes de tableaux limitées au dimensionnement 
-C*    utile -NBMU:NBMU
+C*    Reading of the Result file that was written with
+C*    array bounds limited to the useful
+C*    dimension -NBMU:NBMU
       IF (IOS17.EQ.0) THEN
       
       	    READ(17,IOSTAT=IOS17,err=1202) (Q3_RES_TMP(J),J=-NBMU,NBMU),
@@ -387,22 +387,22 @@ C*    utile -NBMU:NBMU
      &		                            (I3_RES_TMP(J),J=-NBMU,NBMU)
 
       ELSE
-             ! Cas où les deux fichiers sont termines
+             ! Case where both files are finished
 	     IF (IOS16.NE.0) GOTO 9
 	  
       ENDIF
       
-C*    Calcul de l'aggregation
+C*    Computation of the aggregation
       	
       DO J=-NBMU,NBMU 
       
-            ! On ajoute la valeur pondérée du nouveau calcul 
-	     ! au resultat à l'itération précédente
+            ! The weighted value of the new computation is added
+	     ! to the result of the previous iteration
 	     Q3_RES(J)=Q3_RES_TMP(J)+AIK*Q3_TMP(J)
 	     U3_RES(J)=U3_RES_TMP(J)+AIK*U3_TMP(J)
 	     I3_RES(J)=I3_RES_TMP(J)+AIK*I3_TMP(J)
 	  
-	     !Re-initialisation des tableaux au cas ou le fichier est fini
+	     !Re-initialisation of the arrays in case the file is finished
 	     Q3_TMP(J)=0.
 	     U3_TMP(J)=0.
 	     I3_TMP(J)=0.
@@ -412,7 +412,7 @@ C*    Calcul de l'aggregation
 	  
       ENDDO
 
-C*    Ecriture des resultats
+C*    Writing of the results
 
       WRITE(18,err=1302) (Q3_RES(J),J=-NBMU,NBMU),
      & 		    (U3_RES(J),J=-NBMU,NBMU),
@@ -425,14 +425,14 @@ C*    Ecriture des resultats
       CLOSE(17)
       CLOSE(18)
       
-C --- Destruction du fichier resultat des OS et remplacement par le nouveau
+C --- Deletion of the OS result file and replacement by the new one
 
-C*    Destruction de l'ancien fichier
+C*    Deletion of the old file
 
       OPEN(UNIT=17,FILE=FICOS,FORM='UNFORMATTED') 
       CLOSE(17,STATUS='DELETE')    
 
-C*    Changement de nom du fichier resultat
+C*    Renaming of the result file
 
       COMMAND='mv '//FICOS_AGG_TMP(1:LFICOSAGGTMP)//
      &	      ' '//FICOS(1:LFICOS)
@@ -441,13 +441,13 @@ C*    Changement de nom du fichier resultat
       CALL SYSTEM(COMMAND)
       
 
-C*    Test d'existence du fichier
+C*    Test of the file existence
       INQUIRE(FILE=FICOS(1:LFICOS),EXIST=EX)
       IF (EX.EQV..FALSE.) GOTO 1002
       
 C************************************************************************ 
-C* Transmission atmosphérique
-C* Simple aggregation de contenu avec ponderation de la transmission
+C* Atmospheric transmission
+C* Simple aggregation of content with weighting of the transmission
 C************************************************************************ 
       TDIFMUS=TDIFMUS+AIK*TDIFMUS_TMP
 
@@ -459,11 +459,11 @@ C************************************************************************
       ENDDO
       
 C***************************************************************************************** 
-C* Epaisseurs optiques
-C* Il faut passer en transmissions (avec mus=1), faire l'aggregation, puis revenir en épaisseur optique
+C* Optical thicknesses
+C* Conversion to transmissions (with mus=1), aggregation, then back to optical thickness
 C***************************************************************************************** 
   
-C*    Epaisseur optique totale tronquee
+C*    Truncated total optical thickness
       IF (TTOT_TRONC.NE.0) THEN
       	   TRANS = AIK*DEXP(-TTOT_TRONC_TMP)+DEXP(-TTOT_TRONC)
       ELSE
@@ -471,7 +471,7 @@ C*    Epaisseur optique totale tronquee
       ENDIF	
       TTOT_TRONC = -DLOG(TRANS)
       
-C*    Epaisseur optique totale vraie
+C*    True total optical thickness
       IF (TTOT_VRAI.NE.0) THEN
       	   TRANS = AIK*DEXP(-TTOT_VRAI_TMP)+DEXP(-TTOT_VRAI)
       ELSE
@@ -479,7 +479,7 @@ C*    Epaisseur optique totale vraie
       ENDIF	
       TTOT_VRAI = -DLOG(TRANS)
 
-C*    Epaisseur optique au niveau de sortie pour le champ montant
+C*    Optical thickness at the output level for the upward field
       IF (TAUOUT.NE.0) THEN
       	   TRANS = AIK*DEXP(-TAUOUT_TMP)+DEXP(-TAUOUT)
       ELSE
@@ -487,11 +487,11 @@ C*    Epaisseur optique au niveau de sortie pour le champ montant
       ENDIF	
       TAUOUT = -DLOG(TRANS)
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur
+C* Error case
 C-------------------
 
  1001 WRITE(6,*) '  SOS_AGGREGATE : ERROR_1001 : '
@@ -536,8 +536,8 @@ C-------------------
       IER=-1      
       GOTO 9999                  	
 
-C* Sortie de la fonction
+C* Exit of the function
 
  9999 RETURN
  
-      END	!FIN DU PROGRAMME SOS_AGGREGATE
+      END	!END OF PROGRAM SOS_AGGREGATE

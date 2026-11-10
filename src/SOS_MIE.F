@@ -19,76 +19,76 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_MIE.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Ce module gÃ¨re les procÃ©dures permettant les calculs de la thÃ©orie
-C*       de MIE.
+C* FILE: SOS_MIE.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: This module manages the procedures for the computations of the
+C*       MIE theory.
 C*
-C* AUTEUR: 
-C*   Code initial: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
-C*   Reprise du codage et dÃ©veloppement : CS GROUP France, B.Lafrance
+C* AUTHOR:
+C*   Initial code: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
+C*   Code rework and development: CS GROUP France, B.Lafrance
 C* DATE: 30/04/02
 C*
-C* MOD:VERSION:1.0 : Mise a niveau du code des OS du LOA
-C*             1.1 : Ajustement des commentaires
+C* MOD:VERSION:1.0 : Upgrade of the LOA OS code
+C*             1.1 : Adjustment of the comments
 C*
 C* MOD:VERSION:2.0: 10/01/2010 
-C*   - Gestion des angles : 
-C*         * Suppression de la lecture d'un fichier d'angles de Gauss
-C*         * Passage des arguments d'entrÃ©e : 
-C*                 MIE_NBMU : nombre d'angles utiles
-C*                 RMU      : tableau des cosinus des angles
-C*                 CHR      : tableau des poids des angles 
+C*   - Angle management:
+C*         * Removal of the reading of a Gauss angle file
+C*         * Input arguments passed:
+C*                 MIE_NBMU : number of useful angles
+C*                 RMU      : array of the cosines of the angles
+C*                 CHR      : array of the weights of the angles
 C*
-C*   - Suppression de la constante SOS_LENDIR  
+C*   - Removal of the constant SOS_LENDIR
 C*
-C*   - Modification de la taille des tableaux des fonctions de phase :
-C*     ==> Passage de CTE_MIE_NBMU Ã  CTE_MIE_NBMU_MAX.
-C*     ==> Boucle sur les angles jusqu'Ã  MIE_NBMU Ã©gal au nombre effectif d'angles utilises.
+C*   - Change of the size of the phase function arrays:
+C*     ==> Changed from CTE_MIE_NBMU to CTE_MIE_NBMU_MAX.
+C*     ==> Loop on the angles up to MIE_NBMU, equal to the actual number of angles used.
 C*
-C*   - SOS_FPHASE_MIE : 
-C*         * Ajout de l'argument d'entrÃ©e : MIE_NBMU (nb angles utiles)
-C*         * Modification de la ligne d'enregistrement des tableaux  
-C*           de fonctions de phase par valeur de paramÃ¨tre de taille Alpha
-C*           ==> limitation aux bornes utiles -MIE_NBMU:MIE_NBMU
+C*   - SOS_FPHASE_MIE:
+C*         * Added input argument: MIE_NBMU (nb of useful angles)
+C*         * Change of the record line of the arrays
+C*           of phase functions per value of the size parameter Alpha
+C*           ==> limited to the useful bounds -MIE_NBMU:MIE_NBMU
 C* 
 C* MOD:VERSION:2.1: 24/06/2010 
-C*     Les etiquettes de FORMAT en ,X, passent en ,1X, pour eviter des erreurs de compilation.
+C*     FORMAT labels ,X, changed to ,1X, to avoid compilation errors.
 C*
 C* MOD:VERSION:2.2: 06/06/2013
 C*
-C*   -  Modification de la valeur de Pi, declaree en constante dans le fichier
-C*      (INCTE_PI remplace CTE_PI)
+C*   -  Change of the value of Pi, declared as a constant in the file
+C*      (INCTE_PI replaces CTE_PI)
 C*  
 C* MOD:VERSION:2.3: 24/02/2016 
-C*    - Ajustements mineurs pour le respect strict des 72 colonnes 
+C*    - Minor adjustments to strictly respect the 72 columns
 C*  
 C* MOD:VERSION:2.4: 30/01/2019
-C*    - Gestion de l'option d'absence de traces en utilisant le nom "NO_LOG_FILE"
+C*    - Management of the no-trace option with the name "NO_LOG_FILE"
 C*
 C* MOD:VERSION:2.5: 12/06/2020
-C*    - Suppression du status "NEW" Ã  l'ouverture du fichier MIE
-C*      ==> Permet une reprise qui Ã©crase le fichier existant s'il y en a un.   
+C*    - Removal of the status "NEW" when opening the MIE file
+C*      ==> Allows a restart that overwrites the existing file, if any.
 C*
 C* MOD:VERSION:2.6: 31/08/2022
-C*    - Renommage des constantes de SOS_* en CTE_*
-C*    - Conversion des traces en Anglais.
+C*    - Constants renamed from SOS_* to CTE_*
+C*    - Traces converted to English.
 C*
 C* MOD:VERSION:2.7: 26/09/2023
-C*    - Modification de la syntaxe d'une boucle de mise à zéro dans la routine SOS_XERO pour
-C*      compatibilité avec Fortran 2018 pour compilateur gcc/10.2.0
+C*    - Change of the syntax of a zeroing loop in routine SOS_XERO for
+C*      compatibility with Fortran 2018 for the gcc/10.2.0 compiler
 C*         
 C*                  
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Definition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisees :
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    INCTE_PI : Valeur de PI
-C    CTE_MIE_NBMU_MAX : Nombre maximal d'angles de Gauss positifs
-C    CTE_MIE_DIM : Dimension des tableaux
+C Constants used:
+C    CTE_LENFIC2 : Length of file names with directory tree.
+C    INCTE_PI : Value of PI
+C    CTE_MIE_NBMU_MAX : Maximum number of positive Gauss angles
+C    CTE_MIE_DIM : Dimension of the arrays
 C                              
 C----------------------------------------------------------------------------
 #include "SOS.h"
@@ -97,106 +97,106 @@ C----------------------------------------------------------------------------
 C==============================================================================
 C PROCEDURE: SOS_MIE
 C ==========      
-C      Cette procÃ©dure applique la thÃ©orie de MIE pour des particules spheriques.
+C      This procedure applies the MIE theory to spherical particles.
 C
-C      La nature chimique des particules est caracterisee par leur indice de 
-C      rÃ©fraction relativement Ã  l'environnement : m.
-C      m = mr + i * mi, avec "mr" la partie rÃ©elle et "mi" la partie imaginaire.
-C      La partie imaginaire est entrÃ©e negative. Elle est responsable des effets
-C      d'absorption.
+C      The chemical nature of the particles is characterised by their refractive
+C      index relative to the surrounding medium: m.
+C      m = mr + i * mi, with "mr" the real part and "mi" the imaginary part.
+C      The imaginary part is given negative. It is responsible for the
+C      absorption effects.
 C
-C      Les calculs de Mie sont realises en fonction du paramÃ¨tre de taille : 
-C      alpha = 2*pi * r / wa, ou r est le rayon de la particule et wa est la 
-C      longueur d'onde du rayonnement. 
+C      The Mie computations are made versus the size parameter:
+C      alpha = 2*pi * r / wa, where r is the particle radius and wa is the
+C      wavelength of the radiation.
 C
-C      Le pas sur alpha est:
-C         si        alpha  <= 0.1  ===> pas = 0.0001
-C         si 0.1  < alpha  <= 1.0  ===> pas = 0.001
-C         si 1.0  < alpha  <= 10   ===> pas = 0.01
-C         si 10   < alpha  <= 30   ===> pas = 0.05
-C         si 30   < alpha  <= 100  ===> pas = 0.1
-C         si 100  < alpha          ===> pas = 1.0
+C      The step on alpha is:
+C         if        alpha  <= 0.1  ===> step = 0.0001
+C         if 0.1  < alpha  <= 1.0  ===> step = 0.001
+C         if 1.0  < alpha  <= 10   ===> step = 0.01
+C         if 10   < alpha  <= 30   ===> step = 0.05
+C         if 30   < alpha  <= 100  ===> step = 0.1
+C         if 100  < alpha          ===> step = 1.0
 C
 C
-C      Ce programme calcule pour l'indice m :      
+C      This program computes, for the index m:
 C      
-C         - Le coefficient d'efficacite en extinction: Qext(alpha) 
-C           de alpha0 a alphaF
-C         - Le coefficient d'efficacite en diffusion:  Qsca(alpha) 
-C           de alpha0 a alphaF
-C         - Le facteur d'anisotropie: G
-C         - Les fonctions de phases : Imie(alpha,mu), 
+C         - The extinction efficiency factor: Qext(alpha)
+C           from alpha0 to alphaF
+C         - The scattering efficiency factor:  Qsca(alpha)
+C           from alpha0 to alphaF
+C         - The asymmetry factor: G
+C         - The phase functions: Imie(alpha,mu),
 C                                     Qmie(alpha,mu),
 C				          Umie(alpha,mu)
-C 	     de alpha0 a alphaF et pour mu, cosinus de l'angle de diffusion, des
-C           angles de Gauss entre 0 et pi.
+C 	     from alpha0 to alphaF and for mu, cosine of the scattering angle, of the
+C           Gauss angles between 0 and pi.
 C
-C Description des paramÃ¨tres
+C Description of parameters
 C ----------------------------
-C      MIE_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles
-C	RMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (E) Cosinus des angles.
-C	CHR(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (E) Poids des angles.
-C	RN (double) (E) : partie rÃ©elle de l'indice de rÃ©fraction.
-C	IN (double) (E) : partie imaginaire de l'indice de rÃ©fraction.
-C	ALPHAO (double) (E) : valeur de alpha Ã  partir de laquelle 
-C			        on commence le calcul.
-C	ALPHAF (double) (E) : valeur de alpha pour laquelle on arrete le calcul.			  
-C	FICMIE (CHARACTER*CTE_LENFIC2) (E) : chemin et nom du fichier MIE.
-C	FICLOG (CHARACTER*CTE_LENFIC2) (E) : nom du fichier TRACE de MIE .
-C	IER (I4) (S) : code d'erreur = 0 si pas d'erreur, sinon =1	
+C      MIE_NBMU (I4) : (I) Number of actually useful (positive) angles
+C	RMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (I) Cosines of the angles.
+C	CHR(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) : (I) Weights of the angles.
+C	RN (double) (I) : real part of the refractive index.
+C	IN (double) (I) : imaginary part of the refractive index.
+C	ALPHAO (double) (I) : value of alpha from which
+C			        the computation starts.
+C	ALPHAF (double) (I) : value of alpha at which the computation stops.
+C	FICMIE (CHARACTER*CTE_LENFIC2) (I) : path and name of the MIE file.
+C	FICLOG (CHARACTER*CTE_LENFIC2) (I) : name of the MIE TRACE file.
+C	IER (I4) (O) : error code = 0 if no error, =1 otherwise
 C
 C
-C Resultat fourni par la procÃ©dure
+C Result provided by the procedure
 C --------------------------------
-C   Fichier de MIE
-C   Fichier de trace (optionnel)
+C   MIE file
+C   Trace file (optional)
 C
 C
-C Variable d'environnement
+C Environment variable
 C ------------------------
-C   Aucune
+C   None
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier de MIE (cree)
-C       Fichier binaire non formatte, cree par SOS_MIE
-C       1 enregistrement d'entete avec
-C                Indice de rÃ©fraction (partie rÃ©elle)
-C                Indice de rÃ©fraction (partie imaginaire)
-C                ParamÃ¨tre de taille limite
-C                Nombre d'angles de Gauss positif
+C   -->Content of the MIE file (created)
+C       Unformatted binary file, created by SOS_MIE
+C       1 header record with
+C                Refractive index (real part)
+C                Refractive index (imaginary part)
+C                Limit size parameter
+C                Number of positive Gauss angles
 C
-C      1 enregistrement pour chaque valeur du paramÃ¨tre de taille avec:
-C        - ParamÃ¨tre de taille (rÃ©el),
-C        - Coefficient d'efficacite en extinction (rÃ©el),
-C        - Coefficient d'efficacite en diffusion (rÃ©el),
-C        - Facteur d'anisotropie (double prÃ©cision),
-C        - Tableau de la fonction de phase Imie(mu) (rÃ©el),
-C        - Tableau de la fonction de phase polarisee Qmie(mu) (rÃ©el),
-C        - Tableau de la fonction de phase polarisee Umie(mu) (rÃ©el).
+C      1 record for each value of the size parameter with:
+C        - Size parameter (real),
+C        - Extinction efficiency factor (real),
+C        - Scattering efficiency factor (real),
+C        - Asymmetry factor (double precision),
+C        - Array of the phase function Imie(mu) (real),
+C        - Array of the polarised phase function Qmie(mu) (real),
+C        - Array of the polarised phase function Umie(mu) (real).
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C  None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Decodage des paramÃ¨tres incorrect
-C     -ParamÃ¨tres du programme incorrects ALPHA0 >ALPHAF
-C     -Ouverture d'un fichier
-C      Erreur si le fichier de MIE existe deja
-C     -Lecture/Ã©criture dans un fichier
+C     -Incorrect decoding of parameters
+C     -Incorrect program parameters ALPHA0 >ALPHAF
+C     -Opening of a file
+C      Error if the MIE file already exists
+C     -Reading/writing in a file
 C
-C     Affichage d'un message Ã  l'Ã©cran, arret du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C        
 C   
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Ce programme fait appel aux routines:
+C  This program calls the routines:
 C      - SOS_XERO
 C      - SOS_FPHASE_MIE
 C
@@ -209,44 +209,44 @@ C==============================================================================
       IMPLICIT NONE
 
 
-C* Definition des variables                                                   
+C* Definition of variables
 C----------------------------------------------------------------------------        
-      DOUBLE PRECISION RN	! partie rÃ©elle de l'indice de rÃ©fraction.
-      DOUBLE PRECISION IN	! partie imaginaire de l'indice de rÃ©fraction.
-      DOUBLE PRECISION ALPHAO   ! valeur de alpha Ã  partir de laquelle 
-      				    ! on commence le calcul.				
-      DOUBLE PRECISION ALPHAF   ! valeur de alpha pour laquelle on arrete le calcul.
+      DOUBLE PRECISION RN	! real part of the refractive index.
+      DOUBLE PRECISION IN	! imaginary part of the refractive index.
+      DOUBLE PRECISION ALPHAO   ! value of alpha from which
+      				    ! the computation starts.
+      DOUBLE PRECISION ALPHAF   ! value of alpha at which the computation stops.
                                           
-      DOUBLE PRECISION RMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)   !Cosinus des angles.
-      DOUBLE PRECISION CHR(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)   !Poids des angles.
+      DOUBLE PRECISION RMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)   !Cosines of the angles.
+      DOUBLE PRECISION CHR(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)   !Weights of the angles.
 
-      DOUBLE PRECISION CNA(-1:CTE_MIE_DIM)   !Fonction rÃ©elle Cn(alpha). 
-      DOUBLE PRECISION SNA(-1:CTE_MIE_DIM)   !Fonction rÃ©elle Sn(alpha).
+      DOUBLE PRECISION CNA(-1:CTE_MIE_DIM)   !Real function Cn(alpha).
+      DOUBLE PRECISION SNA(-1:CTE_MIE_DIM)   !Real function Sn(alpha).
            
-      DOUBLE PRECISION RGNA(-1:CTE_MIE_DIM)  !Partie rÃ©elle de la fonction Gn(alpha).	
-      DOUBLE PRECISION IGNA(-1:CTE_MIE_DIM)  !Partie imaginaire de Gn(alpha).
+      DOUBLE PRECISION RGNA(-1:CTE_MIE_DIM)  !Real part of the function Gn(alpha).
+      DOUBLE PRECISION IGNA(-1:CTE_MIE_DIM)  !Imaginary part of Gn(alpha).
       
-      DOUBLE PRECISION RDNA(0:CTE_MIE_DIM)   !Fonction rÃ©elle Dn(alpha).
-      DOUBLE PRECISION RDNB(0:CTE_MIE_DIM)   !Partie rÃ©elle de la fonction Dn(alpha*m).
-      DOUBLE PRECISION IDNB(0:CTE_MIE_DIM)   !Partie imaginaire de  Dn(alpha*m).
+      DOUBLE PRECISION RDNA(0:CTE_MIE_DIM)   !Real function Dn(alpha).
+      DOUBLE PRECISION RDNB(0:CTE_MIE_DIM)   !Real part of the function Dn(alpha*m).
+      DOUBLE PRECISION IDNB(0:CTE_MIE_DIM)   !Imaginary part of Dn(alpha*m).
       
-      DOUBLE PRECISION RA(0:CTE_MIE_DIM)     !Partie rÃ©elle de la fonction An(alpha). 
-      DOUBLE PRECISION IA(0:CTE_MIE_DIM)     !Partie imaginaire de An(alpha). 
-      DOUBLE PRECISION RB(0:CTE_MIE_DIM)     !Partie rÃ©elle de la fonction Bn(alpha). 
-      DOUBLE PRECISION IB(0:CTE_MIE_DIM)     !Partie imaginaire de Bn(alpha).
+      DOUBLE PRECISION RA(0:CTE_MIE_DIM)     !Real part of the function An(alpha).
+      DOUBLE PRECISION IA(0:CTE_MIE_DIM)     !Imaginary part of An(alpha).
+      DOUBLE PRECISION RB(0:CTE_MIE_DIM)     !Real part of the function Bn(alpha).
+      DOUBLE PRECISION IB(0:CTE_MIE_DIM)     !Imaginary part of Bn(alpha).
       
       
 
       
-      DOUBLE PRECISION QEXT		!Coefficient d'efficacite en extinction.
-      DOUBLE PRECISION QSCA		!Coefficient d'efficacite en diffusion.
-      DOUBLE PRECISION G		!Facteur d'anisotropie.
+      DOUBLE PRECISION QEXT		!Extinction efficiency factor.
+      DOUBLE PRECISION QSCA		!Scattering efficiency factor.
+      DOUBLE PRECISION G		!Asymmetry factor.
       
-      DOUBLE PRECISION ALPHA	!Valeur courante du paramÃ¨tre de taille.
-      DOUBLE PRECISION PAS		!Pas entre deux valeurs de ALPHA.
+      DOUBLE PRECISION ALPHA	!Current value of the size parameter.
+      DOUBLE PRECISION PAS		!Step between two values of ALPHA.
       
-      DOUBLE PRECISION RBETA	!Partie rÃ©elle de m*alpha.
-      DOUBLE PRECISION IBETA       !Partie imaginaire de m*alpha.
+      DOUBLE PRECISION RBETA	!Real part of m*alpha.
+      DOUBLE PRECISION IBETA       !Imaginary part of m*alpha.
       
 
       DOUBLE PRECISION X
@@ -282,7 +282,7 @@ C----------------------------------------------------------------------------
       DOUBLE PRECISION T
       DOUBLE PRECISION Q
       
-      DOUBLE PRECISION W6		!Valeur de 2 / ALPHA**2
+      DOUBLE PRECISION W6		!Value of 2 / ALPHA**2
       DOUBLE PRECISION XX
       DOUBLE PRECISION YY
       DOUBLE PRECISION ZZ
@@ -290,12 +290,12 @@ C----------------------------------------------------------------------------
       
       DOUBLE PRECISION A2
 
-      INTEGER*4 MIE_NBMU   		! Nombre d'angles effectifs des simulations      
-      INTEGER*4 UN			!Valeur 1 ou -1
+      INTEGER*4 MIE_NBMU   		! Number of actual angles of the simulations
+      INTEGER*4 UN			!Value 1 or -1
       INTEGER*4 TEST
       
-      INTEGER*4 N1			! Ordre maximal de calcul des suites Dn et Sn
-      INTEGER*4 N2			! Ordre maximal de calcul des suites Gn et Cn
+      INTEGER*4 N1			! Maximum order of computation of the series Dn and Sn
+      INTEGER*4 N2			! Maximum order of computation of the series Gn and Cn
       INTEGER*4 N2P1			
       INTEGER*4 M
        
@@ -303,29 +303,29 @@ C----------------------------------------------------------------------------
       INTEGER*4 I
       INTEGER*4 N
       INTEGER*4 DIM                   ! dimension
-      INTEGER*4 IFIN                  ! nb caracteres significatifs d'une chaine
+      INTEGER*4 IFIN                  ! nb of significant characters of a string
       
-      LOGICAL TRACE                   ! = vrai,si Ã©criture dans le fichier trace
+      LOGICAL TRACE                   ! = true if writing in the trace file
        
-      CHARACTER*CTE_LENFIC2 FICMIE    ! chemin d'acces au fichier MIE, nom du fichier MIE
-      CHARACTER*CTE_LENFIC2 FICLOG    ! nom du fichier TRACE de MIE
+      CHARACTER*CTE_LENFIC2 FICMIE    ! access path to the MIE file, name of the MIE file
+      CHARACTER*CTE_LENFIC2 FICLOG    ! name of the MIE TRACE file
       
-      INTEGER*4 IER       	      ! code d'erreur =0 si pas d'erreur, =-1 sinon      
+      INTEGER*4 IER       	      ! error code =0 if no error, =-1 otherwise
       
                        
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0     
 
-C* Test de compatibilite entre alphaF et l'ordre maximal 
-C* des dÃ©veloppements pour le calcul des fonctions de 
-C* Ricatti-Bessel (et de leurs derivees)
+C* Compatibility test between alphaF and the maximum order
+C* of the expansions for the computation of the
+C* Ricatti-Bessel functions (and of their derivatives)
 C------------------------------------------------------
       IF (DINT(ALPHAF+ALPHAF+20).GT.CTE_MIE_DIM) GOTO 997
 
 
 
-C* Lecture des paramÃ¨tres/arguments d'entrÃ©e et decodage 
+C* Reading of the input parameters/arguments and decoding
 C------------------------------------------------------      
       IF (FICLOG.EQ.'NO_LOG_FILE') THEN
 	TRACE=.FALSE.
@@ -333,11 +333,11 @@ C------------------------------------------------------
         TRACE=.TRUE.
       END IF     
       
-C* Ouverture des fichiers 
+C* Opening of the files
 C------------------------------------------------------
       OPEN (1,FILE=FICMIE,FORM='UNFORMATTED',ERR=911)            
             
-C     Fichier trace
+C     Trace file
       IF (TRACE) THEN
          OPEN (99,FILE=FICLOG,ERR=913)
 	  WRITE(99,*,err=923) ' '
@@ -345,7 +345,7 @@ C     Fichier trace
       END IF
  
                
-C* Initialisation des tableaux a 0   
+C* Initialisation of the arrays to 0
 C------------------------------------------------------  
       DIM=CTE_MIE_DIM 
       CALL SOS_XERO(CNA,-1,DIM)
@@ -357,7 +357,7 @@ C------------------------------------------------------
       CALL SOS_XERO(IDNB,0,DIM)    
       
                                                        
-C* Fichier trace 
+C* Trace file
 C------------------------------------------------------  
       IF (TRACE) THEN
         WRITE(99,*,err=923)'SIMULATION PARAMETERS'
@@ -386,20 +386,20 @@ C------------------------------------------------------
         WRITE(99,10,err=923)'  alpha','Qext','Qsca','G'
       END IF
 
-C* Ecriture de l'entete du fichier de sortie  
+C* Writing of the header of the output file
 C------------------------------------------------------                         
       WRITE(1,err=921)RN,IN,ALPHAF,MIE_NBMU
       
   
   
-C* Boucle sur les valeurs du paramÃ¨tre de taille ALPHA de
-C* ALPHA0 a ALPHAF par pas variable. (etiquette 7777)
+C* Loop on the values of the size parameter ALPHA from
+C* ALPHA0 to ALPHAF with variable step. (label 7777)
 C------------------------------------------------------          
       ALPHA=ALPHAO
            
  7777 CONTINUE   
  
-C* Estimation du pas pour la valeur de ALPHA suivante  
+C* Estimation of the step for the next value of ALPHA
 C------------------------------------------------------
          PAS=0.0001
          IF(ALPHA.gt.0.1)  PAS =0.001
@@ -410,14 +410,14 @@ C------------------------------------------------------
  
  
       
-C* Calcul des fonctions derivees de Ricatti-Bessel : 
-C* Gn(alpha), Dn(alpha), Dn(alpha*m) - parties rÃ©elle et imaginaire
+C* Computation of the derived Ricatti-Bessel functions:
+C* Gn(alpha), Dn(alpha), Dn(alpha*m) - real and imaginary parts
 C*
-C* Calcul des fonctions rÃ©elles Sn(alpha) et Cn(alpha)
+C* Computation of the real functions Sn(alpha) and Cn(alpha)
 C------------------------------------------------------    
 
-C*  Ordres de dÃ©veloppement limitÃ©s : N1 pour Dn et Sn
-C*                                    N2 pour Gn et Cn
+C*  Limited expansion orders: N1 for Dn and Sn
+C*                            N2 for Gn and Cn
                  
          N1   = DINT(ALPHA+ALPHA+20)
 	  IF(N1.GT.CTE_MIE_DIM) GOTO 997  
@@ -426,12 +426,12 @@ C*                                    N2 pour Gn et Cn
 	 
 	 
 
-C*  Recurrence sur Gn(alpha) : partie rÃ©elle RGNA et imaginaire IGNA, 
-C*  et sur Cn(alpha) de n=1 a N2.
+C*  Recurrence on Gn(alpha): real part RGNA and imaginary part IGNA,
+C*  and on Cn(alpha) from n=1 to N2.
 C------------------------------------------------------  
       
-C*   Initialisation des suites Cn (CNA rÃ©el)
-C*   et Gn (partie rÃ©elle RGNA et imaginaire IGNA)    
+C*   Initialisation of the series Cn (real CNA)
+C*   and Gn (real part RGNA and imaginary part IGNA)
 
          CNA(-1) = -DSIN(ALPHA)   
 	  CNA(0)  =  DCOS(ALPHA)
@@ -442,7 +442,7 @@ C*   et Gn (partie rÃ©elle RGNA et imaginaire IGNA)
          IGNA(0)  = -1.D+00
 
 
-C*  Boucle de recurrence
+C*  Recurrence loop
     
          DO 25 I=1,N2
             X=RGNA(I-1)
@@ -454,10 +454,10 @@ C*  Boucle de recurrence
 
             CNA(I)=(2*I-1.D+00)*CNA(I-1)/ALPHA-CNA(I-2)	
 	    
-C*    Controle : 
-C*      Si Cn(alpha) ne diverge pas => on poursuit la recurrence.   
-C*      Sinon, on redefinit les ordres limites N2 et N1, puis on quitte
-C*      la boucle de recurrence.	    
+C*    Check:
+C*      If Cn(alpha) does not diverge => the recurrence goes on.
+C*      Otherwise, the limit orders N2 and N1 are redefined, then the
+C*      recurrence loop is left.
             IF(CNA(I).LT.1.D+304) GO TO 25	    
               N2=I 
               N2P1=I+1
@@ -469,10 +469,10 @@ C*      la boucle de recurrence.
 
 
 
-C*  Recurrence sur Dn(alpha)   : fonction rÃ©elle RDNA
-C*                 Dn(alpha*m) : partie rÃ©elle RDNB et imaginaire IDNB
-C*                 Sn(alpha)   : fonction rÃ©elle SNA
-C*  Boucle de N1 a 0
+C*  Recurrence on Dn(alpha)   : real function RDNA
+C*                 Dn(alpha*m) : real part RDNB and imaginary part IDNB
+C*                 Sn(alpha)   : real function SNA
+C*  Loop from N1 to 0
 C------------------------------------------------------         
 
          RBETA=RN*ALPHA       
@@ -481,7 +481,7 @@ C------------------------------------------------------
          X2=RBETA/X1
          X3=IBETA/X1
 	 
-C*   Initialisation a N1            
+C*   Initialisation at N1
          RDNA(N1)=0.D+00
          RDNB(N1)=0.D+00
          IDNB(N1)=0.D+00
@@ -489,7 +489,7 @@ C*   Initialisation a N1
          SNA(N1)=0.D+00 
          SNA(N1-1)=1.D+00
 
-C*   Boucle de recurrence de N1-1 a 0    
+C*   Recurrence loop from N1-1 to 0
          DO 30 I=N1-1,0,-1
 	    
             X=RDNB(I+1) 
@@ -506,8 +506,8 @@ C*   Boucle de recurrence de N1-1 a 0
 	    
             SNA(I-1)=(2.D+00*I+1.D+00)*SNA(I)/ALPHA-SNA(I+1)
 
-C*   Si les valeurs de Sn deviennent trop grandes, on normalise
-C*   l'ensemble des termes calcules par Sn-1. 	    
+C*   If the values of Sn become too large, all the computed terms
+C*   are normalised by Sn-1.
             IF (SNA(I-1).GT.1D+304) THEN    	     	
                 TEST=I-1 
                 X=SNA(TEST)
@@ -519,8 +519,8 @@ C*   l'ensemble des termes calcules par Sn-1.
    30    CONTINUE 
  
  
-C*   Normalisation de Sn(alpha) par sin(alpha)/S0(alpha)
-C*   pour verifier la condition n=0 : S0(alpha) = sin(alpha)                 
+C*   Normalisation of Sn(alpha) by sin(alpha)/S0(alpha)
+C*   to satisfy the condition n=0: S0(alpha) = sin(alpha)
          Q=SNA(0)/DSIN(ALPHA)    
                                                            
          DO 45 I=0,N2       
@@ -531,8 +531,8 @@ C*   pour verifier la condition n=0 : S0(alpha) = sin(alpha)
           
 
 
-C* Calcul des fonctions An(alpha) et Bn(alpha) :
-C* parties rÃ©elle (RA, RB) et imaginaire (IA, IB)
+C* Computation of the functions An(alpha) and Bn(alpha):
+C* real (RA, RB) and imaginary (IA, IB) parts
 C------------------------------------------------------    
          UN=1 
 	                                        
@@ -561,9 +561,9 @@ C------------------------------------------------------
             Z9=Y7*Y7+Y8*Y8          
             Q=(I+I+1.D+00)/I/(I+1.D+00)*UN
 
-C*   Test sur X2 (fonction Cn(alpha)) : tend a diverger pour n important.
-C*   Z5 tend vers l'infini en X2**2. La valeur de X2 / Z5 tend alors vers 0.
-C*   Ce test evite un probleme numerique de rapport Inf / Inf.          	    
+C*   Test on X2 (function Cn(alpha)): tends to diverge for large n.
+C*   Z5 tends to infinity as X2**2. The value of X2 / Z5 then tends to 0.
+C*   This test avoids a numerical problem of Inf / Inf ratio.
 	    IF (X2.GT.1D+300) THEN
 		Y1=0.D+00
 		Y2=0.D+00
@@ -595,9 +595,9 @@ C*   Ce test evite un probleme numerique de rapport Inf / Inf.
          IB(N2P1)=0.D+00
 
 
-C* Calcul des coefficients d'efficacite en diffusion (Qsca) 
-C* et en extinction (Qext).
-C* Calcul du facteur d'anisotropie (G).
+C* Computation of the scattering (Qsca)
+C* and extinction (Qext) efficiency factors.
+C* Computation of the asymmetry factor (G).
 C------------------------------------------------------
          QEXT=0.D+00
          QSCA=0.D+00
@@ -631,31 +631,31 @@ C------------------------------------------------------
          QSCA=W6*QSCA             
          G=4.D+00*G/QSCA/ALPHA/ALPHA
 
-C* Appel de la routine permettant le calcul des fonctions de phase de Mie
-C* et enregistrant les resultats pour ALPHA.       
+C* Call of the routine computing the Mie phase functions
+C* and storing the results for ALPHA.
 C------------------------------------------------------
          CALL SOS_FPHASE_MIE(MIE_NBMU,RMU,RA,IA,RB,IB,ALPHA,
      *                      QEXT,QSCA,G,N2,TRACE,IER) 
-         IF (IER.NE.0) GOTO 996   ! cas d'erreur
+         IF (IER.NE.0) GOTO 996   ! error case
       
-C* Passage a la valeur suivante du paramÃ¨tre de taille ALPHA (arret si la 
-C* limite ALPHAF est depassee).                 
+C* Next value of the size parameter ALPHA (stop if the
+C* limit ALPHAF is exceeded).
 C------------------------------------------------------
          ALPHA=ALPHA+PAS 
       IF (ALPHA.LE.ALPHAF) GOTO 7777 
                                                    
  
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(1)
       CLOSE(4)
 
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
   911 WRITE(6,*) 'Erreur a l''ouverture du fichier MIE'
       IER=-1  
@@ -687,7 +687,7 @@ C---------
  9999 CONTINUE
  
       RETURN
-      END    !FIN DE LA PROCEDURE SOS_MIE   
+      END    !END OF PROCEDURE SOS_MIE
       
 
  
@@ -696,43 +696,43 @@ C---------
 C==============================================================================
 C PROCEDURE: SOS_XERO
 C ==========      
-C  Cette procÃ©dure affecte zero aux elements d'un tableau IT(N:M)
+C  This procedure sets to zero the elements of an array IT(N:M)
 C
 C
-C Description des paramÃ¨tres
+C Description of parameters
 C --------------------------
-C    N,M (I4) (E)  Dimensions du tableau IT           
-C    IT(N:M) (double) (E/S)  Tableau a initialiser
+C    N,M (I4) (I)  Dimensions of the array IT
+C    IT(N:M) (double) (I/O)  Array to initialise
 C 
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C     None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Aucun
+C     None
 C
 C==============================================================================
       SUBROUTINE SOS_XERO(IT,N,M) 
    
       IMPLICIT NONE
       
-C* Definition des variables 
+C* Definition of variables
 C---------------------------
-      INTEGER*4 N,M			! Dimensions du tableau   
-      DOUBLE PRECISION IT(N:M)		! Tableau 
+      INTEGER*4 N,M			! Dimensions of the array
+      DOUBLE PRECISION IT(N:M)		! Array
                
-      INTEGER*4 I			!Indice du tableau
+      INTEGER*4 I			!Array index
       
-C*   Initialisation du tableau 
+C*   Initialisation of the array
 C-----------------------------           
       DO I=N,M  
          IT(I)=0.D+00
       ENDDO
       
       RETURN 
-      END  	!FIN DE LA PROCEDURE SOS_XERO       
+      END  	!END OF PROCEDURE SOS_XERO
       
  
                          
@@ -740,62 +740,62 @@ C-----------------------------
 C==============================================================================
 C PROCEDURE: SOS_FPHASE_MIE
 C ==========      
-C      Cette procÃ©dure calcule les fonctions de phase Imie(mu), Qmie(mu),
-C      Umie(mu) pour une valeur fixee du paramÃ¨tre de taille ALPHA et 
-C      pour les mu de Gauss du tableau RMU.
+C      This procedure computes the phase functions Imie(mu), Qmie(mu),
+C      Umie(mu) for a given value of the size parameter ALPHA and
+C      for the Gauss mu of the array RMU.
 C
-C      Il y a enregistrement (non formatte) des resultats:
-C        - ParamÃ¨tre de taille (rÃ©el),
-C        - Coefficient d'efficacite en extinction (rÃ©el),
-C        - Coefficient d'efficacite en diffusion (rÃ©el),
-C        - Facteur d'anisotropie (double prÃ©cision),
-C        - Tableau de la fonction de phase Imie(mu) (rÃ©el),
-C        - Tableau de la fonction de phase polarisee Qmie(mu) (rÃ©el),
-C        - Tableau de la fonction de phase polarisee Umie(mu) (rÃ©el).
+C      The results are recorded (unformatted):
+C        - Size parameter (real),
+C        - Extinction efficiency factor (real),
+C        - Scattering efficiency factor (real),
+C        - Asymmetry factor (double precision),
+C        - Array of the phase function Imie(mu) (real),
+C        - Array of the polarised phase function Qmie(mu) (real),
+C        - Array of the polarised phase function Umie(mu) (real).
 C
-C    --> Les tableaux ont une taille utile limitÃ©e Ã  MIE_NBMU : 
-C        ils sont ecris avec cette limitation.
+C    --> The arrays have a useful size limited to MIE_NBMU:
+C        they are written with this limitation.
 C
 C     
-C Description des paramÃ¨tres
+C Description of parameters
 C --------------------------
-C    MIE_NBMU (I4)   (E)   Nombre d'angles (positifs) effectivement utiles
-C    RMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) (E) Cosinus des angles de Gauss  
-C    RA(0:CTE_MIE_DIM)  (double) (E)   Partie rÃ©elle de la fonction An(alpha).
-C    IA(0:CTE_MIE_DIM)  (double) (E)   Partie imaginaire de An(alpha).  
-C    RB(0:CTE_MIE_DIM)  (double) (E)   Partie rÃ©elle de la fonction Bn(alpha). 
-C    IB(0:CTE_MIE_DIM)  (double) (E)   Partie imaginaire de Bn(alpha).
-C    ALPHA (double)  (E)   Valeur du paramÃ¨tre de taille. 
-C    KMA1  (double)  (E)   Coefficient d'efficacite en extinction.
-C    KMA2  (double)  (E)   Coefficient d'efficacite en diffusion.
-C    G     (double)  (E)   Facteur d'anisotropie.
-C    N2    (I4)      (E)   Ordre maximal de sommation sur N.
-C    TRACE (logical) (E)   vrai,si Ã©criture dans le fichier trace
-C    IER (I4) (S) : code d'erreur = 0 si pas d'erreur, sinon =1	
+C    MIE_NBMU (I4)   (I)   Number of actually useful (positive) angles
+C    RMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) (double) (I) Cosines of the Gauss angles
+C    RA(0:CTE_MIE_DIM)  (double) (I)   Real part of the function An(alpha).
+C    IA(0:CTE_MIE_DIM)  (double) (I)   Imaginary part of An(alpha).
+C    RB(0:CTE_MIE_DIM)  (double) (I)   Real part of the function Bn(alpha).
+C    IB(0:CTE_MIE_DIM)  (double) (I)   Imaginary part of Bn(alpha).
+C    ALPHA (double)  (I)   Value of the size parameter.
+C    KMA1  (double)  (I)   Extinction efficiency factor.
+C    KMA2  (double)  (I)   Scattering efficiency factor.
+C    G     (double)  (I)   Asymmetry factor.
+C    N2    (I4)      (I)   Maximum order of summation on N.
+C    TRACE (logical) (I)   true if writing in the trace file
+C    IER (I4) (O) : error code = 0 if no error, =1 otherwise
 C
 C
-C Resultat stocke dans le fichier MIE:
+C Result stored in the MIE file:
 C ------------------------------------
-C    AY1   (R4)	        Valeur du paramÃ¨tre de taille ALPHA.
-C    AY2   (R4)	        Coefficient d'efficacite en extinction.
-C    AY3   (R4)	        Coefficient d'efficacite en diffusion.
-C    AY4   (double)     Facteur d'anisotropie.
+C    AY1   (R4)	        Value of the size parameter ALPHA.
+C    AY2   (R4)	        Extinction efficiency factor.
+C    AY3   (R4)	        Scattering efficiency factor.
+C    AY4   (double)     Asymmetry factor.
 C    IMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)    (R4)	      
-C                 fonction de phase : Imie(mu) pour ALPHA.
+C                 phase function: Imie(mu) for ALPHA.
 C    QMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)    (R4)	     
-C                  fonction de phase polarisee: Qmie(mu).
+C                  polarised phase function: Qmie(mu).
 C    UMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)    (R4)     
-C                  fonction de phase polarisee: Umie(mu).       
+C                  polarised phase function: Umie(mu).
 C      
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C     None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Affichage d'un message Ã  l'Ã©cran, arret du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C
 C==============================================================================
       SUBROUTINE SOS_FPHASE_MIE(MIE_NBMU,RMU,RA,IA,RB,IB,ALPHA,
@@ -804,64 +804,64 @@ C==============================================================================
 
       IMPLICIT NONE
       
-C* Definition des variables
+C* Definition of variables
 C----------------------------------------------------------------------------
       DOUBLE PRECISION RMU(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX) 
-                                        !Cosinus des angles de Gauss 	
+                                        !Cosines of the Gauss angles
       
-      DOUBLE PRECISION ALPHA       !Valeur du paramÃ¨tre de taille. 
-      DOUBLE PRECISION KMA1	   !Coefficient d'efficacite en extinction.
-      DOUBLE PRECISION KMA2        !Coefficient d'efficacite en diffusion.
-      DOUBLE PRECISION G 	   !Facteur d'anisotropie.
+      DOUBLE PRECISION ALPHA       !Value of the size parameter.
+      DOUBLE PRECISION KMA1	   !Extinction efficiency factor.
+      DOUBLE PRECISION KMA2        !Scattering efficiency factor.
+      DOUBLE PRECISION G 	   !Asymmetry factor.
 
 
-      DOUBLE PRECISION RA(0:CTE_MIE_DIM)     !Partie rÃ©elle de la fonction An(alpha). 
-      DOUBLE PRECISION IA(0:CTE_MIE_DIM)     !Partie imaginaire de An(alpha).
-      DOUBLE PRECISION RB(0:CTE_MIE_DIM)     !Partie rÃ©elle de la fonction Bn(alpha).
-      DOUBLE PRECISION IB(0:CTE_MIE_DIM)     !Partie imaginaire de Bn(alpha).
-      DOUBLE PRECISION AR	!Valeur du tableau RA pour n donne.
-      DOUBLE PRECISION AI       !Valeur du tableau IA pour n donne.
-      DOUBLE PRECISION BR       !Valeur du tableau RB pour n donne.
-      DOUBLE PRECISION BI       !Valeur du tableau IB pour n donne.   	      
+      DOUBLE PRECISION RA(0:CTE_MIE_DIM)     !Real part of the function An(alpha).
+      DOUBLE PRECISION IA(0:CTE_MIE_DIM)     !Imaginary part of An(alpha).
+      DOUBLE PRECISION RB(0:CTE_MIE_DIM)     !Real part of the function Bn(alpha).
+      DOUBLE PRECISION IB(0:CTE_MIE_DIM)     !Imaginary part of Bn(alpha).
+      DOUBLE PRECISION AR	!Value of the array RA for a given n.
+      DOUBLE PRECISION AI       !Value of the array IA for a given n.
+      DOUBLE PRECISION BR       !Value of the array RB for a given n.
+      DOUBLE PRECISION BI       !Value of the array IB for a given n.
             
       DOUBLE PRECISION COEF
-      DOUBLE PRECISION X        !Valeur mu = -cos(tetad) 
-      				     !avec tetad l'angle de diffusion.
+      DOUBLE PRECISION X        !Value mu = -cos(tetad)
+      				     !with tetad the scattering angle.
 				           
-      DOUBLE PRECISION PIM      !Fonction PI(mu) d'ordre n-1.
-      DOUBLE PRECISION PIV      !Fonction PI(mu) d'ordre n.
-      DOUBLE PRECISION PIP     	!Fonction PI(mu) d'ordre n+1.	
-      DOUBLE PRECISION TAU      !Fonction TAU(mu) d'ordre n.
+      DOUBLE PRECISION PIM      !Function PI(mu) of order n-1.
+      DOUBLE PRECISION PIV      !Function PI(mu) of order n.
+      DOUBLE PRECISION PIP     	!Function PI(mu) of order n+1.
+      DOUBLE PRECISION TAU      !Function TAU(mu) of order n.
       
-      DOUBLE PRECISION RES1     !Partie rÃ©elle de la fonction S1(alpha,m,mu).
-      DOUBLE PRECISION IMS1     !Partie imaginaire de S1(alpha,m,mu).
-      DOUBLE PRECISION RES2     !Partie rÃ©elle de la fonction S2(alpha,m,mu).
-      DOUBLE PRECISION IMS2     !Partie imaginaire de S2(alpha,m,mu).      
+      DOUBLE PRECISION RES1     !Real part of the function S1(alpha,m,mu).
+      DOUBLE PRECISION IMS1     !Imaginary part of S1(alpha,m,mu).
+      DOUBLE PRECISION RES2     !Real part of the function S2(alpha,m,mu).
+      DOUBLE PRECISION IMS2     !Imaginary part of S2(alpha,m,mu).
       
       DOUBLE PRECISION Y1
       DOUBLE PRECISION Y2
       DOUBLE PRECISION Y3
       DOUBLE PRECISION Y4
-      DOUBLE PRECISION AY4	!Facteur d'anisotropie.
+      DOUBLE PRECISION AY4	!Asymmetry factor.
       
-      REAL*4 AY1		!Valeur du paramÃ¨tre de taille ALPHA.
-      REAL*4 AY2		!Coefficient d'efficacite en extinction.
-      REAL*4 AY3		!Coefficient d'efficacite en diffusion.
+      REAL*4 AY1		!Value of the size parameter ALPHA.
+      REAL*4 AY2		!Extinction efficiency factor.
+      REAL*4 AY3		!Scattering efficiency factor.
       REAL*4 IMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)     
-                             !fonction de phase : Imie(mu) pour ALPHA.
+                             !phase function: Imie(mu) for ALPHA.
       REAL*4 QMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)     
-                             !fonction de phase polarisee: Qmie(mu).
+                             !polarised phase function: Qmie(mu).
       REAL*4 UMIE(-CTE_MIE_NBMU_MAX:CTE_MIE_NBMU_MAX)
-                             !fonction de phase polarisee: Umie(mu).       
+                             !polarised phase function: Umie(mu).
 
-      LOGICAL TRACE          ! = vrai,si Ã©criture dans le fichier trace
+      LOGICAL TRACE          ! = true if writing in the trace file
 
-      INTEGER*4 MIE_NBMU     ! Nombre d'angles effectifs des simulations         
-      INTEGER*4 N2      !Ordre maximal de sommation sur N 
+      INTEGER*4 MIE_NBMU     ! Number of actual angles of the simulations
+      INTEGER*4 N2      !Maximum order of summation on N
       INTEGER*4 J
       INTEGER*4 N
       
-      INTEGER*4 IER        ! code d'erreur =0 si pas d'erreur, =-1 sinon           
+      INTEGER*4 IER        ! error code =0 if no error, =-1 otherwise
 
 
       AY1=ALPHA           
@@ -904,28 +904,28 @@ C----------------------------------------------------------------------------
          UMIE(J)=COEF*(Y3+Y4)
     1 CONTINUE    
     
-C* Enregistrement des resultats pour ALPHA
-C*    Enregistrement des tableaux de fonctions de phase 
-C*    pour des bornes d'enregistrement limitÃ©es au dimensionnement 
-C*    utile -CTE_MIE_NBMU:CTE_MIE_NBMU
+C* Recording of the results for ALPHA
+C*    Recording of the phase function arrays
+C*    with record bounds limited to the useful
+C*    dimension -CTE_MIE_NBMU:CTE_MIE_NBMU
 C------------------------------------------------------
       WRITE(1,err=921) AY1,AY2,AY3,AY4,
      &                (IMIE(J),J=-MIE_NBMU,MIE_NBMU),
      &                (QMIE(J),J=-MIE_NBMU,MIE_NBMU),
      &                (UMIE(J),J=-MIE_NBMU,MIE_NBMU)
       
-C* Fichier trace :alpha,Qext,Qsca,G
+C* Trace file: alpha,Qext,Qsca,G
 C------------------------------------------------------  
       IF (TRACE) THEN
 	   WRITE(99,20,err=923) AY1,AY2,AY3,AY4
       END IF
 
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status -1 au progamme appelant
+C* Error case and return of status -1 to the calling program
 C----------------------------------------------------------
   921 WRITE(6,*) 'Erreur d''Ã©criture sur le fichier MIE'
       IER=-1 
@@ -941,5 +941,5 @@ C----------
  9999 CONTINUE
  
       RETURN                                                                    
-      END         !FIN DE LA PROCEDURE SOS_FPHASE_MIE       
+      END         !END OF PROCEDURE SOS_FPHASE_MIE
 

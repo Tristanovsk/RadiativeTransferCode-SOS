@@ -19,82 +19,82 @@ C******************************************************************************
 
 
 C******************************************************************************
-C* FICHIER: SOS_GLITTER.F
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Genere les fichiers "glitter" pour le calcul du glitter.
+C* FILE: SOS_GLITTER.F
+C* PROJECT: Successive orders of scattering
+C* ROLE: Generates the "glitter" files for the glitter computation.
 C*
-C* AUTEUR: 
-C*   Code initial: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
-C*   Reprise du codage et développement : CS GROUP France, B.Lafrance
+C* AUTHOR:
+C*   Initial code: Laboratoire d'Optique Atmospherique (LOA, Villeneuve d'Ascq).
+C*   Code rework and development: CS GROUP France, B.Lafrance
 C* DATE: 30/04/02
 C*
-C* MOD:VERSION:1.0: Mise a niveau du code des OS du LOA
-C* MOD:VERSION:1.1: Mise à jour des commentaires
+C* MOD:VERSION:1.0: Upgrade of the LOA OS code
+C* MOD:VERSION:1.1: Update of the comments
 C*                  
 C* MOD:VERSION:2.0: 10/01/2010 
 C*
-C*   - Suppression de la constante SOS_OS_FICANGLE (de SOS.h) et de la lecture du fichier correspondant 
-C*     des angles de Gauss au profit : d'un passage par argument des tables d'angles (RMU) et poids (CHR).
+C*   - Removal of the constant SOS_OS_FICANGLE (from SOS.h) and of the reading of the corresponding
+C*     Gauss angle file, in favour of passing the angle (RMU) and weight (CHR) tables as arguments.
 C*
-C*   - Modification de la taille des tableaux de luminance :
-C*     ==> Passage de CTE_OS_NBMU à CTE_OS_NBMU_MAX.
-C*     ==> Boucle sur les angles jusqu'à LUM_NBMU (nouveau argument d'entrée) 
-C*         égal au nombre effectif d'angles utilises.
+C*   - Change of the size of the radiance arrays:
+C*     ==> Changed from CTE_OS_NBMU to CTE_OS_NBMU_MAX.
+C*     ==> Loop on the angles up to LUM_NBMU (new input argument)
+C*         equal to the actual number of angles used.
 C*
-C*   - Suppression des constantes CTE_OS_NB, CTE_OS_NS et CTE_OS_NM (de SOS.h)  
-C*     au profit : d'un passage par argument des valeurs OS_NB, OS_NS, OS_NM.
+C*   - Removal of the constants CTE_OS_NB, CTE_OS_NS and CTE_OS_NM (from SOS.h)
+C*     in favour of passing the values OS_NB, OS_NS, OS_NM as arguments.
 C*
-C*   - Modification de la taille des tableaux de décomposition en polynomes de Legendre :
-C*     ==> Passage de CTE_OS_NB à CTE_OS_NB_MAX.
-C*     ==> Passage de CTE_OS_NS à CTE_OS_NS_MAX.
-C*     ==> Passage de CTE_OS_NM à CTE_OS_NM_MAX.
-C*     ==> Boucle sur les ordre jusqu'à OS_NB, OS_NS ou OS_NM (nouveaux argument d'entrée)
+C*   - Change of the size of the arrays of the decomposition in Legendre polynomials:
+C*     ==> Changed from CTE_OS_NB to CTE_OS_NB_MAX.
+C*     ==> Changed from CTE_OS_NS to CTE_OS_NS_MAX.
+C*     ==> Changed from CTE_OS_NM to CTE_OS_NM_MAX.
+C*     ==> Loop on the orders up to OS_NB, OS_NS or OS_NM (new input arguments)
 C*
-C*   - Routine SOS_GSF : Modification de l'appel de la routine pour inclure l'argument LUM_NBMU (nb d'angles utiles)  
-C*     et pour limiter les boucles aux bornes utiles LUM_NBMU, et pour inclure l'argument OS_NM.  
+C*   - Routine SOS_GSF: change of the routine call to include the argument LUM_NBMU (nb of useful angles)
+C*     and to limit the loops to the useful bounds LUM_NBMU, and to include the argument OS_NM.
 C*
-C*   - Adaptation de l'appel des routines SOS_MAT_FRESNEL, SOS_MAT_REFLEXION  
-C*     et SOS_MISE_FORMAT, aux passages des paramètres LUM_NBMU (nb d'angles utiles),
-C*     RMU (table des cosinus des angles) et CHR (table des poids des angles),
-C*     ainsi que OS_NB, OS_NS et OS_NM.
+C*   - Adaptation of the calls of routines SOS_MAT_FRESNEL, SOS_MAT_REFLEXION
+C*     and SOS_MISE_FORMAT to the passing of the parameters LUM_NBMU (nb of useful angles),
+C*     RMU (table of the cosines of the angles) and CHR (table of the weights of the angles),
+C*     as well as OS_NB, OS_NS and OS_NM.
 C*
 C* MOD:VERSION:6.0: 06/06/2013
 C*
-C*   - Modification de la valeur de Pi, déclarée en constante dans le fichier
-C*     (INCTE_PI remplace CTE_PI). 
+C*   - Change of the value of Pi, declared as a constant in the file
+C*     (INCTE_PI replaces CTE_PI).
 C*
 C* MOD:VERSION:7.0: 16/06/2020
 C*
-C*   - Passage du nom des fichiers temporaires (RES_GSF, RES_FRESNEL, RES_MAT_REFLEX) 
-C*     avec arborescence complète.
-C*   - Modification en conséquence des arguments fournis à la routine SOS_GSF.
-C*   - Appel de la routine SOS_GSF avec le paramètre SIG (de Cox&Munk) et de la routine 
-C*     SOS_MAT_REFLEXION avec le paramètre (1./SIG) au lieu de la vitesse de vent.
+C*   - Names of the temporary files (RES_GSF, RES_FRESNEL, RES_MAT_REFLEX) passed
+C*     with complete directory tree.
+C*   - Consequent change of the arguments given to routine SOS_GSF.
+C*   - Routine SOS_GSF called with the parameter SIG (of Cox&Munk) and routine
+C*     SOS_MAT_REFLEXION with the parameter (1./SIG) instead of the wind speed.
 C*
 C* MOD:VERSION:7.1: 31/08/2022
-C*    - Renommage des constantes de SOS_* en CTE_*
-C*    - Conversion des traces en Anglais.
+C*    - Constants renamed from SOS_* to CTE_*
+C*    - Traces converted to English.
 C*
 C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
-C Definition des constantes  
+C Definition of constants
 C---------------------------------------------------------------------------- 
-C Constantes utilisees :
-C    CTE_LENFIC2 : Longueur des noms de fichiers avec arborescence.
-C    CTE_OS_NBMU_MAX : Nombre maximal d'angles positifs.
-C    INCTE_PI : Valeur de PI.
-C    CTE_OS_NB_MAX :  Valeur maximale pour l'ordre limite du développement en 
-C                     polynomes de Legendre.
-C    CTE_OS_NS_MAX :  Valeur maximale pour l'ordre limite du développement en polynomes 
-C                     de Legendre des éléments de la matrice de Fresnel 
-C                     et en séries de Fourier des luminances.
-C    CTE_OS_NM_MAX :  Valeur maximale pour l'ordre limite  du développement 
-C                     en séries de Fourier de la fonction G.
-C    CTE_PH_TEST : Facteur pour la comparaison de GMIN et GMAX
-C    CTE_PH_NU : Nombre d'angle azimutal (2**NQ)
-C    CTE_PH_NQ : Puissance de 2 de CTE_PH_NU (NU=2**NQ)
+C Constants used:
+C    CTE_LENFIC2 : Length of file names with directory tree.
+C    CTE_OS_NBMU_MAX : Maximum number of positive angles.
+C    INCTE_PI : Value of PI.
+C    CTE_OS_NB_MAX :  Maximum value of the limit order of the expansion in
+C                     Legendre polynomials.
+C    CTE_OS_NS_MAX :  Maximum value of the limit order of the expansion in Legendre
+C                     polynomials of the Fresnel matrix elements
+C                     and in Fourier series of the radiances.
+C    CTE_OS_NM_MAX :  Maximum value of the limit order of the expansion
+C                     in Fourier series of the G function.
+C    CTE_PH_TEST : Factor for the comparison of GMIN and GMAX
+C    CTE_PH_NU : Number of azimuth angles (2**NQ)
+C    CTE_PH_NQ : Power of 2 of CTE_PH_NU (NU=2**NQ)
 C
 C----------------------------------------------------------------------------
 #include "SOS.h"
@@ -103,122 +103,122 @@ C----------------------------------------------------------------------------
 C==============================================================================
 C PROCEDURE: SOS_GLITTER
 C ==========      
-C      Cette procédure genere les fichiers de reflexion de surface
-C      pour le calcul du glitter.
+C      This procedure generates the surface reflection files
+C      for the glitter computation.
 C
 C
-C Donnees en entrée du programme 
+C Input data of the program
 C ------------------------------
-C    -->Les paramètres/arguments du programme
-C       LUM_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles
-C	 RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) : (E) Cosinus des angles.
-C	 CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) : (E) Poids des angles.
-C 	 WIND  (DOUBLE)  : (E) Vitesse du vent en m/s. 
-C       IND   (DOUBLE)  : (E) Indice de réfraction de l'eau / air.
-C       OS_NB (I4) : (E) Ordre des développements des fonctions de phase 
-C		           en Polynomes de Legendre à utiliser.
-C       OS_NS (I4) : (E) Ordre maximal à utiliser pour le développement en
-C                        polynomes de Legendre des éléments de la matrice de Fresnel 
-C                        et en séries de Fourier des calculs de luminance.
-C       OS_NM (I4) : (E) Ordre maximal du développement en séries de Fourier  
-C                        de la fonction G des calculs de matrice de reflexion.
+C    -->Parameters/arguments of the program
+C       LUM_NBMU (I4) : (I) Number of actually useful (positive) angles
+C	 RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) : (I) Cosines of the angles.
+C	 CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) : (I) Weights of the angles.
+C 	 WIND  (DOUBLE)  : (I) Wind speed in m/s.
+C       IND   (DOUBLE)  : (I) Refractive index water / air.
+C       OS_NB (I4) : (I) Order of the expansions of the phase functions
+C		           in Legendre polynomials to be used.
+C       OS_NS (I4) : (I) Maximum order to be used for the expansion in
+C                        Legendre polynomials of the Fresnel matrix elements
+C                        and in Fourier series of the radiance computations.
+C       OS_NM (I4) : (I) Maximum order of the expansion in Fourier series
+C                        of the G function of the reflection matrix computations.
 C       FIC_RES_FRESNEL (CHARACTER*CTE_LENFIC2)  : 
-C                 (E) Nom du fichier temporaire RES_FRESNEL avec arborescence complète.
+C                 (I) Name of the temporary file RES_FRESNEL with complete directory tree.
 C       FIC_RES_GSF (CHARACTER*CTE_LENFIC2)  :  
-C                 (E) Nom du fichier temporaire RES_GSF avec arborescence complète.
+C                 (I) Name of the temporary file RES_GSF with complete directory tree.
 C       FIC_RES_FRESNEL (CHARACTER*CTE_LENFIC2)  :  
-C                 (E) Nom du fichier temporaire RES_FRESNEL avec arborescence complète.
+C                 (I) Name of the temporary file RES_FRESNEL with complete directory tree.
 C       FIC_RES_MAT_REFLEX (CHARACTER*CTE_LENFIC2)  :  
-C                 (E) Nom du fichier temporaire RES_MAT_REFLEX avec arborescence complète.
-C       FICGLITTER  (CHARACTER*CTE_LENFIC2) : (S) nom complet du fichier Glitter résultat.
-C       TRACE  (LOGICAL)   ! = vrai,si écriture dans le fichier trace.
-C       IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon
+C                 (I) Name of the temporary file RES_MAT_REFLEX with complete directory tree.
+C       FICGLITTER  (CHARACTER*CTE_LENFIC2) : (O) complete name of the result Glitter file.
+C       TRACE  (LOGICAL)   ! = true if writing in the trace file.
+C       IER  (I4)   (O) : error code =0 if no error, =-1 otherwise
 C
 C
-C Resultat fourni par le programme
+C Result provided by the program
 C --------------------------------
-C   Fichier Glitter
-C   Fichier de trace (optionnel), 
-C               si un fichier de meme nom existe deja, il est ecrase
-C              (No d'unite logique du fichier trace =99)
+C   Glitter file
+C   Trace file (optional),
+C               if a file with the same name already exists, it is overwritten
+C              (logical unit number of the trace file =99)
 C
 C 
-C Variable d'environnement
+C Environment variable
 C ------------------------
-C   Aucune
+C   None
 C
 C
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
 C
-C   -->Contenu du fichier Glitter
-C       Fichier binaire non formatte, cree par SOS_MISE_FORMAT
-C       Il contient la matrice de reflexion de surface ,
-C       c'est a dire les éléments Pij de la matrice de reflexion 
-C              P11(LUM_NBMU,LUM_NBMU) (réel),
-C              P12(LUM_NBMU,LUM_NBMU) (réel),
-C              P13(LUM_NBMU,LUM_NBMU) (réel),
-C              P21(LUM_NBMU,LUM_NBMU) (réel),
-C              P22(LUM_NBMU,LUM_NBMU) (réel),
-C              P23(LUM_NBMU,LUM_NBMU) (réel),
-C              P31(LUM_NBMU,LUM_NBMU) (réel),
-C              P32(LUM_NBMU,LUM_NBMU) (réel),
-C              P33(LUM_NBMU,LUM_NBMU) (réel)
+C   -->Content of the Glitter file
+C       Unformatted binary file, created by SOS_MISE_FORMAT
+C       It contains the surface reflection matrix,
+C       i.e. the elements Pij of the reflection matrix
+C              P11(LUM_NBMU,LUM_NBMU) (real),
+C              P12(LUM_NBMU,LUM_NBMU) (real),
+C              P13(LUM_NBMU,LUM_NBMU) (real),
+C              P21(LUM_NBMU,LUM_NBMU) (real),
+C              P22(LUM_NBMU,LUM_NBMU) (real),
+C              P23(LUM_NBMU,LUM_NBMU) (real),
+C              P31(LUM_NBMU,LUM_NBMU) (real),
+C              P32(LUM_NBMU,LUM_NBMU) (real),
+C              P33(LUM_NBMU,LUM_NBMU) (real)
 C
-C        --> Enregistrement sur le domaine limité aux angles utiles
+C        --> Record on the domain limited to the useful angles
 C                                  --------------------------------
 C
-C   -->Contenu du fichier temporaire RES_GSF
-C       Fichier binaire non formatte, cree par SOS_GSF
-C       Fichier cree dans le repertoire de lancement du programme
-C       Si un fichier de meme nom existe deja, il est ecrase
-C       Chaque enregistrement contient :
-C           -numéro d'angle Teta1 (valeur entiere)
-C           -numéro d'angle Teta2 (valeur entiere)
-C           -ordre maximale utile de la décomposition : IL  (valeur entiere)
-C           -Fonction G décomposée pour (Teta1,Teta2) : (E(J),J=0,IL)
-C            (IL+1 valeurs double précision)
+C   -->Content of the temporary file RES_GSF
+C       Unformatted binary file, created by SOS_GSF
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Each record contains:
+C           -number of the angle Teta1 (integer value)
+C           -number of the angle Teta2 (integer value)
+C           -maximum useful order of the decomposition: IL  (integer value)
+C           -Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
+C            (IL+1 double precision values)
 C
-C   -->Contenu du fichier temporaire RES_FRESNEL
-C      Fichier Ascii, format d'un enregistrement 4E15.8, 
-C      cree par SOS_MAT_FRESNEL
-C      Fichier cree dans le repertoire de lancement du programme
-C      Si un fichier de mSOS_RONDEAUX_BREONeme nom existe deja, il est ecrase
-C      Nombre d'enregistrements : de k=0 a OS_NS
-C      Chaque enregistrement contient les paramètres ALPHA(k), BETA(k), 
-C      GAMMA(k) et ZETA(k) associes a la matrice de Fresnel
+C   -->Content of the temporary file RES_FRESNEL
+C      Ascii file, record format 4E15.8,
+C      created by SOS_MAT_FRESNEL
+C      File created in the directory where the program is run
+C      If a file with the same name already exists, it is overwritten
+C      Number of records: from k=0 to OS_NS
+C      Each record contains the parameters ALPHA(k), BETA(k),
+C      GAMMA(k) and ZETA(k) associated with the Fresnel matrix
 C
-C   -->Contenu du fichier temporaire RES_MAT_REFLEX
-C       Fichier binaire non formatte, cree par SOS_MAT_REFLEXION
-C       Fichier cree dans le repertoire de lancement du programme
-C       Si un fichier de meme nom existe deja, il est ecrase
-C       Enregistrement pour chaque couple (Teta1, Teta2) de
-C       la décomposition en séries de Fourier de la matrice de Fresnel:
+C   -->Content of the temporary file RES_MAT_REFLEX
+C       Unformatted binary file, created by SOS_MAT_REFLEXION
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Record for each pair (Teta1, Teta2) of
+C       the Fourier series decomposition of the Fresnel matrix:
 C       M11,M12,M13,M21,M22,M23,M31,M32,M33 
-C       (n valeurs réelles)
+C       (n real values)
 C
-C    Les 3 fichiers temporaires sont ecrases s'ils existent, puis 
-C    detruits en fin de programme.
+C    The 3 temporary files are overwritten if they exist, then
+C    deleted at the end of the program.
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C  Aucun
+C  None
 C
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C      Erreur si le fichier Glitter existe deja
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C      Error if the Glitter file already exists
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, arret du programme et 
-C     retour du status 1 au shell
+C     Message displayed on screen, program stop and
+C     return of status 1 to the shell
 C        
 C
-C  Sous programmes utilises:
+C  Subroutines used:
 C --------------------------
-C  Cette procédure fait appel aux routines:
+C  This procedure calls the routines:
 C      - SOS_GSF
 C      - SOS_MAT_FRESNEL 
 C      - SOS_MAT_REFLEXION 
@@ -235,51 +235,51 @@ C=============================================================================
       IMPLICIT NONE
 
 
-C* Definition des variables   
+C* Definition of variables
 C*--------------------------------------------------------------------------
-      CHARACTER*CTE_LENFIC2 FICGLITTER	! Nom complet du fichier GLITTER résultat.
+      CHARACTER*CTE_LENFIC2 FICGLITTER	! Complete name of the result GLITTER file.
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Nom du fichier RES_GSF
-                                        ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Name of the file RES_GSF
+                                        ! with complete directory tree
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Nom du fichier RES_FRESNEL
-                                            ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_FRESNEL ! Name of the file RES_FRESNEL
+                                            ! with complete directory tree
 
-      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Nom du fichier RES_MAT_REFLEX
-                                               ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_MAT_REFLEX ! Name of the file RES_MAT_REFLEX
+                                               ! with complete directory tree
             
-      DOUBLE PRECISION WIND	! Vitesse du vent (m/s).
+      DOUBLE PRECISION WIND	! Wind speed (m/s).
 
-      DOUBLE PRECISION SIG 	! Carré du paramètre Sigma de la théorie de Cox et Munck.
+      DOUBLE PRECISION SIG 	! Square of the parameter Sigma of the Cox and Munk theory.
       
-      DOUBLE PRECISION IND	! Indice de réfraction de l'eau / air
+      DOUBLE PRECISION IND	! Refractive index water / air
 	
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Tableau des mu de Gauss
-      DOUBLE PRECISION CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Poids de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Array of the Gauss mu
+      DOUBLE PRECISION CHR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   ! Gauss weights.
       
-      LOGICAL TRACE     ! = vrai,si écriture dans le fichier trace
+      LOGICAL TRACE     ! = true if writing in the trace file
 
-      INTEGER*4 OS_NB   ! Ordre des développements des fonctions de phase 
-			   ! en Polynomes de Legendre.
-      INTEGER*4 OS_NS   ! Ordre maximal du développement en polynomes de Legendre   
-			   ! des éléments de la matrice de Fresnel.
-      INTEGER*4 OS_NM   ! Ordre maximal du développement en séries de Fourier  
-			   ! de la fonction G des calculs de matrice de reflexion.
+      INTEGER*4 OS_NB   ! Order of the expansions of the phase functions
+			   ! in Legendre polynomials.
+      INTEGER*4 OS_NS   ! Maximum order of the expansion in Legendre polynomials
+			   ! of the Fresnel matrix elements.
+      INTEGER*4 OS_NM   ! Maximum order of the expansion in Fourier series
+			   ! of the G function of the reflection matrix computations.
 			
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations
-      INTEGER*4 I	    ! Indice de tableau.
-      INTEGER*4 IFIN     ! nb caracteres significatifs d'une chaine
-      INTEGER*4 IER      ! code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
+      INTEGER*4 I	    ! Array index.
+      INTEGER*4 IFIN     ! nb of significant characters of a string
+      INTEGER*4 IER      ! error code =0 if no error, =-1 otherwise
 
 
 
 
-C* Initialisation du code d'erreur
+C* Initialisation of the error code
 C------------------------------------------------------
       IER=0
 
       
-C* Ouverture du fichier Trace 
+C* Opening of the trace file
 C------------------------------------------------------
       IF (TRACE) THEN
          WRITE(99,*,err=921)	 
@@ -295,40 +295,40 @@ C------------------------------------------------------
 	  WRITE(99,*,err=921) ' ' 	 	 
       END IF
         
-C* Carre du paramètre Sigma de la théorie de Cox et Munk.
+C* Square of the parameter Sigma of the Cox and Munk theory.
 C--------------------------------------------------------
       SIG = .003 + .00512*WIND
 
-C* Decomposition en séries de Fourier de la fonction G(Teta1,Teta2,phi).
+C* Fourier series decomposition of the function G(Teta1,Teta2,phi).
 C---------------------------------------------------------------------
       CALL SOS_GSF(LUM_NBMU,RMU,SIG,OS_NM,FIC_RES_GSF,IER)
-      IF (IER.NE.0) GOTO 995   ! cas d'erreur
+      IF (IER.NE.0) GOTO 995   ! error case
       
-C* Développement en fonctions de Legendre de la matrice de Fresnel.
+C* Expansion of the Fresnel matrix in Legendre functions.
 C------------------------------------------------------------------
       CALL SOS_MAT_FRESNEL(LUM_NBMU,RMU,CHR,IND,OS_NS,
      &                     FIC_RES_FRESNEL,TRACE,IER)
-      IF (IER.NE.0) GOTO 996   ! cas d'erreur
+      IF (IER.NE.0) GOTO 996   ! error case
       
-C* Calcul de la matrice de reflexion developpee en séries de Fourier.
+C* Computation of the reflection matrix expanded in Fourier series.
 C------------------------------------------------------------------
       CALL SOS_MAT_REFLEXION((1./SIG),LUM_NBMU,RMU,OS_NB,OS_NS,OS_NM,
      &                       FIC_RES_FRESNEL,FIC_RES_GSF,
      &                       FIC_RES_MAT_REFLEX,IER)
-      IF (IER.NE.0) GOTO 997   ! cas d'erreur
+      IF (IER.NE.0) GOTO 997   ! error case
       
-C* Rearrangement des résultats pour etre compatible avec le code des OS.
+C* Rearrangement of the results to be compatible with the OS code.
 C-----------------------------------------------------------------------
       CALL SOS_MISE_FORMAT(FIC_RES_MAT_REFLEX, FICGLITTER,
      &                     LUM_NBMU,OS_NB,IER)
-      IF (IER.NE.0) GOTO 998   ! cas d'erreur
+      IF (IER.NE.0) GOTO 998   ! error case
 
 
-C* Fin nominale 
+C* Nominal end
 C-------------------
       GOTO 9999
       
-C* Cas d'erreur et retour du status 1 au shell 
+C* Error case and return of status 1 to the shell
 C----------------------------------------------
   912 WRITE(6,*) 'Erreur a l''ouverture du fichier angles de Gauss'
       IER=-1
@@ -358,7 +358,7 @@ C---------
               
  9999 CONTINUE
 
-C* Destruction des fichiers temporaires
+C* Deletion of the temporary files
 C---------------------------------------   
       OPEN(UNIT=3,FILE=FIC_RES_GSF,FORM='UNFORMATTED') 
       CLOSE(3,STATUS='DELETE')     
@@ -368,7 +368,7 @@ C---------------------------------------
       CLOSE(3,STATUS='DELETE') 
                                                       
       RETURN
-      END    !FIN DU PROGRAMME SOS_GLITTER  
+      END    !END OF PROGRAM SOS_GLITTER
 
 
 
@@ -377,74 +377,74 @@ C---------------------------------------
 C==============================================================================
 C PROCEDURE: SOS_GSF
 C ==========
-C      Cette procédure realise la décomposition en séries de Fourier
-C      (sur phi) de la fonction G(Teta1,Teta2,phi) :
+C      This procedure performs the Fourier series decomposition
+C      (on phi) of the function G(Teta1,Teta2,phi):
 C
 C	 G(Teta1,Teta2,phi) = exp [-tan(TetaN)**2 / SIG] / cos(TetaN)**4
 C
-C	 avec  Teta1 : angle zénithal d'incidence  (0 < Teta1 < PI/2),
-C             Teta2 : angle zénithal de reflexion (0 < Teta2 < PI/2),
-C             phi   : angle azimutal relatif entre les directions
-C                     d'incidence et de reflexion,
+C	 with  Teta1 : incidence zenith angle  (0 < Teta1 < PI/2),
+C             Teta2 : reflection zenith angle (0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                     of incidence and reflection,
 C
-C	       TetaN : angle zénithal de la normale à la facette de vague,
-C                     calcule à partir de Teta1, Teta2 et phi.
+C	       TetaN : zenith angle of the normal to the wave facet,
+C                     computed from Teta1, Teta2 and phi.
 C			
-C             SIG   : carre du paramètre Sigma de la théorie de Cox et Munck.
+C             SIG   : square of the parameter Sigma of the Cox and Munk theory.
 C
 C
-C      Enregistre les résultats dans le fichier "RES_GSF" sous la forme:
-C	   Numéro d'angle Teta1 : I1,
-C         Numéro d'angle Teta2 : I2,
-C         Ordre maximal utile de la décomposition: IL,
-C         Fonction G décomposée pour (Teta1,Teta2) : (E(J),J=0,IL)
+C      Stores the results in the file "RES_GSF" as:
+C	   Number of the angle Teta1 : I1,
+C         Number of the angle Teta2 : I2,
+C         Maximum useful order of the decomposition: IL,
+C         Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C      LUM_NBMU (I4) : (E) Nombre d'angles (positifs) effectivement utiles.
-C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double) : (E) Tableau des mu de Gauss.
-C      SIG	(double) : (E)  Carré du paramètre Sigma de la théorie de Cox et Munck.
-C      OS_NM (I4) : (E) Ordre maximal du développement en séries de Fourier  
-C                       de la fonction G des calculs de matrice de reflexion.
-C      FIC_RES_GSF  (CHARACTER)  : (E) Nom du fichier temporaire RES_GSF
-C                                      avec arborescence complète.
+C      LUM_NBMU (I4) : (I) Number of actually useful (positive) angles.
+C      RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double) : (I) Array of the Gauss mu.
+C      SIG	(double) : (I)  Square of the parameter Sigma of the Cox and Munk theory.
+C      OS_NM (I4) : (I) Maximum order of the expansion in Fourier series
+C                       of the G function of the reflection matrix computations.
+C      FIC_RES_GSF  (CHARACTER)  : (I) Name of the temporary file RES_GSF
+C                                      with complete directory tree.
 C
-C      IER  (I4) : (S) code d'erreur =0 si pas d'erreur, =-1 sinon 
+C      IER  (I4) : (O) error code =0 if no error, =-1 otherwise
 C
-C Autre résultat fourni par la procédure
+C Other result provided by the procedure
 C -------------------------------------
-C      Fichier temporaire RES_GSF
+C      Temporary file RES_GSF
 C 
-C Description des fichiers utilises
+C Description of the files used
 C ---------------------------------
-C   -->Contenu du fichier temporaire RES_GSF
-C       Fichier binaire non formatte, cree par SOS_GSF
-C       Fichier cree dans le repertoire de lancement du programme
-C       Si un fichier de meme nom existe deja, il est ecrase
-C       Chaque enregistrement contient :
-C           -numéro d'angle Teta1 (valeur entiere)
-C           -numéro d'angle Teta2 (valeur entiere)
-C           -ordre maximale utile de la decompositon : IL  (valeur entiere)
-C           -Fonction G décomposée pour (Teta1,Teta2) : (E(J),J=0,IL)
-C            (IL+1 valeurs double précision)
+C   -->Content of the temporary file RES_GSF
+C       Unformatted binary file, created by SOS_GSF
+C       File created in the directory where the program is run
+C       If a file with the same name already exists, it is overwritten
+C       Each record contains:
+C           -number of the angle Teta1 (integer value)
+C           -number of the angle Teta2 (integer value)
+C           -maximum useful order of the decomposition: IL  (integer value)
+C           -Decomposed G function for (Teta1,Teta2) : (E(J),J=0,IL)
+C            (IL+1 double precision values)
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C     None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     -Ouverture d'un fichier
-C     -Lecture/écriture dans un fichier
+C     -Opening of a file
+C     -Reading/writing in a file
 C
-C     Affichage d'un message à l'écran, la routine interrompt ses calculs et 
-C     retour du status -1 au programme appelant
+C     Message displayed on screen, the routine stops its computations and
+C     returns status -1 to the calling program
 C
 C     
-C  Routines utilises par la procédure:
+C  Routines used by the procedure:
 C ------------------------------------
-C  Ce programme fait appel a la routine:
+C  This program calls the routine:
 C        - SOS_CALCG
 C
 C==============================================================================
@@ -452,18 +452,18 @@ C==============================================================================
  	
       IMPLICIT NONE
 
-C* Definition des variables    
+C* Definition of variables
 C*-------------------------------------------------------------------
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Tableau des mu de Gauss
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Array of the Gauss mu
 
-      DOUBLE PRECISION E(0:CTE_OS_NM_MAX) ! Resultat de la décomposition en 
-      				              ! séries de Fourier de la fonction G.
+      DOUBLE PRECISION E(0:CTE_OS_NM_MAX) ! Result of the decomposition in
+      				              ! Fourier series of the function G.
 	
-      DOUBLE PRECISION SIG 	! Carre du paramètre Sigma de la théorie de Cox et Munck.
+      DOUBLE PRECISION SIG 	! Square of the parameter Sigma of the Cox and Munk theory.
 
-      DOUBLE PRECISION PHI	! Azimut relatif (radians).
+      DOUBLE PRECISION PHI	! Relative azimuth (radians).
 
-      DOUBLE PRECISION G	! Valeur de la fonction G(phi).
+      DOUBLE PRECISION G	! Value of the function G(phi).
 
       DOUBLE PRECISION C1	! Cos(Teta1).
       DOUBLE PRECISION S1	! Sin(Teta1).
@@ -473,65 +473,65 @@ C*-------------------------------------------------------------------
       DOUBLE PRECISION S12	! Sin(Teta1) * Sin(Teta2).
       DOUBLE PRECISION CS12	! 0.5 * [ Cos(Teta1) + Cos(Teta2) ]**2 .
 
-      DOUBLE PRECISION GMIN	! Valeur minimale retenue pour la fonction 
-      				! G(phi) pour Theta1 et Theta2 fixes.
-      DOUBLE PRECISION GMAX	! Valeur maximale de la fonction G(phi) = G(0).
+      DOUBLE PRECISION GMIN	! Minimum value kept for the function
+      				! G(phi) for fixed Theta1 and Theta2.
+      DOUBLE PRECISION GMAX	! Maximum value of the function G(phi) = G(0).
 
-      DOUBLE PRECISION PHIB	! Angle azimutal phi maximal pour la 
-      				! description de la fonction G(phi).
+      DOUBLE PRECISION PHIB	! Maximum azimuth angle phi for the
+      				! description of the function G(phi).
 			
-      DOUBLE PRECISION PHI1	! Angle intermediaire pour le calcul de PHIB.
-      DOUBLE PRECISION PHI2	! Angle intermediaire pour le calcul de PHIB.
+      DOUBLE PRECISION PHI1	! Intermediate angle for the computation of PHIB.
+      DOUBLE PRECISION PHI2	! Intermediate angle for the computation of PHIB.
 						
-      DOUBLE PRECISION U(0:CTE_PH_NU)  ! Fonction G(phi) entre 0 et PHIB
-      			                  ! pour Theta1 et Theta2 fixes.
+      DOUBLE PRECISION U(0:CTE_PH_NU)  ! Function G(phi) between 0 and PHIB
+      			                  ! for fixed Theta1 and Theta2.
 
-      DOUBLE PRECISION Q	! Pas en phi.
+      DOUBLE PRECISION Q	! Step in phi.
 
-      DOUBLE PRECISION T2	! Recombinaison de la fonction G(phi) a 
-      				! partir de E(IS).
-      DOUBLE PRECISION T1	! Sommation des E(IS).
+      DOUBLE PRECISION T2	! Recombination of the function G(phi) from
+      				! E(IS).
+      DOUBLE PRECISION T1	! Sum of the E(IS).
 
       DOUBLE PRECISION X,Y,Z
       DOUBLE PRECISION XT,B1
 
-      INTEGER*4 OS_NM ! Ordre maximal du développement en séries de Fourier  
-			 ! de la fonction G des calculs de matrice de reflexion.
+      INTEGER*4 OS_NM ! Maximum order of the expansion in Fourier series
+			 ! of the G function of the reflection matrix computations.
 			 
-      INTEGER*4 LUM_NBMU ! Nombre d'angles effectifs des simulations
+      INTEGER*4 LUM_NBMU ! Number of actual angles of the simulations
       
-      INTEGER*4 IL	! Ordre maximale utile pour la fonction E.
-      INTEGER*4 I1	! Indice de numéro d'angle Teta1.
-      INTEGER*4 I2	! Indice de numéro d'angle Teta2.
-      INTEGER*4 IS	! Ordre IS de la décomposition en séries de Fourier.
-      INTEGER*4 IER  ! code d'erreur =0 si pas d'erreur, =-1 sinon  
+      INTEGER*4 IL	! Maximum useful order for the function E.
+      INTEGER*4 I1	! Index of the angle number Teta1.
+      INTEGER*4 I2	! Index of the angle number Teta2.
+      INTEGER*4 IS	! Order IS of the Fourier series decomposition.
+      INTEGER*4 IER  ! error code =0 if no error, =-1 otherwise
 
       INTEGER*4 I
       INTEGER*4 IA,IP,K,J
       
-      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Nom du fichier RES_GSF
-                                        ! avec arborescence complète
+      CHARACTER*CTE_LENFIC2 FIC_RES_GSF ! Name of the file RES_GSF
+                                        ! with complete directory tree
 
 
 
-C* Ouverture du fichier résultat
+C* Opening of the result file
 C--------------------------------
       OPEN(UNIT=30,FILE=FIC_RES_GSF,FORM='UNFORMATTED',ERR=991)
 
-C* Boucle sur l'angle Teta1 > 0.
+C* Loop on the angle Teta1 > 0.
 C---------------------------------
       DO  3 I1=1 ,LUM_NBMU
 
-C* Cosinus et sinus de Teta1
+C* Cosine and sine of Teta1
 C---------------------------------
          C1=RMU(I1)
          S1=DSQRT(1-C1*C1)
 
-C*   Boucle sur l'angle teta2 > 0.
+C*   Loop on the angle teta2 > 0.
 C---------------------------------
          DO 4 I2=1 ,I1
 
-C*   Cosinus et sinus de Teta2
+C*   Cosine and sine of Teta2
 C---------------------------------
            C2=RMU(I2)
            S2=DSQRT(1-C2*C2)
@@ -540,33 +540,33 @@ C---------------------------------
            CS12=(C1+C2)
            CS12=.5*CS12*CS12
 
-C*   Determination de G pour phi = 0.
+C*   Determination of G for phi = 0.
 C-------------------------------------
            PHI=0.0
            CALL SOS_CALCG(CS12,C12,S12,SIG,PHI,G)
            U(0)=G
            GMAX=G
 
-C*   Determination de G pour phi = INCTE_PI.
+C*   Determination of G for phi = INCTE_PI.
 C-----------------------------------------
            PHI=INCTE_PI
            CALL SOS_CALCG(CS12,C12,S12,SIG,PHI,G)
            U(CTE_PH_NU)=G
            GMIN=G
 
-C*   Evaluation de l'importance de l'ecart entre Gmin et Gmax.
-C*      1er cas: L'ecart est modere.
-C*               Pour Teta1 et Teta2 fixes, on definit la fonction
-C*               G(phi) entre 0 et PI par pas de PI/CTE_PH_NU.
-C*      2nd cas: L'ecart est important.
-C*               La fonction G(phi) devient insignifiante devant Gmax
-C*		   à partir d'un angle PHIB a determiner.
-C*               Pour Teta1 et Teta2 fixes, on definit la fonction
-C*               G(phi) entre 0 et PHIB par pas de PHIB/CTE_PH_NU.
+C*   Evaluation of the difference between Gmin and Gmax.
+C*      1st case: The difference is moderate.
+C*               For fixed Teta1 and Teta2, the function
+C*               G(phi) is defined between 0 and PI with a step of PI/CTE_PH_NU.
+C*      2nd case: The difference is large.
+C*               The function G(phi) becomes negligible compared with Gmax
+C*		   beyond an angle PHIB to be determined.
+C*               For fixed Teta1 and Teta2, the function
+C*               G(phi) is defined between 0 and PHIB with a step of PHIB/CTE_PH_NU.
 C----------------------------------------------------------------------
            X=CTE_PH_TEST*GMIN
            IF(X.GE.GMAX) THEN
-C* 1er cas: L'ecart entre Gmin et Gmax est modere.
+C* 1st case: The difference between Gmin and Gmax is moderate.
 C--------------------------------------------------
               PHIB=INCTE_PI
 
@@ -578,40 +578,40 @@ C--------------------------------------------------
  6            CONTINUE
 
            ELSE
-C* 2eme cas: L'ecart entre Gmin et Gmax est important.
-C*          On recherche l'angle PHIB au dela duquel G(phi) devient
-C*          insignifiante devant Gmax.
+C* 2nd case: The difference between Gmin and Gmax is large.
+C*          Search for the angle PHIB beyond which G(phi) becomes
+C*          negligible compared with Gmax.
 C------------------------------------------------------------------
 C*      Initialisation
               PHI1=0
               PHI2=INCTE_PI
 	
-C*      Estimation de PHIB
-C* (boucle sur l'etiquette 9)
+C*      Estimation of PHIB
+C* (loop on label 9)
 C---------------------------	
  9            PHIB=.5*(PHI1+PHI2)
 
-C*      Calcul de G(PHIB)
+C*      Computation of G(PHIB)
 C---------------------------
               CALL SOS_CALCG(CS12,C12,S12,SIG,PHIB,G)
 	
-C*      Controle de l'importance de l'ecart entre G(PHIB) et Gmax.
-C*      Cas 2A: L'ecart reste important.
-C*              PHIB doit etre re-estime.
-C*              On resserre PHI1 ou PHI2, selon le signe de l'ecart.
-C*              On estime a nouveau PHIB comme la moyenne de PHI1 et PHI2
-C*              et on calcule la nouvelle valeur G(PHIB).
-C*      Cas 2B: L'ecart est modere.
-C*              PHIB est une estimation satisfaisante de la valeur de
-C*              l'angle phi jusqu'à laquelle G(phi) reste significative
-C*              devant Gmax. La fonction G(phi) est decrite entre 0 et 
-C*              PHIB par pas de PHIB/CTE_PH_NU.	
+C*      Check of the difference between G(PHIB) and Gmax.
+C*      Case 2A: The difference is still large.
+C*              PHIB must be re-estimated.
+C*              PHI1 or PHI2 is narrowed, according to the sign of the difference.
+C*              PHIB is estimated again as the mean of PHI1 and PHI2
+C*              and the new value G(PHIB) is computed.
+C*      Case 2B: The difference is moderate.
+C*              PHIB is a satisfactory estimate of the value of the
+C*              angle phi up to which G(phi) remains significant
+C*              compared with Gmax. The function G(phi) is described between 0 and
+C*              PHIB with a step of PHIB/CTE_PH_NU.
 C-------------------------------------------------------------------
               X=CTE_PH_TEST*G
               IF (DABS(X-GMAX).LT..01*GMAX) GOTO 8
 	
-C*      Cas 2A: L'ecart entre G(PHIB) et GMAX reste important.
-C*              On affine la valeur de PHIB.
+C*      Case 2A: The difference between G(PHIB) and GMAX is still large.
+C*              The value of PHIB is refined.
 C-------------------------------------------------------------
               IF (X.LE.GMAX) GOTO 88
               PHI1=PHIB
@@ -619,11 +619,11 @@ C-------------------------------------------------------------
  88           PHI2=PHIB
               GOTO 9
 	
-C*      Cas 2B: L'ecart entre G(PHIB) et GMAX est modere.
-C*              L'estimation de PHIB est satisfaisante.
-C*              On definit G(phi) entre 0 et PHIB par pas de 
+C*      Case 2B: The difference between G(PHIB) and GMAX is moderate.
+C*              The estimate of PHIB is satisfactory.
+C*              G(phi) is defined between 0 and PHIB with a step of
 C*              PHIB/CTE_PH_NU.
-C*              Gmin devient G(PHIB).	
+C*              Gmin becomes G(PHIB).
 C--------------------------------------------------------------------
  8            Q=PHIB/CTE_PH_NU
 
@@ -638,8 +638,8 @@ C--------------------------------------------------------------------
            ENDIF
 
 
-C*   Realisation de la décomposition en serie de Fourier.
-C*   Boucle sur l'ordre de la serie.                     	
+C*   Fourier series decomposition.
+C*   Loop on the order of the series.
 C--------------------------------------------------------------------
            DO 13 IS=0,OS_NM
               Z=.5*(GMAX+GMIN*DCOS(IS*PHIB))
@@ -669,29 +669,29 @@ C--------------------------------------------------------------------
  133          T1=T1+2*E(IS)
               T2=T2+2*DCOS(IS*PHIB*.5)*E(IS)
 
-C*   Test d'arret de la décomposition - poursuite de la boucle sur IS sinon.
+C*   Stop test of the decomposition - otherwise the loop on IS goes on.
 C---------------------------------------------------------------------------
               B1=DABS(T1-GMAX)/GMAX
               IF (B1.GT..001) GOTO 13
               IL=IS
-              GOTO 17	!Sortie de boucle
- 13        CONTINUE	!Fin de boucle sur IS
+              GOTO 17	!Exit of the loop
+ 13        CONTINUE	!End of loop on IS
            IL=OS_NM
 
-C*   Enregistrement des résultats
+C*   Recording of the results
 C---------------------------------
  17        WRITE(30,err=992)I1,I2,IL,(E(J),J=0,IL)
 
- 4       CONTINUE	!Fin de boucle sur Teta2 (I2)
+ 4       CONTINUE	!End of loop on Teta2 (I2)
  
- 3    CONTINUE	!Fin de boucle sur Teta1 (I1)
+ 3    CONTINUE	!End of loop on Teta1 (I1)
       
-C* Fin nominale 
+C* Nominal end
 C-------------------
       IER=0
       GOTO 9999
       
-C* Cas d'erreur : retour du status -1 au programme appelant
+C* Error case: return of status -1 to the calling program
 C------------------------------------------------------
   991 WRITE(6,*) 'SOS_GSF Erreur a l''ouverture d''un fichier'
       IER=-1
@@ -703,12 +703,12 @@ C------------------------------------------------------
 
  9999 CONTINUE
 
-C* Fermeture fichier
+C* File closing
 C-------------------
       CLOSE(30)
       
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_GSF
+      END         !END OF PROCEDURE SOS_GSF
 
 
 
@@ -717,71 +717,71 @@ C-------------------
 C==============================================================================
 C PROCEDURE: SOS_CALCG
 C ==========
-C      Cette procédure calcule :
+C      This procedure computes:
 C	 G(Teta1,Teta2,phi) = exp [-tan(TetaN)**2 / SIG] / cos(TetaN)**4
 C
-C	 avec  Teta1 : angle zénithal d'incidence  (0 < Teta1 < PI/2),
-C             Teta2 : angle zénithal de reflexion (0 < Teta2 < PI/2),
-C             phi   : angle azimutal relatif entre les directions
-C                     d'incidence et de reflexion,
+C	 with  Teta1 : incidence zenith angle  (0 < Teta1 < PI/2),
+C             Teta2 : reflection zenith angle (0 < Teta2 < PI/2),
+C             phi   : relative azimuth angle between the directions
+C                     of incidence and reflection,
 C
-C	       TetaN : angle zénithal de la normale à la facette de vague,
-C                     calcule à partir de Teta1, Teta2 et phi.
+C	       TetaN : zenith angle of the normal to the wave facet,
+C                     computed from Teta1, Teta2 and phi.
 C			
-C             SIG   : carre du paramètre Sigma de la théorie de Cox et Munck.
+C             SIG   : square of the parameter Sigma of the Cox and Munk theory.
 C
 C			
 C
-C Description des paramètres
+C Description of parameters
 C --------------------------
-C	PHI	(double)   (E) Azimut relatif (radians).
-C	C12	(double)   (E) Cos(Teta1) * Cos(Teta2).
-C	S12	(double)   (E) Sin(Teta1) * Sin(Teta2).
-C	CS12	(double)   (E) 0.5 * [ Cos(Teta1) + Cos(Teta2) ]**2 .
-C 	SIG 	(double)   (E) Carre du paramètre Sigma de la théorie
-C    			        de Cox et Munck.
-C 	G	(double)   (S) Valeur de G(TetaN).
+C	PHI	(double)   (I) Relative azimuth (radians).
+C	C12	(double)   (I) Cos(Teta1) * Cos(Teta2).
+C	S12	(double)   (I) Sin(Teta1) * Sin(Teta2).
+C	CS12	(double)   (I) 0.5 * [ Cos(Teta1) + Cos(Teta2) ]**2 .
+C 	SIG 	(double)   (I) Square of the parameter Sigma of the
+C    			        Cox and Munk theory.
+C 	G	(double)   (O) Value of G(TetaN).
 C
 C
-C Common utilise:
+C Common used:
 C --------------
-C     Aucun
+C     None
 C
-C Cas d'erreur :
+C Error cases:
 C ------------
-C     Aucun
+C     None
 C
 C==============================================================================
       SUBROUTINE SOS_CALCG(CS12,C12,S12,SIG,PHI,G)
 
       IMPLICIT NONE
 
-C* Definition des variables       
+C* Definition of variables
 C*-----------------------------------------------------------------------
-      DOUBLE PRECISION PHI	! Azimut relatif (radians).
+      DOUBLE PRECISION PHI	! Relative azimuth (radians).
 
       DOUBLE PRECISION C12	! Cos(Teta1) * Cos(Teta2).
       DOUBLE PRECISION S12	! Sin(Teta1) * Sin(Teta2).
       DOUBLE PRECISION CS12	! 0.5 * [ Cos(Teta1) + Cos(Teta2) ]**2 .
 
-      DOUBLE PRECISION SIG 	! Carre du paramètre Sigma de la théorie
-      				! de Cox et Munck.
+      DOUBLE PRECISION SIG 	! Square of the parameter Sigma of the
+      				! Cox and Munk theory.
 
-      DOUBLE PRECISION G	! Valeur de G(TetaN).	
+      DOUBLE PRECISION G	! Value of G(TetaN).
       
-      DOUBLE PRECISION COSTETAD	! Cosinus de l'angle de diffusion entre les
-      				       ! directions d'incidence et de reflexion.
+      DOUBLE PRECISION COSTETAD	! Cosine of the scattering angle between the
+      				       ! directions of incidence and reflection.
       DOUBLE PRECISION X	! 1 / cos(TetaN)**2.
 
 
-C* Calcul
+C* Computation
 C---------------------------------
       COSTETAD=-C12+S12*DCOS(PHI)
       X=(1-COSTETAD)/CS12
       G=X*X*DEXP (-(X-1)/SIG)
       
       RETURN
-      END         !FIN DE LA PROCEDURE SOS_CALCG
+      END         !END OF PROCEDURE SOS_CALCG
 
 
 

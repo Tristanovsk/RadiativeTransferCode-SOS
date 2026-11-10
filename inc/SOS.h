@@ -1,71 +1,71 @@
 C******************************************************************************
-C* FICHIER: SOS.h
-C* PROJET: Ordres successifs de diffusion
-C* ROLE: Définition des constantes des programmes du code des OS.
+C* FILE: SOS.h
+C* PROJECT: Successive orders of scattering
+C* ROLE: Definition of the constants of the programs of the OS code.
 C*
-C* AUTEUR: B.Lafrance ( CS )
+C* AUTHOR: B.Lafrance ( CS )
 C* DATE: 30/01/2002
 C*
 C* MOD:VERSION:3.0
 C*
 C* MOD:VERSION:3.1 22/02/2016
-C*    - Introduction de la constante CTE_SOLAR_DISC_SOLID_ANGLE
-C*    - Introduction de la constante CTE_REMOVE_PREVIOUS_BIN_FILE
+C*    - Introduction of the constant CTE_SOLAR_DISC_SOLID_ANGLE
+C*    - Introduction of the constant CTE_REMOVE_PREVIOUS_BIN_FILE
 C*
 C* MOD:VERSION:3.2 10/11/2020
-C*    - Introduction de la constante CTE_SEUIL_NUM
-C*    - Ajustement des valeurs des dimensions des données CKD : 
+C*    - Introduction of the constant CTE_SEUIL_NUM
+C*    - Adjustment of the values of the dimensions of the CKD data:
 C*      CTE_CKD_NWVL_MAX, CTE_CKD_NAI_MAX, CTE_CKD_NT_MAX, CTE_CKD_NP_MAX
-C*    - Introduction de la constante CTE_HT_STD_PSURF
-C*    - Introduction de la constante CTE_MAX_NB_MODE_MIXTURE
+C*    - Introduction of the constant CTE_HT_STD_PSURF
+C*    - Introduction of the constant CTE_MAX_NB_MODE_MIXTURE
 C*
 C* MOD:VERSION:3.3 31/08/2022
-C*    - Introduction de la constante CTE_THRESHOLD_Q_U_NULL
-C*    - Introduction des constantes 
+C*    - Introduction of the constant CTE_THRESHOLD_Q_U_NULL
+C*    - Introduction of the constants
 
 C* MOD:VERSION:3.4 15/06/2023
-C*    - Ajustement des constantes de dimensionnement des fichiers CKD: 
-C*      CTE_CKD_NUMAX (passe de 25000 à 27500 cmm1) et CTE_CKD_NB_NU_PER_FILE (passe de 225 à 50)
-C*      CTE_CKD_NWVL_MAX (passe de 225 à 50), CTE_CKD_NAI_MAX(passe de 20 à 5)
-C*      CTE_CKD_NT_MAX  (passe de 8 à 9) et CTE_CKD_NP_MAX  (passe de 25 à 31)
-C*    - Ajout du paramètre CTE_CKD_NC_MAX qui précise le nombre max de concentrations en vapeur d'eau
+C*    - Adjustment of the sizing constants of the CKD files:
+C*      CTE_CKD_NUMAX (from 25000 to 27500 cmm1) and CTE_CKD_NB_NU_PER_FILE (from 225 to 50)
+C*      CTE_CKD_NWVL_MAX (from 225 to 50), CTE_CKD_NAI_MAX (from 20 to 5)
+C*      CTE_CKD_NT_MAX  (from 8 to 9) and CTE_CKD_NP_MAX  (from 25 to 31)
+C*    - Addition of the parameter CTE_CKD_NC_MAX giving the max number of water vapour concentrations
 
 C* MOD:VERSION:3.5 27/07/2023
-C*    - Ajout de constantes pour la définition du profil:
-C*      CTE_TOA_FIRST_LAYER_OPT_THICKNESS : Epaisseur optique au premier niveau du profil
-C*      CTE_OS_NT_MIN : Nombre minimal de couches
-C*      CTE_DELTA_Z : Pas en altitude pour la recherche de l'altitude du premier niveau
-C*    - Le paramètre CTE_SEUIL_TAUABS est renommé CTE_THRESHOLD_TAUABS 
+C*    - Addition of constants for the definition of the profile:
+C*      CTE_TOA_FIRST_LAYER_OPT_THICKNESS : Optical thickness at the first level of the profile
+C*      CTE_OS_NT_MIN : Minimum number of layers
+C*      CTE_DELTA_Z : Altitude step for the search of the altitude of the first level
+C*    - The parameter CTE_SEUIL_TAUABS is renamed CTE_THRESHOLD_TAUABS
 C*
-C*    - Ajout du paramètre CTE_GAP_TOLER_SUM_RATES qui définit l'erreur maximale tolérée sur l'écart à 1 
-C*      de la somme des taux d'épaisseur optique d'un mélange d'aérosols
+C*    - Addition of the parameter CTE_GAP_TOLER_SUM_RATES defining the maximum tolerated error on the difference to 1
+C*      of the sum of the optical thickness rates of an aerosol mixture
 C*
 C* MOD:VERSION:3.6 18/09/2023
-C*    - Conversion de CTE_TOA_ALT de 210. en 120.D+00 pour compilation sous gcc/10.2.0
+C*    - Conversion of CTE_TOA_ALT from 210. to 120.D+00 for compilation with gcc/10.2.0
 C*
 C#######################################################################
-C    1. Constantes communes                        
+C    1. Common constants
 C#######################################################################
 
-C Longueur des chaines de caracteres
+C Length of the character strings
 C-----------------------------------
-C Repertoires
+C Directories
 #define CTE_LENDIR 350
 
-C Nom des fichiers sans arborescence
+C Name of the files without directory tree
 #define CTE_LENFIC1 150
 
-C Nom complet des fichiers (avec arborescence)
+C Complete name of the files (with directory tree)
 #define CTE_LENFIC2 500
 
-C Taille maximale des Keywords pour le passage des arguments
+C Maximum size of the keywords for argument passing
 #define CTE_LENKEYWORD 30
 
 C Length of command system chains
 #define CTE_LENCOM 400
 
 
-C Domaine de validite (en microns)
+C Validity domain (in microns)
 C---------------------------------
 #define CTE_WAMIN 0.364
 #define CTE_WAMAX 4.0
@@ -77,7 +77,7 @@ C --> Integer type :
 C --> Double type :
 #define CTE_NOT_DEFINED_VALUE_DBLE -999.D+00
 
-C Fichiers par défaut
+C Default files
 C--------------------
 #define CTE_DEFAULT_FICANGLES_RES_LUM  "SOS_UsedAngles.txt"
 #define CTE_DEFAULT_FICANGLES_RES_MIE  "Aer_UsedAngles.txt"
@@ -87,16 +87,16 @@ C--------------------
 #define CTE_DEFAULT_RESDOWN "SOS_Down.txt"
       
 C#######################################################################
-C    2. Constantes spécifiques aux routines du programme SOS_AEROSOLS                         
+C    2. Constants specific to the routines of the program SOS_AEROSOLS
 C#######################################################################
 
-C Dimension des tableaux --> cste spécifique au programme SOS_MIE
-C Doit être supérieur à 2*AlphaMax+20 (AlphaMax: param de taille max).
+C Dimension of the arrays --> constant specific to the program SOS_MIE
+C Must be larger than 2*AlphaMax+20 (AlphaMax: max size parameter).
 C----------------------------------------------------------------
 #define CTE_MIE_DIM 10000
 
-C Taille maximale des tableaux de fonctions de phase externes
-C --> cste spécifique au programme SOS_AEROSOLS
+C Maximum size of the arrays of external phase functions
+C --> constant specific to the program SOS_AEROSOLS
 C----------------------------------------------------------------
 #define CTE_MAXNB_ANG_EXT 200
 
@@ -108,16 +108,16 @@ C----------------------------------------------------------------
 #define CTE_DEFAULT_AER_JUNGE_RMAX 50.
 
 
-C Valeur minimale du paramètre de taille Alpha des calculs de MIE.
-C (doit être comprise entre 0.0001 et 10.0 
-C  NB: impérativement en double précision)
-C    --> cste spécifique au programme SOS_AEROSOLS
+C Minimum value of the size parameter Alpha of the MIE computations.
+C (must be between 0.0001 and 10.0
+C  NB: necessarily in double precision)
+C    --> constant specific to the program SOS_AEROSOLS
 C----------------------------------------------------------------
 #define CTE_MIE_ALPHAMIN 0.0001D+00
 
-C Valeur limite du paramètre de taille pour le calcul des fichiers 
-C de MIE des constituants des modèles WMO et Shettle & Fenn
-C    --> cste spécifique au programme SOS_AEROSOLS
+C Limit value of the size parameter for the computation of the MIE
+C files of the components of the WMO and Shettle & Fenn models
+C    --> constant specific to the program SOS_AEROSOLS
 C----------------------------------------------------------------
 #define CTE_ALPHAMAX_WMO_DL   4000.
 #define CTE_ALPHAMAX_WMO_WS   50.
@@ -126,32 +126,32 @@ C----------------------------------------------------------------
 #define CTE_ALPHAMAX_SF_SR    70.
 #define CTE_ALPHAMAX_SF_SU    90.
 
-C Valeur minimale du rapport de granulométrie n(r) / Nmax 
-C pour la détermination du paramètre de taille limite
-C utile aux calculs de Mie.
-C    --> cste spécifique au programme SOS_AEROSOLS
+C Minimum value of the size distribution ratio n(r) / Nmax
+C for the determination of the limit size parameter
+C needed by the Mie computations.
+C    --> constant specific to the program SOS_AEROSOLS
 C----------------------------------------------------------------
 #define CTE_COEF_NRMAX 0.0001
 
 
-C Nom du fichier contenant le rayon modal, le log de la variance,
-C la concentration volumique et les valeurs des indices de réfraction
-C (partie reelle et partie imaginaire) en fonction de la 
-C longueur d'onde.
-C    --> cste spécifique au programme SOS_AEROSOLS
+C Name of the file containing the modal radius, the log of the variance,
+C the volume concentration and the values of the refractive indices
+C (real part and imaginary part) versus the
+C wavelength.
+C    --> constant specific to the program SOS_AEROSOLS
 C---------------------------------------------------------------
 #define CTE_AER_DATAWMO		"Data_WMO_cor_2015_12_16"
 
-C Nom du fichier contenant le log de la variance et les valeurs 
-C du rayon modal en fonction de l'humidite relative.
-C    --> cste spécifique au programme SOS_AEROSOLS
+C Name of the file containing the log of the variance and the values
+C of the modal radius versus the relative humidity.
+C    --> constant specific to the program SOS_AEROSOLS
 C---------------------------------------------------------------
 #define CTE_AER_DATASF		"Data_SF_cor_2015_12_16"
 
-C Nom des fichiers contenant les valeurs des indices de réfraction
-C (partie reelle et partie imaginaire) en fonction de la 
-C longueur d'onde et de l'humidite relative.
-C    --> cstes spécifiques au programme SOS_AEROSOLS
+C Name of the files containing the values of the refractive indices
+C (real part and imaginary part) versus the
+C wavelength and the relative humidity.
+C    --> constants specific to the program SOS_AEROSOLS
 C---------------------------------------------------------------
 #define CTE_AER_SR_SF		"IRefrac_SR_cor_2015_12_16"
 #define CTE_AER_LR_SF		"IRefrac_LR"
@@ -166,97 +166,97 @@ C---------------------------------------------------------------
 #define CTE_AER_MU1_TRONCA 0.8
 #define CTE_AER_MU2_TRONCA 0.94
 
-C Valeur seuil pour la troncature
-C    --> cstes spécifiques au programme SOS_AEROSOLS
+C Threshold for the truncation
+C    --> constants specific to the program SOS_AEROSOLS
 C---------------------------------------------------------------
 #define CTE_PH_SEUIL_TRONCA 0.1
 
 
-C Nombre maximal de modes pour un mélange d'aérosols
-C    --> cstes spécifiques au programme SOS_AEROSOLS
+C Maximum number of modes for an aerosol mixture
+C    --> constants specific to the program SOS_AEROSOLS
 C---------------------------------------------------------------
 #define CTE_MAX_NB_MODE_MIXTURE 20
 
-C Seuil de tolérance d'écart à 1 de la somme des taux d'épaisseur 
-C optique d'un mélange d'aérosols
-C    --> cstes spécifiques au programme SOS_AEROSOLS
+C Tolerance threshold on the difference to 1 of the sum of the
+C optical thickness rates of an aerosol mixture
+C    --> constants specific to the program SOS_AEROSOLS
 C---------------------------------------------------------------
 #define CTE_GAP_TOLER_SUM_RATES 0.000001
 
       
 C#######################################################################
-C    3. Constantes spécifiques à la définition du profil atmosphérique  
+C    3. Constants specific to the definition of the atmospheric profile
 C#######################################################################
 
-C Pression atmosphérique standard
+C Standard atmospheric pressure
 #define CTE_HT_STD_PSURF 1013.0
 
-C Altitude max (en km) du profil atmosphérique (niveau TOA)
-C       --> cste spécifique aux programmes SOS, SOS_PROFIL et SOS_OS
+C Max altitude (in km) of the atmospheric profile (TOA level)
+C       --> constant specific to the programs SOS, SOS_PROFIL and SOS_OS
 C-------------------------------------------------------------------
 #define CTE_TOA_ALT 120.D+00
 
-C Nombre de couches maximum du profil atmosphérique.
-C       --> cste spécifique aux programmes SOS, SOS_PROFIL et SOS_OS  
+C Maximum number of layers of the atmospheric profile.
+C       --> constant specific to the programs SOS, SOS_PROFIL and SOS_OS
 C-------------------------------------------------------------------
 #define CTE_OS_NT 600
 
-C Epaisseur optique minimale d'une couche du profil atmosphérique 
-C (hors premier niveau).
-C       --> cste spécifique aux programmes SOS, SOS_PROFIL et SOS_OS  
+C Minimum optical thickness of a layer of the atmospheric profile
+C (except the first level).
+C       --> constant specific to the programs SOS, SOS_PROFIL and SOS_OS
 C-------------------------------------------------------------------
 #define CTE_TCOUCHE 0.005
 
-C Epaisseur optique de la première couche du profil atmosphérique.
-C       --> cste spécifique au programme SOS_PROFIL   
+C Optical thickness of the first layer of the atmospheric profile.
+C       --> constant specific to the program SOS_PROFIL
 C-------------------------------------------------------------------
 #define CTE_TOA_FIRST_LAYER_OPT_THICKNESS 0.0002
 
-C Pas (en km) pour la recherche de l'altitude du premier niveau
-C       --> cste spécifique au programme SOS_PROFIL   
+C Step (in km) for the search of the altitude of the first level
+C       --> constant specific to the program SOS_PROFIL
 C-------------------------------------------------------------------
 #define CTE_DELTA_Z 0.05
 
-C Seuil (en km) pour la comparaison des altitudes lors de la définition 
-C du profil 
-C       --> cste spécifique au programme SOS_PROFIL   
+C Threshold (in km) for the comparison of the altitudes when defining
+C the profile
+C       --> constant specific to the program SOS_PROFIL
 C-------------------------------------------------------------------
 #define CTE_THRESHOLD_DZ 0.001
 
-C Nombre de couches minimum du profil atmosphérique.
-C       --> cste spécifique aux programmes SOS, SOS_PROFIL et SOS_OS
+C Minimum number of layers of the atmospheric profile.
+C       --> constant specific to the programs SOS, SOS_PROFIL and SOS_OS
 C-------------------------------------------------------------------
 #define CTE_OS_NT_MIN 100
 
-C Nombre minimal de sous-couches moléculaires pour un profil avec
-C positionnement variable des aerosols entre deux altitudes.
-C       --> cste spécifique au programme SOS_PROFIL
+C Minimum number of molecular sub-layers for a profile with
+C variable positioning of the aerosols between two altitudes.
+C       --> constant specific to the program SOS_PROFIL
 C-------------------------------------------------------------------
 #define CTE_PROFIL_MIN_NBC 3
 
-C Définition de l'épaisseur de la couche de transition (km)
-C    --> cste spécifique au programme SOS_PROFIL
+C Definition of the thickness of the transition layer (km)
+C    --> constant specific to the program SOS_PROFIL
 C-------------------------------------------------------------------
 #define CTE_DZTRANSI	0.010
 
-C Nombre de corps absorbants (il y a 8 espèces à prendre en compte, 
-C incluant les raies d'absorption et/ou les continuums) :
+C Number of absorbers (there are 8 species to take into account,
+C including the absorption lines and/or the continuums):
 C --> H2O CO2 O3 N2O CO CH4 O2 NO2
 C----------------------------------------------------------------------------
 #define CTE_NBABS  8
 
-C Nombre de niveaux sur les profils des gaz d'absorption 
+C Number of levels of the absorbing gas profiles
 C-------------------------------------------------------
 #define CTE_ABS_NBLEV  50
 
-C Nombre de colonnes des fichiers de profils des gaz d'absorption 
+C Number of columns of the absorbing gas profile files
 C----------------------------------------------------------------
 #define CTE_ABS_NBCOL  13
 
-C Définition des bandes d'absorption à considérer (1 pour prendre en compte, 0 sinon)
-C Absorbants: H2O CO2 O3 N2O CO CH4 O2 NO2
-C Les absorptions du NO2 sont uniquement définis par continuums.
-C Les autres gaz contiennent des raies et continuums.
+C Definition of the absorption bands to consider (1 to take into account, 0 otherwise)
+C Absorbers: H2O CO2 O3 N2O CO CH4 O2 NO2
+C The NO2 absorptions are only defined by continuums.
+C The other gases include lines and continuums.
 C-------------------------------------------------------------------------------
 #define CTE_ABS_H2O  1
 #define CTE_ABS_CO2  1
@@ -267,13 +267,13 @@ C-------------------------------------------------------------------------------
 #define CTE_ABS_O2   1
 #define CTE_CONT_NO2 1
 
-C Dimensionnement maximal des fichiers de coefficients CKD
+C Maximum dimensions of the CKD coefficient files
 C-------------------------------------------------------------------------------
-C CTE_CKD_NWVL_MAX : Nombre maximal de longueurs d'onde dans les tables de coeff CKD
-C CTE_CKD_NAI_MAX  : Nombre maximal d'exponentiels des développements 
-C CTE_CKD_NT_MAX   : Nombre maximal de températures
-C CTE_CKD_NP_MAX   : Nombre maximal de pressions
-C CTE_CKD_NC_MAX   : Nombre maximal de concentrations H2O (spécifique à la vapeur d'eau)
+C CTE_CKD_NWVL_MAX : Maximum number of wavelengths in the CKD coeff tables
+C CTE_CKD_NAI_MAX  : Maximum number of exponentials of the expansions
+C CTE_CKD_NT_MAX   : Maximum number of temperatures
+C CTE_CKD_NP_MAX   : Maximum number of pressures
+C CTE_CKD_NC_MAX   : Maximum number of H2O concentrations (specific to water vapour)
 C-------------------------------------------------------------------------------
 #define CTE_CKD_NWVL_MAX  50
 #define CTE_CKD_NAI_MAX  5
@@ -281,82 +281,82 @@ C-------------------------------------------------------------------------------
 #define CTE_CKD_NP_MAX  31
 #define CTE_CKD_NC_MAX  12
 
-C Définition du découpage spectral des fichiers de coefficients CKD
+C Definition of the spectral splitting of the CKD coefficient files
 C-------------------------------------------------------------------------------
-C CTE_CKD_NUMAX   : Nombre d'onde maximal couvert par les fichiers de coeff CKD(en cm-1)
-C CTE_CKD_NUMIN   : Nombre d'onde minimal couvert par les fichiers de coeff CKD (en cm-1)
-C CTE_CKD_NB_NU_PER_FILE : Nombre de longueurs d'onde par fichier CKD (doit être identique pour toutes les résolutions spectrales)
+C CTE_CKD_NUMAX   : Maximum wavenumber covered by the CKD coeff files (in cm-1)
+C CTE_CKD_NUMIN   : Minimum wavenumber covered by the CKD coeff files (in cm-1)
+C CTE_CKD_NB_NU_PER_FILE : Number of wavelengths per CKD file (must be the same for all the spectral resolutions)
 C-----------------------------------------------
 #define CTE_CKD_NUMAX  27500
 #define CTE_CKD_NUMIN   2500
 #define CTE_CKD_NB_NU_PER_FILE  50
 
 
-C Epaisseur optique d'absorption maximale (applicable aux cas extrêmes si transmission nulle)
+C Maximum absorption optical thickness (applies to extreme cases if the transmission is null)
 C-------------------------------------------------------------------------------
 #define CTE_TAUABS_MAX   999.
 
-C Seuil sur l'épaisseur optique d'absorption pour optimisation du profil atmosphérique
+C Threshold on the absorption optical thickness to optimise the atmospheric profile
 C ------------------------------------------------------------------------------------
 #define CTE_THRESHOLD_TAUABS 1.5
 
 
 C#######################################################################
-C    4. Constantes spécifiques aux programmes de calculs des matrices
-C       de reflexion de surface
+C    4. Constants specific to the programs computing the surface
+C       reflection matrices
 C#######################################################################
 
-C Facteur pour la comparaison de GMIN et GMAX
-C    --> cste spécifique au programme SOS_GLITTER
+C Factor for the comparison of GMIN and GMAX
+C    --> constant specific to the program SOS_GLITTER
 C--------------------------------------------------------------
 #define CTE_PH_TEST 10000
 
 
-C Nombre d'angles azimutaux (2**CTE_PH_NQ)
-C    --> cste spécifique aux programmes
-C        SOS_GLITTER, SOS_ROUJEAN et SOS_NADAL
+C Number of azimuth angles (2**CTE_PH_NQ)
+C    --> constant specific to the programs
+C        SOS_GLITTER, SOS_ROUJEAN and SOS_NADAL
 C--------------------------------------------------------------
 #define CTE_PH_NU 1024
 
 
-C Exposant de la puissance de 2 de CTE_PH_NU (NU=2**NQ)
-C    --> cste spécifique au programme SOS_GLITTER
+C Exponent of the power of 2 of CTE_PH_NU (NU=2**NQ)
+C    --> constant specific to the program SOS_GLITTER
 C--------------------------------------------------------------
 #define CTE_PH_NQ 10
 
 
-C Valeur seuil pour l'arret de la decomposition en series de 
-C Fourier de la fonction (F21 Nadal) / (F21 Fresnel)
-C    --> cste spécifique au programme SOS_NADAL
+C Threshold to stop the Fourier series decomposition
+C of the function (F21 Nadal) / (F21 Fresnel)
+C    --> constant specific to the program SOS_NADAL
 C--------------------------------------------------------------
 #define CTE_SEUIL_SF_NADAL 0.001
 
 
-C Valeur seuil pour l'arret de la decomposition en series de 
-C Fourier de la BRDF de Roujean
-C    --> cste spécifique au programme SOS_ROUJEAN
+C Threshold to stop the Fourier series decomposition
+C of the Roujean BRDF
+C    --> constant specific to the program SOS_ROUJEAN
 C--------------------------------------------------------------
 #define CTE_SEUIL_SF_ROUJEAN 0.001
 
 
-C Angle zenithal solaire limite de calcul de la BRDF de Roujean
-C (en degres)
-C       --> cste spécifique aux programmes SOS_ROUJEAN 
-C           et SOS_NOM_FIC_SURFACE
+C Limit solar zenith angle for the computation of the Roujean BRDF
+C (in degrees)
+C       --> constant specific to the programs SOS_ROUJEAN
+C           and SOS_NOM_FIC_SURFACE
 C--------------------------------------------------------------
 #define CTE_TETAS_LIM_ROUJEAN 60
 
 
-C Angle zenithal de visee limite de calcul de la BRDF de Roujean
-C (en degres)
-C       --> cste spécifique aux programmes SOS_ROUJEAN 
-C           et SOS_NOM_FIC_SURFACE
+C Limit viewing zenith angle for the computation of the Roujean BRDF
+C (in degrees)
+C       --> constant specific to the programs SOS_ROUJEAN
+C           and SOS_NOM_FIC_SURFACE
 C--------------------------------------------------------------
 #define CTE_TETAV_LIM_ROUJEAN 60
 
 
-C Valeur seuil pour tests d'erreurs d'arrondies numériques
-C    --> cste spécifique au programme SOS_ROUJEAN
+C Threshold for the tests of numerical rounding errors
+C    --> constant specific to the program SOS_ROUJEAN
 C--------------------------------------------------------------
 #define CTE_SEUIL_NUM 1.D-10
 
@@ -364,51 +364,51 @@ C--------------------------------------------------------------
 
 
 C#######################################################################
-C    5. Constantes spécifiques aux routines du programme SOS.
+C    5. Constants specific to the routines of the program SOS.
 C#######################################################################
 
 C Factor of molecular depolarization in the air
-C    --> cste spécifique au programme SOS_OS
+C    --> constant specific to the program SOS_OS
 C--------------------------------------------------------------
 #define CTE_MDF 0.0279
 
-C Ordre minimal du developpement en series de Fourier
-C    --> cste spécifique au programme SOS_OS
+C Minimum order of the Fourier series expansion
+C    --> constant specific to the program SOS_OS
 C------------------------------------------------------------
 #define CTE_OS_IBOR 0
 
-C Nombre maximal d'ordres de diffusion par défaut
-C    --> cste spécifique au programme SOS_OS
+C Default maximum number of scattering orders
+C    --> constant specific to the program SOS_OS
 C------------------------------------------------------------
 #define CTE_DEFAULT_IGMAX 100
 
 
-C Seuil de convergence en serie geometrique
-C    --> cste spécifique au programme SOS_OS
+C Convergence threshold of the geometric series
+C    --> constant specific to the program SOS_OS
 C------------------------------------------------------------
 #define CTE_PH_SEUIL_CV_SG  0.00001
 
-C Seuils d'arret des diffusions multiples
-C    --> cste spécifiques au programme SOS_OS
+C Stop thresholds of the multiple scattering
+C    --> constants specific to the program SOS_OS
 C------------------------------------------------------------
 #define CTE_PH_SEUIL_SUMDIF  0.00001
 #define CTE_PH_SEUIL_VALDIF  1.0D-50
 
-C Seuil pour l'arret de la decomposition en series de Fourier
-C    --> cste spécifique au programme SOS_OS
+C Threshold to stop the Fourier series decomposition
+C    --> constant specific to the program SOS_OS
 C------------------------------------------------------------
 #define CTE_PH_SEUIL_SF  0.00001
 
 
 
-C Valeur seuil pour le calcul des angles de rotation
-C    --> cste spécifique au fichier SOS_TRPHI (routine SOS_ANGLE)
+C Threshold for the computation of the rotation angles
+C    --> constant specific to the file SOS_TRPHI (routine SOS_ANGLE)
 C--------------------------------------------------------------
 #define CTE_SEUIL_Z 0.0001
 
-C Valeur seuil pour le calcul des elements M21 et M31 de la matrice
-C de reflexion exprimee dans un repere lie au plan meridien
-C    --> cste spécifique au fichier SOS_TRPHI (routine SOS_MATRIC)
+C Threshold for the computation of the elements M21 and M31 of the
+C reflection matrix expressed in a frame tied to the meridian plane
+C    --> constant specific to the file SOS_TRPHI (routine SOS_MATRIC)
 C--------------------------------------------------------------
 #define CTE_SEUIL_X 0.00001
 
@@ -419,143 +419,143 @@ C--------------------------------------------------------------
 
 
 
-C Angle solide du disque solaire (sr) pour 
-C la distance Terre - Soleil moyenne
-C    --> cste spécifique au fichier SOS_TRPHI
+C Solid angle of the solar disc (sr) for
+C the mean Earth - Sun distance
+C    --> constant specific to the file SOS_TRPHI
 C--------------------------------------------------------------
 #define CTE_SOLAR_DISC_SOLID_ANGLE 6.8D-05
 
-C Option de suppression ou non du fichier -SOS.ResBin s'il existe déjà
-C d'une simulation précédente.
-C    0 : pas de suppression --> Le code s'arrete avec un message d'arret.
-C    1 : le code supprime le fichier avec un message d'avertissement.
+C Option to remove or not the file -SOS.ResBin if it already exists
+C from a previous simulation.
+C    0 : no removal --> The code stops with a stop message.
+C    1 : the code removes the file with a warning message.
 #define CTE_REMOVE_PREVIOUS_BIN_FILE 1
 
 
 C#######################################################################
-C    6. Constantes spécifiques à la définition des angles et ordres
-C       des developpements
+C    6. Constants specific to the definition of the angles and orders
+C       of the expansions
 C#######################################################################
 
 C ===================================================
-C 6.1 Constantes pour le dimensionnement des tableaux
-C     en angles et ordres limites des developpements
-C     en series de Fourier et polynomes de Legendre.
+C 6.1 Constants for the sizing of the arrays
+C     of angles and limit orders of the expansions
+C     in Fourier series and Legendre polynomials.
 C ===================================================
 
-C    Nombre maximal d'angles (positifs) pour le dimensionnement 
-C    des tableaux de fonctions de phase.
-C    Conseil : * Doit au moins valoir la valeur par défaut CTE_DEFAULT_NBMU_MIE
-C                + le nombre max d'angles utilisateur CTE_NBMAX_USER_ANGLES 
-C              * A ajuster, si l'usage commun est d'utiliser plus d'angles de 
-C                Gauss que la valeur par défaut.
-C              * Mais, ne pas définir une valeur abusivement grande pour ne pas 
-C                reduire les temps de traitement.
-C    --> cste spécifique aux programmes SOS_AEROSOLS, SOS_MIE 
-C        et SOS_ANGLES
+C    Maximum number of (positive) angles for the sizing
+C    of the phase function arrays.
+C    Advice: * Must be at least the default value CTE_DEFAULT_NBMU_MIE
+C                + the max number of user angles CTE_NBMAX_USER_ANGLES
+C              * To be adjusted if the common use is to have more Gauss
+C                angles than the default value.
+C              * But do not define an excessively large value, so as not to
+C                increase the processing time.
+C    --> constant specific to the programs SOS_AEROSOLS, SOS_MIE
+C        and SOS_ANGLES
 C--------------------------------------------------------------
 #define CTE_MIE_NBMU_MAX 100		
 
-C    Nombre maximal d'angles (positifs) pour le dimensionnement des 
-C    tableaux de champs de luminance et de reflexion de surface
-C    Conseil : * Doit au moins valoir la valeur par défaut CTE_DEFAULT_NBMU_LUM
-C                + le nombre max d'angles utilisateur CTE_NBMAX_USER_ANGLES 
-C              * A ajuster, si l'usage commun est d'utiliser plus d'angles de 
-C                Gauss que la valeur par défaut.
-C              * Mais, ne pas définir une valeur abusivement grande pour ne pas 
-C                reduire les temps de traitement.
-C    --> cste spécifique aux programmes :
+C    Maximum number of (positive) angles for the sizing of the
+C    arrays of radiance fields and of surface reflection
+C    Advice: * Must be at least the default value CTE_DEFAULT_NBMU_LUM
+C                + the max number of user angles CTE_NBMAX_USER_ANGLES
+C              * To be adjusted if the common use is to have more Gauss
+C                angles than the default value.
+C              * But do not define an excessively large value, so as not to
+C                increase the processing time.
+C    --> constant specific to the programs:
 C        SOS_SURFACE, SOS_GLITTER, SOS_ROUJEAN, SOS_RONDEAUX_BREON
-C        SOS_NADAL, SOS, SOS_OS, SOS_TRPHI et SOS_ANGLES
+C        SOS_NADAL, SOS, SOS_OS, SOS_TRPHI and SOS_ANGLES
 C-----------------------------------------------------------------------
 #define CTE_OS_NBMU_MAX 80    
 
-C    Ordre maximal du developpement en series de Fourier
-C    et ordre limite du developpement en polynomes de Legendre
-C    pour le dimensionnement des tableaux
-C    Conseil : Prendre CTE_OS_NB_MAX >= 2*CTE_MIE_NBMU_MAX
-C       --> cste spécifique aux programmes 
-C           SOS, SOS_OS, SOS_AEROSOLS, SOS_SURFACE, SOS_ROUJEAN et SOS_NADAL
+C    Maximum order of the Fourier series expansion
+C    and limit order of the expansion in Legendre polynomials
+C    for the sizing of the arrays
+C    Advice: Take CTE_OS_NB_MAX >= 2*CTE_MIE_NBMU_MAX
+C       --> constant specific to the programs
+C           SOS, SOS_OS, SOS_AEROSOLS, SOS_SURFACE, SOS_ROUJEAN and SOS_NADAL
 C---------------------------------------------------------------------------
 #define CTE_OS_NB_MAX 200
 
-C    Ordre maximal du developpement en polynomes de Legendre
-C    des elements de la matrice de Fresnel
-C    pour le dimensionnement des tableaux
-C    Conseil : Prendre  CTE_OS_NS_MAX = 2*CTE_OS_NBMU_MAX
-C       --> cste spécifique au programme SOS_SURFACE
+C    Maximum order of the expansion in Legendre polynomials
+C    of the elements of the Fresnel matrix
+C    for the sizing of the arrays
+C    Advice: Take CTE_OS_NS_MAX = 2*CTE_OS_NBMU_MAX
+C       --> constant specific to the program SOS_SURFACE
 C---------------------------------------------------------------------------
 #define CTE_OS_NS_MAX 136
 
-C    Ordre maximal du developpement en series de Fourier
-C    de la fonction G pour le dimensionnement des tableaux
-C    Conseil : Prendre  CTE_OS_NM_MAX = CTE_OS_NB_MAX + CTE_OS_NS_MAX
-C       --> cste spécifique aux programmes
-C           SOS_SURFACE, SOS_GLITTER et SOS_RONDEAUX_BREON
+C    Maximum order of the Fourier series expansion
+C    of the G function for the sizing of the arrays
+C    Advice: Take CTE_OS_NM_MAX = CTE_OS_NB_MAX + CTE_OS_NS_MAX
+C       --> constant specific to the programs
+C           SOS_SURFACE, SOS_GLITTER and SOS_RONDEAUX_BREON
 C---------------------------------------------------------------------------
 #define CTE_OS_NM_MAX 336
 
 
 C ===================================================
-C 6.2 Nombre d'angles a utiliser et ordres maximaux
-C     des developpements en absence d'une définition
-C     des angles par l'utilisateur.
+C 6.2 Number of angles to use and maximum orders
+C     of the expansions when the angles are not defined
+C     by the user.
 C ===================================================
 
-C    Nombre d'angles de Gauss positifs par défaut pour les calculs aerosols
-C    --> cste spécifique au programme SOS_ANGLES 
+C    Default number of positive Gauss angles for the aerosol computations
+C    --> constant specific to the program SOS_ANGLES
 C--------------------------------------------------------------
 #define CTE_DEFAULT_NBMU_MIE 40
 
-C    Nombre d'angles de Gauss positifs par défaut pour les calculs de 
-C    champs de luminance
-C    --> cste spécifique au programme SOS_ANGLES 
+C    Default number of positive Gauss angles for the computations of
+C    radiance fields
+C    --> constant specific to the program SOS_ANGLES
 C--------------------------------------------------------------
 #define CTE_DEFAULT_NBMU_LUM 24
 
-C    Valeur par défaut de l'ordre limite du developpement en polynomes de 
-C    Legendre et series de Fourier du champ de luminance :
-C    Generalement : CTE_DEFAULT_OS_NB = 2*CTE_DEFAULT_NBMU_MIE
-C       --> cste spécifique au programme SOS_ANGLES
+C    Default value of the limit order of the expansion in Legendre
+C    polynomials and Fourier series of the radiance field:
+C    Usually: CTE_DEFAULT_OS_NB = 2*CTE_DEFAULT_NBMU_MIE
+C       --> constant specific to the program SOS_ANGLES
 C---------------------------------------------------------------------------
 #define CTE_DEFAULT_OS_NB 80
 
-C    Valeur par défaut de l'ordre limite du developpement en polynomes de 
-C    Legendre des elements de la matrice de Fresnel
-C    Generalement : CTE_DEFAULT_OS_NS = 2*CTE_DEFAULT_NBMU_LUM
-C       --> cste spécifique au programme SOS_ANGLES
+C    Default value of the limit order of the expansion in Legendre
+C    polynomials of the elements of the Fresnel matrix
+C    Usually: CTE_DEFAULT_OS_NS = 2*CTE_DEFAULT_NBMU_LUM
+C       --> constant specific to the program SOS_ANGLES
 C---------------------------------------------------------------------------
 #define CTE_DEFAULT_OS_NS 48
 
-C    Valeur par défaut de l'ordre limite du developpement en series de 
-C    Fourier de la fonction G.
-C    Il faut que CTE_DEFAULT_OS_NM >= CTE_DEFAULT_OS_NB + CTE_DEFAULT_OS_NS
-C       --> cste spécifique au programme SOS_ANGLES
+C    Default value of the limit order of the expansion in Fourier series
+C    of the G function.
+C    It is required that CTE_DEFAULT_OS_NM >= CTE_DEFAULT_OS_NB + CTE_DEFAULT_OS_NS
+C       --> constant specific to the program SOS_ANGLES
 C---------------------------------------------------------------------------
 #define CTE_DEFAULT_OS_NM 128
 
 
 C ===================================================
-C 6.3 Limitation du nombres d'angles pour le calcul 
-C     des fichiers définissant les angles a utiliser
+C 6.3 Limitation of the number of angles for the computation
+C     of the files defining the angles to use
 C ===================================================
 
-C    Nombre maximal d'angles "utilisateurs" 
-C    complementaires des angles de Gauss
-C       --> cste spécifique aux programmes SOS_ANGLES
+C    Maximum number of "user" angles
+C    complementing the Gauss angles
+C       --> constant specific to the program SOS_ANGLES
 C--------------------------------------------------------------
 #define CTE_NBMAX_USER_ANGLES 20
 
-C    Nombre maximal d'angles positifs pour les calculs des angles 
-C    utilises par les codes (angles de Gauss + angles utilisateurs 
-C    + 1 = angle zenithal solaire )
-C    Conseil : correspond au max de CTE_MIE_NBMU_MAX et CTE_OS_NBMU_MAX
-C       --> cste spécifique aux programmes SOS_ANGLES
+C    Maximum number of positive angles for the computation of the angles
+C    used by the codes (Gauss angles + user angles
+C    + 1 = solar zenith angle)
+C    Advice: corresponds to the max of CTE_MIE_NBMU_MAX and CTE_OS_NBMU_MAX
+C       --> constant specific to the program SOS_ANGLES
 C--------------------------------------------------------------
 #define CTE_NBANGLES_MAX 100
 
-C    Seuil entre l'ecart d'un cosinus(X) et cosinus(TETAS) pour 
-C    considerer que TETAS = X 
-C       --> cste spécifique aux programmes SOS_ANGLES
+C    Threshold on the difference between cosine(X) and cosine(TETAS) to
+C    consider that TETAS = X
+C       --> constant specific to the program SOS_ANGLES
 C--------------------------------------------------------------
 #define CTE_SEUIL_ECART_MUS 0.00001
