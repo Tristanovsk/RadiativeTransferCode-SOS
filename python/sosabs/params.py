@@ -107,6 +107,7 @@ PARAMETERS = [
     ("zout", "-SOS.OutputAlt", -1.0),
     ("igmax", "-SOS.IGmax", 100),
     ("ipolar", "-SOS.Ipolar", 1),
+    ("idirsurf", "-SOS.DirectSurf", 1),
     ("itrphi", "-SOS.View", 2),
     ("phios", "-SOS.View.Phi", NOT_DBLE),
     ("pas_phi", "-SOS.View.Dphi", 5),

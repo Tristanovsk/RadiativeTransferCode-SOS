@@ -690,7 +690,7 @@ if __name__ == '__main__':
                           ficsos_res_bin=FICSOS_RES_BIN, fictrans=FICTRANS,
                           ficflux=FICFLUX,
                           zout=ZOUT, igmax=IGMAX,
-                          ipolar=IPOLAR, itrphi=ITRPHI, phios=PHIOS,
+                          ipolar=IPOLAR, idirsurf=1, itrphi=ITRPHI, phios=PHIOS,
                           pas_phi=PAS_PHI, imode_ckd_calcul=IMODE_CKD_CALCUL,
                           ier=IER, trace=TRACE)
 #    set_trace()

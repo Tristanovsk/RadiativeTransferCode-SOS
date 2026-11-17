@@ -336,6 +336,13 @@ C             IPOLAR (I4) : (I) Option to cut the polarisation.
 C                               0 : simulation without polarisation.
 C			           1 : normal simulation with polarisation.
 C
+C     IDIRSURF (I4) : (I) Option for the direct reflection of the solar
+C                         beam by the surface (sun glint, Fresnel flat sea,
+C                         BRDF/BPDF), added analytically to the diffuse field:
+C                           0 : diffuse field only (direct surface terms to
+C                               be added separately, as in OSOAA LUTs).
+C                           1 : complete field (standard).
+C
 C     ITRPHI (I4) : (I) Option of output type:
 C                          1 : Viewing plane for one azimuth value.
 C                          2 : Polar diagram versus the azimuth and viewing directions.
@@ -477,6 +484,7 @@ C-------------------------------------------------------------------------------
      &     ZOUT,
      &     IGMAX,
      &     IPOLAR,
+     &     IDIRSURF,
      &     ITRPHI, PHIOS, PAS_PHI,
      &     IMODE_CKD_CALCUL,
      &     IER, TRACE,
@@ -930,6 +938,15 @@ C     Maximum order of scattering
 C     Option for simulation without polarisation: 0 : computations without polarisation
 C                                              1 : normal computations with polarisation
       INTEGER*4 IPOLAR
+
+C     Option for the direct reflection of the solar beam by the surface:
+C          0 : diffuse field only, 1 : complete field
+      INTEGER*4 IDIRSURF
+
+C     Surface options passed to the azimuth recombination (set to 0 for
+C     IDIRSURF = 0: no direct reflection term added)
+      INTEGER*4 IGLI_D, IFRESNEL_D, IROUJEAN_D, IRONDEAUX_D, IBREON_D
+      INTEGER*4 INADAL_D, IMAIGNAN_D
 
 C     Option of the mode of application of the CKD decomposition
 C          1 : Finest computation with one radiance computation per order of the decomposition
@@ -2478,6 +2495,9 @@ C ---- Existence and validity test of the optional parameters
 
 C     Option to cut the polarisation
       IF ((IPOLAR.LT.0).OR.(IPOLAR.GT.1)) GOTO 2610    
+
+C     Option for the direct reflection of the solar beam by the surface
+      IF ((IDIRSURF.LT.0).OR.(IDIRSURF.GT.1)) GOTO 2612
      
 C     Output level of the radiance simulations: optional
 C     If not defined: standard output:
@@ -3312,6 +3332,7 @@ C	  For the radiance computation
 	  WRITE (IDLOG,*,ERR=1303) "ZOUT ",ZOUT
 	  WRITE (IDLOG,*,ERR=1303) "IGMAX ",IGMAX
 	  WRITE (IDLOG,*,ERR=1303) "IPOLAR ",IPOLAR
+	  WRITE (IDLOG,*,ERR=1303) "IDIRSURF ",IDIRSURF
 	  WRITE (IDLOG,*,ERR=1303) "ITRPHI ",ITRPHI
 	  WRITE (IDLOG,*,ERR=1303) "PHIOS ",PHIOS
 	  WRITE (IDLOG,*,ERR=1303) "PAS_PHI ",PAS_PHI	  
@@ -3823,13 +3844,23 @@ C --- accumulated over the CKD terms
          ENDDO
       ENDIF
 
+C     Direct reflection of the solar beam by the surface (analytic terms
+C     added to the Fourier series recombination): only for IDIRSURF = 1
+      IGLI_D = IGLI * IDIRSURF
+      IFRESNEL_D = IFRESNEL * IDIRSURF
+      IROUJEAN_D = IROUJEAN * IDIRSURF
+      IRONDEAUX_D = IRONDEAUX * IDIRSURF
+      IBREON_D = IBREON * IDIRSURF
+      INADAL_D = INADAL * IDIRSURF
+      IMAIGNAN_D = IMAIGNAN * IDIRSURF
+
       CALL SOS_TRPHI_OPTION(LUM_NBMU, RMU, GA,
      &     FICSOS_RES_BIN, TTOT_TRONC, TAUOUT, AT_DIR, ZOUT,
-     &     IGLI, N0,WIND, SURF_IND, IFRESNEL,
-     &     IROUJEAN, K0_ROUJEAN, K1_ROUJEAN, K2_ROUJEAN,
-     &     IRONDEAUX, IBREON,
-     &     INADAL, ALPHA_NADAL, BETA_NADAL,
-     &     IMAIGNAN, COEF_C_MAIGNAN,
+     &     IGLI_D, N0,WIND, SURF_IND, IFRESNEL_D,
+     &     IROUJEAN_D, K0_ROUJEAN, K1_ROUJEAN, K2_ROUJEAN,
+     &     IRONDEAUX_D, IBREON_D,
+     &     INADAL_D, ALPHA_NADAL, BETA_NADAL,
+     &     IMAIGNAN_D, COEF_C_MAIGNAN,
      &     ITRPHI ,PHIOS, PAS_PHI, IPOLAR,
      &     PHI_FIN, THETA_FIN, 
      &     SCA_UP_FIN, I_UP_FIN, Q_UP_FIN, U_UP_FIN,
@@ -4801,6 +4832,12 @@ C --- Check of the SOS parameters
  2610 WRITE(6,*) '  SOS_PROC : ERROR_2610 on parameter value'
       WRITE(6,*) '     IPOLAR parameter in SOS_PROC'
       WRITE(6,*) '     (-SOS.Ipolar keyword parameter - Integer)'
+      WRITE(6,*) '  -->  must be equal to 0 or 1 ' 
+      GOTO 9998 
+
+ 2612 WRITE(6,*) '  SOS_PROC : ERROR_2612 on parameter value'
+      WRITE(6,*) '     IDIRSURF parameter in SOS_PROC'
+      WRITE(6,*) '     (-SOS.DirectSurf keyword parameter - Integer)'
       WRITE(6,*) '  -->  must be equal to 0 or 1 ' 
       GOTO 9998 
 

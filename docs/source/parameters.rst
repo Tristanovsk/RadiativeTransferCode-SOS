@@ -698,3 +698,12 @@ Expert parameters
      - D
      - 0: no polarisation. If not given, polarisation is computed
        (recommended).
+   * - ``-SOS.DirectSurf``
+     - ``idirsurf``
+     - D
+     - Direct reflection of the solar beam by the surface (sun glint,
+       Fresnel flat sea, BRDF/BPDF), added analytically to the diffuse
+       field. 1 (default): complete field. 0: diffuse field only, the
+       direct surface terms being added separately (as in the OSOAA LUTs,
+       switch ``CTE_LUT_DIRECT_SURF``). Upward field only; the downward
+       field and the fluxes are not changed.

@@ -875,6 +875,17 @@ C			--> Upward and downward radiance are given for the
 C			    altitude z of the profile.
 C       Value format : No format constraint --> read as Float.
 C			
+C    Keyword  : -SOS.DirectSurf
+C    ----------------------
+C       Status : Optionnal
+C       Value :  Direct reflection of the solar beam by the surface (sun
+C                glint, Fresnel flat sea, BRDF/BPDF), added analytically
+C                to the diffuse field.
+C                  If not defined : 1 is the default value attributed
+C                  0 : diffuse field only (direct surface terms to be
+C                      added separately, as in the OSOAA LUTs).
+C                  1 : complete field.
+C
 C    Keyword  : -SOS.Ipolar 
 C    ----------------------   
 C       Status : Optionnal   
@@ -1183,6 +1194,9 @@ C --- Variables related to the SOS computations
       			       ! 0 : computations without polarisation.
 			       ! 1 : normal computations with polarisation.
 
+      INTEGER*4 IDIRSURF  ! Direct reflection of the sun by the surface
+                          ! 0 : diffuse field only, 1 : complete field.
+
       INTEGER*4 IMODE_CKD_CALCUL ! Option of the mode of application of the CKD decomposition
                                  ! 1 : Finest computation with one radiance computation per order of the decomposition
                                  !     then recomposition with the CKD weighting.
@@ -1450,6 +1464,10 @@ C     No trace file
 
 C     Option to cut the polarisation: optional (computation with polarisation by default)
       IPOLAR=1   
+
+C     Direct reflection of the solar beam by the surface: optional
+C     (complete field by default)
+      IDIRSURF=1
 
 C     Maximum number of scatterings
       IGMAX=CTE_DEFAULT_IGMAX
@@ -2039,6 +2057,12 @@ C         of the result files
             KEYWORD_VALID=1
          ENDIF	 
 
+         IF (KEYWORD.EQ."-SOS.DirectSurf") THEN
+	     CALL GETARG (NPARAM+1,PROG_ARG)  !Direct surface reflection option
+            READ(PROG_ARG,*,ERR=607) IDIRSURF
+            KEYWORD_VALID=1
+         ENDIF	 
+
          IF (KEYWORD.EQ."-SOS.Ipolar") THEN
 	     CALL GETARG (NPARAM+1,PROG_ARG)  !Option to cut the polarisation
             READ(PROG_ARG,*,ERR=603) IPOLAR
@@ -2209,7 +2233,8 @@ C     Call of the subroutine SOS_PROC
      &     ISURF, DIR_SURF, FICSURF_LOG, SURF_IND, WIND, K0_ROUJEAN,
      &     K1_ROUJEAN, K2_ROUJEAN, ALPHA_NADAL, BETA_NADAL,
      &     COEF_C_MAIGNAN, RHO, FICSURF, FICSOS_LOG, FICSOS_RES_BIN,
-     &     FICTRANS, FICFLUX, ZOUT, IGMAX, IPOLAR, ITRPHI, PHIOS,
+     &     FICTRANS, FICFLUX, ZOUT, IGMAX, IPOLAR, IDIRSURF,
+     &     ITRPHI, PHIOS,
      &     PAS_PHI, IMODE_CKD_CALCUL,
      &     IER, TRACE,
      &     LUM_NBMU,IND_ANGOUT_FIN, PHI_FIN, THETA_FIN, 
@@ -2952,6 +2977,11 @@ C --- SOS parameters
  603  WRITE(6,*) '  SOS_MAIN : ERROR_603 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
       WRITE(6,*) '   -SOS.Ipolar : Polarization activation option (I2)'
+      GOTO 9998	 
+
+ 607  WRITE(6,*) '  SOS_MAIN : ERROR_607 on argument loading'
+      WRITE(6,*) '  --> Check required formats for '
+      WRITE(6,*) '   -SOS.DirectSurf : Direct surface reflection (I2)'
       GOTO 9998	 
 
  604  WRITE(6,*) '  SOS_MAIN : ERROR_604 on argument loading'
