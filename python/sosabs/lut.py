@@ -15,8 +15,10 @@ Speed comes from:
 * the single-pass azimuth recombination of the Fourier series in the code
   (``SOS_TRPHI_MULTI``, all azimuths from one reading of the OS file),
 * the in-memory f2py backend (no ASCII result file),
-* the parallel runs, each worker keeping its own cache of Mie and surface
-  matrix files (no concurrent writing of the same file).
+* the parallel runs sharing one cache of Mie and surface matrix files: the
+  code builds each file in the private TMP directory of the run and moves
+  it (atomic rename) to the cache only if it does not exist yet, so the
+  workers can safely share it and each file is stored once.
 
 Example
 -------
@@ -31,7 +33,6 @@ import datetime
 import itertools
 import multiprocessing as mp
 import os
-import queue
 import shutil
 import subprocess
 import tempfile
@@ -54,26 +55,23 @@ _RESERVED = ("resroot", "dir_mie", "dir_surf", "itrphi")
 # Workers
 # ---------------------------------------------------------------------------
 
-_SLOTS = None  # queue of the cache slots (set in each worker process)
-
-
-def _init_worker(slots):
-    global _SLOTS
-    _SLOTS = slots
-
-
 def _run_job(job):
-    """Run one simulation in a cache slot; return (index, dataset|error)."""
-    idx, par, backend, root, cache_dir, slots = job
-    slots = slots if slots is not None else _SLOTS
-    slot = slots.get()
+    """Run one simulation with the shared cache; return (index, dataset|error).
+
+    The working directory (with the TMP directory where the code builds the
+    Mie / surface files before moving them to the cache) is private to the
+    run and on the same file system as the cache, so the moves are atomic
+    renames.
+    """
+    idx, par, backend, root, cache_dir = job
     try:
-        sdir = os.path.join(cache_dir, "slot_%03d" % slot)
         par = dict(par)
-        par["dir_mie"] = os.path.join(sdir, "MIE")
-        par["dir_surf"] = os.path.join(sdir, "SURF")
-        os.makedirs(sdir, exist_ok=True)
-        work = tempfile.mkdtemp(prefix="run_", dir=sdir)
+        par["dir_mie"] = os.path.join(cache_dir, "MIE")
+        par["dir_surf"] = os.path.join(cache_dir, "SURF")
+        runs = os.path.join(cache_dir, "runs")
+        os.makedirs(par["dir_mie"], exist_ok=True)
+        os.makedirs(runs, exist_ok=True)
+        work = tempfile.mkdtemp(prefix="run_", dir=runs)
         try:
             ds = runner.run(par, backend=backend, root=root, workdir=work,
                             isolate=False)
@@ -82,8 +80,6 @@ def _run_job(job):
             shutil.rmtree(work, ignore_errors=True)
     except Exception as exc:  # reported by build_lut
         return idx, exc
-    finally:
-        slots.put(slot)
 
 
 # ---------------------------------------------------------------------------
@@ -115,8 +111,11 @@ def build_lut(grid, fixed=None, outfile=None, n_workers=None,
     root : str, optional
         SOS-ABS root directory (default: ``$SOS_ABS_ROOT``).
     cache_dir : str, optional
-        Directory of the Mie / surface files cache, one sub-directory per
-        worker. Reusing it between LUTs avoids recomputing the Mie files.
+        Directory of the Mie / surface files cache, shared by all the
+        workers (``MIE/``, ``SURF/`` and the temporary run directories
+        ``runs/``). Reusing it between LUTs avoids recomputing the Mie
+        files. Avoid a synchronised folder (Dropbox...): the cache can be
+        large and is rewritten at each LUT.
         Default: a temporary directory removed at the end.
     common_vza : bool
         Keep only the viewing angles common to all the runs (Gauss and
@@ -162,7 +161,7 @@ def build_lut(grid, fixed=None, outfile=None, n_workers=None,
         par = dict(fixed)
         for name, v, i in zip(names, values, idx):
             par[name] = v[i].item()
-        jobs.append([idx, par, backend, root, cache_dir])
+        jobs.append((idx, par, backend, root, cache_dir))
 
     if verbose:
         print("SOS-ABS LUT: %d runs (%s), %d workers, backend %s" % (
@@ -173,25 +172,14 @@ def build_lut(grid, fixed=None, outfile=None, n_workers=None,
     results = {}
     try:
         if backend == "f2py":
-            # one process per run (fresh Fortran state), slots shared
-            # through a manager queue
+            # one process per run (fresh Fortran state)
             ctx = mp.get_context("fork")
-            with ctx.Manager() as manager:
-                slots = manager.Queue()
-                for k in range(n_workers):
-                    slots.put(k)
-                with ctx.Pool(n_workers, maxtasksperchild=1,
-                              initializer=_init_worker,
-                              initargs=(slots,)) as pool:
-                    it = pool.imap_unordered(
-                        _run_job, [tuple(j) + (None,) for j in jobs])
-                    _collect(it, results, n_jobs, verbose, t0)
+            with ctx.Pool(n_workers, maxtasksperchild=1) as pool:
+                it = pool.imap_unordered(_run_job, jobs)
+                _collect(it, results, n_jobs, verbose, t0)
         else:
-            slots = queue.Queue()
-            for k in range(n_workers):
-                slots.put(k)
             with ThreadPoolExecutor(n_workers) as ex:
-                it = ex.map(_run_job, [tuple(j) + (slots,) for j in jobs])
+                it = ex.map(_run_job, jobs)
                 _collect(it, results, n_jobs, verbose, t0)
     finally:
         if tmp_cache:

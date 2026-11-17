@@ -148,10 +148,15 @@ Speed
    * all the azimuths are recombined from one reading of the Fourier series
      (``SOS_TRPHI_MULTI``, see :doc:`algorithm`);
    * the f2py backend avoids the ASCII result files;
-   * the runs are parallel. Each worker has its own cache sub-directory for
-     the Mie and surface matrix files (``-AER.DirMie``, ``-SURF.Dir``): the
-     files are computed once per worker and never written by two runs at the
-     same time. With the f2py backend each run is made in a new process.
+   * the runs are parallel and share one cache of Mie and surface matrix
+     files (``cache_dir/MIE``, ``cache_dir/SURF``): the code builds each file
+     in the private ``TMP`` directory of the run and moves it to the cache
+     (atomic rename) only if it does not exist yet, so each file is stored
+     once and never read half-written. With the f2py backend each run is
+     made in a new process.
+
+   Put ``cache_dir`` on a local disk, not in a synchronised folder
+   (Dropbox...): it can reach several GB and changes at each LUT.
 
 Failed runs
    A failed run gives a warning and NaN values in the LUT; the global

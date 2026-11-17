@@ -131,6 +131,14 @@ def run(params, backend="auto", root=None, workdir=None, keep=False,
         par["dir_mie"] = os.path.join(workdir, "MIE")
     if not par["dir_surf"]:
         par["dir_surf"] = os.path.join(workdir, "SURF")
+    # The surface matrix files (GLITTER-<ind>-<wind>-MU<n>...) are computed
+    # on the Gauss angles + the solar zenith angle, but their name does not
+    # depend on the latter: a cached file computed for another sza would be
+    # reused. One sub-directory of the surface cache per sza.
+    if par["tetas"] not in (None, P.NOT_DBLE):
+        par["dir_surf"] = os.path.join(par["dir_surf"],
+                                       "THETAS_%08.4f" % par["tetas"])
+    os.makedirs(par["dir_surf"], exist_ok=True)
 
     try:
         if backend == "f2py" and isolate:
