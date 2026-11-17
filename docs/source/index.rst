@@ -28,6 +28,8 @@ command line or from Python.
    :caption: Tutorials
 
    tutorials/water_vapour_900_1000nm
+   tutorials/gaseous_coupling
+   tutorials/opac_aerosol_luts
 
 .. toctree::
    :maxdepth: 2
