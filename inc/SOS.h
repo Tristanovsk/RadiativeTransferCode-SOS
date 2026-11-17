@@ -98,7 +98,7 @@ C----------------------------------------------------------------
 C Maximum size of the arrays of external phase functions
 C --> constant specific to the program SOS_AEROSOLS
 C----------------------------------------------------------------
-#define CTE_MAXNB_ANG_EXT 200
+#define CTE_MAXNB_ANG_EXT 3600
 
 
 C Default value for the maximum radius of aerosols particles

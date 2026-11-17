@@ -41,8 +41,9 @@ Aerosols
      - 10000
      - size of the Mie arrays (> 2 × max size parameter + 20)
    * - ``CTE_MAXNB_ANG_EXT``
-     - 200
-     - max number of angles of an external phase matrix
+     - 3600
+     - max number of angles of an external phase matrix (376 for the
+       MOPSMAP/OPAC files, see :doc:`tutorials/opac_aerosol_luts`)
    * - ``CTE_DEFAULT_AER_JUNGE_RMAX``
      - 50
      - default maximum radius of the Junge law (µm)
