@@ -389,8 +389,15 @@ C*    dimension -NBMU:NBMU
       ELSE
              ! Case where both files are finished
 	     IF (IOS16.NE.0) GOTO 9
-	  
+
       ENDIF
+
+C*    Both files are finished (end of file reached by the reads above):
+C*    no record to write. Without this test, each aggregation after the
+C*    first one appended an empty order to the result file, until the
+C*    number of orders exceeded CTE_OS_NS_MAX (ERROR_4900 in SOS_TRPHI_MULTI
+C*    when many CKD terms are combined).
+      IF ((IOS16.NE.0).AND.(IOS17.NE.0)) GOTO 9
       
 C*    Computation of the aggregation
       	
