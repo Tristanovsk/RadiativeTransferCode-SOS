@@ -19,3 +19,6 @@ docs/source/tutorials/*.nc
 
 # NetCDF copies of the CKD coefficients (sosabs.ckd.to_netcdf)
 fic/COEFF_CKD/*.nc
+
+# LUTs of the gaseous coupling tutorial (symlink to the data directory, see docs/source/tutorials/gaseous_coupling.ipynb)
+sos_abs_coupling
