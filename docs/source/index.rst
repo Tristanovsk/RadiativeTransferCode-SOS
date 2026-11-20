@@ -29,6 +29,7 @@ command line or from Python.
 
    tutorials/water_vapour_900_1000nm
    tutorials/gaseous_coupling
+   tutorials/gaseous_coupling_full_range
    tutorials/opac_aerosol_luts
 
 .. toctree::
