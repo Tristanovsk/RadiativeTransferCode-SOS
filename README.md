@@ -23,8 +23,21 @@ By default, SOS-ABS provides the upward radiance field at TOA and the downward r
 
 - [User Manual](https://github.com/CNES/RadiativeTransferCode-SOS/blob/master/doc/SOS-ABS-User_Manual_V1.0.pdf)
 - [Example of SOS-ABS simulation from command lines](https://github.com/CNES/RadiativeTransferCode-SOS/blob/master/exe/runSOS-ABS_demo.ksh)
-- Python package `sosabs` (`python/`): runs as `xarray` datasets and fast generation of NetCDF look-up tables (`sosabs.build_lut`)
-- Tutorial notebook: [water vapour impact on above-water radiometry, 900–1000 nm](docs/source/tutorials/water_vapour_900_1000nm.ipynb)
+- Sphinx documentation ([`docs/source`](docs/source), built by Read the Docs from [`.readthedocs.yaml`](.readthedocs.yaml)): [installation](docs/source/installation.rst), [running](docs/source/running.rst), [Python binding](docs/source/python_binding.rst), [look-up tables](docs/source/lut.rst), [algorithm](docs/source/algorithm.rst), [parameters](docs/source/parameters.rst), [input](docs/source/input_files.rst) and [output files](docs/source/output_files.rst), [CKD coefficients](docs/source/ckd.rst), [constants](docs/source/constants.rst)
+- Python package [`sosabs`](python/README.md) (`python/`): runs as `xarray` datasets (`sosabs.run`), parallel generation of NetCDF look-up tables (`sosabs.build_lut`), NetCDF conversion of the CKD coefficients and band transmittances (`sosabs.ckd`)
+- Tutorials:
+  - [water vapour impact on above-water radiometry, 900–1000 nm](docs/source/tutorials/water_vapour_900_1000nm.ipynb)
+  - [coupling of the gaseous absorption with the scattering](docs/source/tutorials/gaseous_coupling.ipynb), and its [results over 364–2500 nm](docs/source/tutorials/gaseous_coupling_full_range.md) (effective path lengths, photon path-length model, saturated H2O cores, O2-A line-resolved reference)
+  - [look-up tables with the OPAC aerosols](docs/source/tutorials/opac_aerosol_luts.ipynb) (external phase matrices from MOPSMAP)
+
+## Development branch
+
+This fork carries the development work on `develop`, on top of the CNES `master`:
+- the `sosabs` Python package and a fixed f2py binding build;
+- option `-SOS.DirectSurf` (`0`: upward field without the direct reflection of the solar beam by the surface, comparable with the diffuse field of OSOAA);
+- external phase matrices with up to 3600 angles (`CTE_MAXNB_ANG_EXT`);
+- fix of `SOS_AGGREGATE` (empty scattering orders appended at each aggregation, `ERROR_4900` with many CKD terms);
+- comments of the Fortran sources in English, Sphinx documentation and tutorials.
 
 
 ## FAQ
