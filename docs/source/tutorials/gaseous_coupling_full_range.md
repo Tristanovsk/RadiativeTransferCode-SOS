@@ -21,8 +21,9 @@ versus air mass.
 | v1 | 5 windows of 684-990 nm | H$_2$O 2 g cm$^{-2}$, SZA 30° and 60°, AOT(550) 0.05 and 0.2 | tutorial {doc}`gaseous_coupling` |
 | v2 | 684-990 nm | H$_2$O 0.5-4 g cm$^{-2}$, SZA 20-70°, AOT(550) 0.05-0.4 | done |
 | v3 | 364-2500 nm outside 684-990 nm, absorbing CKD intervals ($0.02 < T_g < 0.99$ for $m = 2$) | as v2 | done |
-| v4 | wavelengths of v2 + v3 | OPAC aerosols (MOPSMAP phase matrices) and one condition changed at a time: aerosol model and scale height, gas profile, pressure, polarisation, wind, direct glint | nominal set done, variants to run |
-| v5 | saturated cores of the H$_2$O 1380 and 1880 nm bands, skipped by v3 ($T_g < 0.02$) | as v3 | running |
+| v4 | wavelengths of v2 + v3 | OPAC aerosols (MOPSMAP phase matrices) and one condition changed at a time: aerosol model and scale height, gas profile, pressure, polarisation, wind, direct glint | nominal set done; O$_2$-A variants done (755-774 nm, see below), other variants to run |
+| v5 | saturated cores of the H$_2$O 1380 and 1880 nm bands, skipped by v3 ($T_g < 0.02$): 88 CKD intervals of 1344-1471 and 1801-1964 nm, one out of two | as v3 | done |
+| O$_2$-A line-resolved | 259 wavelengths of 755-774 nm, monochromatic (one wavenumber per 1 cm$^{-1}$ interval, 4 sample sets) | v4 nominal settings, SZA 20/45/70°, AOT(550) 0.05/0.2 | done |
 
 Atmosphere of v1-v3: WMO maritime aerosols (scale height 2 km), US62 profiles, 1013 hPa, scalar radiative
 transfer. Together, v2 and v3 give 678 absorbing channels in 19 windows.
@@ -38,6 +39,19 @@ transfer. Together, v2 and v3 give 678 absorbing channels in 19 windows.
   the OPAC extinction.
 - The Mie and surface-matrix cache is shared by all the workers; the surface matrices are cached per solar
   zenith angle (LUTs made with older `sosabs` versions, which reused them across angles, must be rebuilt).
+- The v4 variants can be restricted to one absorption band with the options `--wl-range=LO,HI` and
+  `--variant-subsample=1` of `make_luts.py` (e.g. the O$_2$-A variants:
+  `--variants=ha05,ha1,ha4,aer_ARCT_rh70,polar --wl-range=755,774 --variant-subsample=1`).
+- **Line-resolved runs.** SOS-ABS has no line-by-line mode, but a monochromatic run can be made through its CKD
+  files: in a *shadow root* of SOS-ABS (symbolic links to the installation, with `fic/COEFF_CKD/1cmm1`
+  replaced, passed as `root` / `$SOS_ABS_ROOT`), the file of each 1 cm$^{-1}$ interval has one term
+  ($a = 1$) whose $k(P, T)$ is the line cross section at one wavenumber of the interval, and the other gases
+  are set to no absorption. A run at the wavelength of the sample is then monochromatic, with the exact
+  correlation of $k$ between the levels. A second shadow root with the original coefficients of the absorber
+  alone gives the CKD result on the same intervals (script `o2a_lbl_reference.py` of RadCalNet-OC, HITRAN
+  2012 O$_2$ Voigt cross sections, wings cut at 50 half-widths).
+- The vertical distribution of the water vapour for a given column is set with `-AP.AbsProfile.Type` (1-6,
+  see {doc}`../parameters`) and the column with `-AP.H2O`: the profile shape is kept and rescaled.
 
 ## Gaseous absorption over 364-2500 nm
 
@@ -139,6 +153,35 @@ windows, 70 % larger in O$_2$-B (a line-by-line O$_2$ agreed within 2 % in the 6
 **one third smaller in the H$_2$O 1380 nm window** (cirrus bands). These differences exceed the coupling
 residual in several windows.
 
+## O$_2$-A: line-resolved reference and sensitivity
+
+The O$_2$-A coupling was checked because an EnMAP closure over dark water (hyperspectral GRS) found the
+763.7 nm band shallower than predicted by the line-by-line O$_2$ with the path-length coupling. The coupling is
+measured by $f_{path} = T_{atm} / T_{dir}$, the path transmittance of the diffuse path reflectance over the
+two-way direct transmittance, in Gaussian bands of 763.7 nm / 8.8 nm (EnMAP) and 764.9 nm / 10 nm (PRISMA).
+
+**CKD against line-resolved SOS-ABS.** The `ppld` table, fitted on the CKD runs, under-predicts the
+line-resolved $f_{path}$ by 0.038 (median, EnMAP band) and the CKD $f_{path}$ by 0.030. The CKD of SOS-ABS
+therefore holds for the scattered light in the O$_2$ lines; the real coupling is slightly stronger than the table,
+which is the opposite sign to the EnMAP gap.
+
+**v4 variants** against the nominal set (EnMAP band, AOT(550) 0.05 / 0.2), $f_{path}$ = 1.21 / 1.14 in the
+nominal set:
+
+| variant | change | $\Delta f_{path}$ |
+|---|---|---|
+| ha05 | aerosol scale height 0.5 km | -0.009 / -0.019 |
+| ha1 | aerosol scale height 1 km | -0.005 / -0.012 |
+| ha4 | aerosol scale height 4 km | +0.010 / +0.025 |
+| aer_ARCT_rh70 | OPAC arctic aerosols instead of continental average | +0.002 / +0.003 |
+| polar | vector radiative transfer | -0.004 / -0.007 |
+
+The aerosol height, the aerosol model and the polarisation change $f_{path}$ by at most 0.025, far from the drop
+of 0.1-0.2 the EnMAP closure would need. The absorption in the radiative transfer is not the cause of that gap
+(a band deficit of the sensor of about 9 % was found over bright land, where the coupling hardly matters:
+$f$ = 1.004-1.010 for an albedo of 0.2-0.3 against 1.13-1.21 over dark water). Scripts `o2a_lbl_reference.py`
+and `o2a_variants_fpath.py` of RadCalNet-OC.
+
 ## Checks
 
 **OPAC aerosols, SOS-ABS against OSOAA** (v4 atmosphere). SOS-ABS with a converted MOPSMAP file
@@ -155,6 +198,30 @@ fitted on the band wings, recovers 40 % of the signal in the saturated core. The
 (2190 nm: +0.015 × 10$^{-3}$). The set v5 simulates these saturated cores (88 CKD intervals of 1344-1471 and
 1801-1964 nm, 16 in MSI B10).
 
+**Saturated H$_2$O cores (v5).** The H$_2$O 1380 and 1880 nm windows were refitted on v3 + v5 (154 + 88
+channels; script `fullrange_v5.py`). The bias of $T_{atm}$ in the cores goes from -0.034 to -0.011 (1380 nm) and
+from -0.025 to -0.005 (1880 nm), with the wings unchanged. The MSI B10 path reflectance of dark water reaches
+0.92 of SOS-ABS at AOT(550) 0.05 and 0.5 g cm$^{-2}$ (0.85 with the v3 fit, 0.15 decoupled).
+
+| AOT(550) | H$_2$O (g cm$^{-2}$) | B10, SOS-ABS (× 10$^{-3}$) | B10, refitted model |
+|---|---|---|---|
+| 0.05 | 0.5 | 1.16 | 0.92 |
+| 0.05 | 2.0 | 0.14 | 0.12 |
+| 0.05 | 4.0 | 0.08 | 0.07 |
+| 0.15 | 2.0 | 0.24 | 0.28 |
+| 0.40 | 2.0 | 0.49 | 0.47 |
+
+End to end on the same Sentinel-2 matchups, the refitted table gives 0.26 × 10$^{-3}$ in B10 (0.20 with the v3
+fit; correlation 0.74), the other bands being unchanged. At the water vapour of the matchups (median
+2.4 g cm$^{-2}$, AOT about 0.1) this is already at or slightly above SOS-ABS itself (0.15-0.25 × 10$^{-3}$),
+so the coupling model is not what limits B10. The observed floor of 0.50 × 10$^{-3}$ is 2-3 times what SOS-ABS
+gives with the mid-latitude summer profile, and it hardly depends on the water vapour (0.70 × 10$^{-3}$ below
+1 g cm$^{-2}$, 0.50 above 2.5), whereas SOS-ABS falls by a factor of 8 from 0.5 to 2 g cm$^{-2}$. In the
+saturated core the signal is the scattering above the water vapour, so it depends on the vertical distribution of
+the water vapour for the same column. SOS-ABS runs with the six standard profiles (`-AP.AbsProfile.Type` 1-6;
+water vapour 1-3 g cm$^{-2}$, AOT(550) 0.05 and 0.15, 1320-1430 nm; script `b10_profiles.py`) are in progress to
+test whether a drier upper troposphere reaches the observed floor.
+
 ## Recommendations and limits
 
 - One photon path-length model per window beyond 990 nm (H$_2$O 1000, 1130, 1380, 1880, 2150, 2450 nm;
@@ -165,5 +232,9 @@ fitted on the band wings, recovers 40 % of the signal in the saturated core. The
   too, or drop these windows.
 - Limits: maritime aerosols, US62 profiles, 1013 hPa, scalar radiative transfer, Cox-Munk 5 m s$^{-1}$,
   H$_2$O 0.5-4 g cm$^{-2}$, solar angles 20-70°, AOT(550) 0.05-0.4. The 95th percentile of the band residual
-  remains 18-20 % of the absorption in the saturated H$_2$O bands (940, 1380 nm). The variants of v4 (other
-  aerosols, profiles, pressure, polarisation, wind, glint) will test the sensitivity to these assumptions.
+  remains 18-20 % of the absorption in the saturated H$_2$O bands (940, 1380 nm). In the O$_2$-A band, the
+  aerosol height and model and the polarisation change the coupling by at most 0.025 in $f_{path}$; the other
+  variants of v4 (profiles, pressure, wind, glint) and the other bands remain to be tested.
+- For the 1380 and 1880 nm windows, use the fit on v3 + v5, which includes the saturated cores. In the cirrus
+  bands the remaining difference to the observations does not come from the coupling model (the water vapour
+  profile is being tested).
